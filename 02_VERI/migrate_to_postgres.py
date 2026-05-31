@@ -31,7 +31,7 @@ from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 SQLITE_PATH = THIS_DIR / "bahis_agent.db"
 
-BATCH = 1000
+BATCH = 100  # küçük batch = public proxy'de kopma riski düşük + düşük bellek
 
 
 # ============================================================
@@ -156,10 +156,112 @@ def build_create(table: str, cols: list[dict], autoinc: bool) -> str:
 # TAŞIMA
 # ============================================================
 
-def migrate(only: list[str] | None = None):
+def _connect_pg(url, tries: int = 6):
+    """Keepalive'lı PostgreSQL bağlantısı, DNS/geçici hatalara karşı retry'lı."""
     import psycopg2
-    import psycopg2.extras
+    import time
+    last = None
+    for i in range(tries):
+        try:
+            conn = psycopg2.connect(
+                url,
+                connect_timeout=30,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=5,
+            )
+            conn.autocommit = False
+            return conn
+        except Exception as e:
+            last = e
+            time.sleep(min(2 * (i + 1), 8))
+    raise last
 
+
+def _pg_escape(v) -> str:
+    """COPY TEXT formatı için kaçış (NULL=\\N, tab/newline/backslash escape)."""
+    if v is None:
+        return r"\N"
+    s = v if isinstance(v, str) else str(v)
+    return (s.replace("\\", "\\\\").replace("\t", "\\t")
+             .replace("\n", "\\n").replace("\r", "\\r"))
+
+
+def _copy_table(state, sconn, table, url) -> int:
+    """
+    Tek tabloyu COPY ile taşı (akış tabanlı, düşük bellek — zayıf PG'de dayanıklı).
+    Bağlantı koparsa yeniden bağlanıp ilgili adımı tekrarlar. state['conn'] güncellenir.
+    """
+    import psycopg2
+    cols = columns_info(sconn, table)
+    autoinc = table_is_autoinc(sconn, table)
+    colnames = [c["name"] for c in cols]
+
+    # 1) DROP + CREATE (retry'lı)
+    for _ in range(6):
+        try:
+            cur = state["conn"].cursor()
+            cur.execute(f'DROP TABLE IF EXISTS {_q(table)} CASCADE;')
+            cur.execute(build_create(table, cols, autoinc))
+            state["conn"].commit()
+            break
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            try: state["conn"].close()
+            except Exception: pass
+            state["conn"] = _connect_pg(url)
+    else:
+        raise RuntimeError(f"{table}: DROP/CREATE başarısız")
+
+    # 2) COPY ile veri (retry'lı; COPY atomik → kopmada baştan)
+    src_rows = sconn.execute(f'SELECT * FROM "{table}"').fetchall()
+    n = len(src_rows)
+    if n:
+        import io
+        col_sql = ", ".join(_q(c) for c in colnames)
+        buf = io.StringIO()
+        for r in src_rows:
+            buf.write("\t".join(_pg_escape(r[c]) for c in colnames) + "\n")
+        copy_sql = f'COPY {_q(table)} ({col_sql}) FROM STDIN'
+        for attempt in range(1, 6):
+            try:
+                buf.seek(0)
+                cur = state["conn"].cursor()
+                cur.copy_expert(copy_sql, buf)
+                state["conn"].commit()
+                break
+            except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                print(f"    ⟳ {table} COPY koptu (deneme {attempt}/5), yeniden bağlanılıyor…", flush=True)
+                try: state["conn"].close()
+                except Exception: pass
+                state["conn"] = _connect_pg(url)
+        else:
+            raise RuntimeError(f"{table}: COPY 5 denemede başarısız")
+
+    # 3) İndeksler
+    cur = state["conn"].cursor()
+    for idx in index_defs(sconn, table):
+        try:
+            cur.execute(idx); state["conn"].commit()
+        except Exception as e:
+            print(f"  ! indeks atlandı ({table}): {e}", flush=True)
+            state["conn"].rollback()
+
+    # 4) AUTOINCREMENT sequence reset
+    if autoinc:
+        pk = [c["name"] for c in cols if c["pk"]]
+        if len(pk) == 1:
+            cur = state["conn"].cursor()
+            cur.execute(
+                f"SELECT setval(pg_get_serial_sequence(%s, %s), "
+                f"COALESCE((SELECT MAX({_q(pk[0])}) FROM {_q(table)}), 1))",
+                (table, pk[0]),
+            )
+            state["conn"].commit()
+    return n
+
+
+def migrate(only: list[str] | None = None):
     url = (os.environ.get("DATABASE_URL") or "").strip()
     if not (url.startswith("postgres://") or url.startswith("postgresql://")):
         sys.exit("HATA: DATABASE_URL PostgreSQL'e ayarlı değil.")
@@ -169,64 +271,28 @@ def migrate(only: list[str] | None = None):
 
     sconn = sqlite3.connect(str(SQLITE_PATH))
     sconn.row_factory = sqlite3.Row
-    pconn = psycopg2.connect(url)
-    pconn.autocommit = False
-    pcur = pconn.cursor()
+    state = {"conn": _connect_pg(url)}
 
     tables = list_tables(sconn)
     if only:
         tables = [t for t in tables if t in only]
 
-    print(f"=== SQLite → PostgreSQL TAŞIMA ===")
+    print(f"=== SQLite → PostgreSQL TAŞIMA (COPY) ===")
     print(f"Kaynak: {SQLITE_PATH.name}  |  Tablo: {len(tables)}")
     print()
 
     report = []
     for table in tables:
-        cols = columns_info(sconn, table)
-        autoinc = table_is_autoinc(sconn, table)
-        colnames = [c["name"] for c in cols]
+        try:
+            n = _copy_table(state, sconn, table, url)
+            report.append((table, n))
+            print(f"  ✓ {table:32} {n:>7} satır", flush=True)
+        except Exception as e:
+            msg = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+            print(f"  ✗ {table:32} TAŞINAMADI — {msg}", flush=True)
 
-        # 1) Tabloyu yeniden oluştur
-        pcur.execute(f'DROP TABLE IF EXISTS {_q(table)} CASCADE;')
-        pcur.execute(build_create(table, cols, autoinc))
-
-        # 2) Veriyi kopyala
-        src_rows = sconn.execute(f'SELECT * FROM "{table}"').fetchall()
-        n = len(src_rows)
-        if n:
-            col_sql = ", ".join(_q(c) for c in colnames)
-            insert_sql = f'INSERT INTO {_q(table)} ({col_sql}) VALUES %s'
-            data = [tuple(r[c] for c in colnames) for r in src_rows]
-            for i in range(0, n, BATCH):
-                psycopg2.extras.execute_values(
-                    pcur, insert_sql, data[i:i + BATCH], page_size=BATCH
-                )
-
-        # 3) İndeksler
-        for idx in index_defs(sconn, table):
-            try:
-                pcur.execute(idx)
-            except Exception as e:
-                print(f"  ! indeks atlandı ({table}): {e}")
-                pconn.rollback()
-                # devam edebilmek için tabloyu tekrar commit'le
-                pconn.commit()
-
-        # 4) AUTOINCREMENT sequence'i sıfırla
-        if autoinc:
-            pk = [c["name"] for c in cols if c["pk"]]
-            if len(pk) == 1:
-                pcur.execute(
-                    f"SELECT setval(pg_get_serial_sequence(%s, %s), "
-                    f"COALESCE((SELECT MAX({_q(pk[0])}) FROM {_q(table)}), 1))",
-                    (table, pk[0]),
-                )
-
-        pconn.commit()
-        report.append((table, n))
-        print(f"  ✓ {table:32} {n:>7} satır")
-
+    pconn = state["conn"]
+    pcur = pconn.cursor()
     # ── DOĞRULAMA ──
     print("\n=== DOĞRULAMA (SQLite vs PostgreSQL satır sayısı) ===")
     all_ok = True
