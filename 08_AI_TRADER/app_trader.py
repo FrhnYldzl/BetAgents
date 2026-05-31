@@ -594,9 +594,11 @@ def render_sidebar() -> str:
 
         st.markdown('<div style="border-top:1px solid #1e293b;margin:16px 0 10px 0;"></div>',
                     unsafe_allow_html=True)
+        import db as _dbcore_sb
+        _sb_db_label = "PostgreSQL" if _dbcore_sb.is_postgres() else DB_PATH.stem
         st.markdown(
             f'<div style="color:#64748b;font-size:10px;font-family:Consolas,monospace;'
-            f'padding:0 14px;">DB: {DB_PATH.stem}</div>',
+            f'padding:0 14px;">DB: {_sb_db_label}</div>',
             unsafe_allow_html=True,
         )
 
@@ -1995,11 +1997,14 @@ def page_settings(portfolio: dict) -> None:
     </div>
     """, unsafe_allow_html=True)
 
+    import db as _dbcore
+    _db_backend = _dbcore.backend()
+    _db_label = "PostgreSQL (Railway)" if _db_backend == "postgres" else f"SQLite ({DB_PATH})"
     st.markdown(f"""
     | Alan | Deger |
     |---|---|
     | Portfolio ID | `{PORTFOLIO_ID}` |
-    | DB Path | `{DB_PATH}` |
+    | Veritabanı | `{_db_label}` |
     | Initial Bankroll | `{INITIAL_BANKROLL:,.0f} TL` |
     | Strategy | `{portfolio.get('strategy_version', 'v1')}` |
     | Status | `{portfolio.get('status', '—')}` |

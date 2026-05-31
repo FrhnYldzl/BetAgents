@@ -3,8 +3,13 @@ MERKEZÎ VERİTABANI KATMANI — SQLite (yerel) ↔ PostgreSQL (Railway)
 ==================================================================
 Tek giriş noktası. `DATABASE_URL` ortam değişkenine göre otomatik seçer:
 
-    DATABASE_URL boş/yok   → yerel SQLite (02_VERI/bahis_agent.db)
+    DATABASE_URL boş/yok   → bireysel PG* değişkenlerine bak, yoksa SQLite
     DATABASE_URL=postgres… → PostgreSQL (psycopg2)
+
+Öncelik sırası:
+  1. DATABASE_URL ortam değişkeni (Railway tarafından otomatik set edilir)
+  2. PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE bireysel değişkenleri
+  3. Yerel SQLite (02_VERI/bahis_agent.db) — geliştirme ortamı
 
 Amaç: canlı-yol kodu (paper_engine, auto_play/settle, app_*) HİÇ değişmeden
 çalışsın. Wrapper, sqlite3.Connection davranışını taklit eder:
@@ -37,12 +42,43 @@ DEFAULT_SQLITE_PATH = THIS_DIR / "bahis_agent.db"
 # ============================================================
 
 def database_url() -> str:
-    return (os.environ.get("DATABASE_URL") or "").strip()
+    """
+    PostgreSQL bağlantı URL'sini döndür.
+
+    Öncelik:
+      1. DATABASE_URL ortam değişkeni (Railway tarafından otomatik set edilir)
+      2. PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE bireysel değişkenleri
+      3. Boş string → SQLite moduna düşer
+
+    Railway'in postgres:// şeması psycopg2 için postgresql:// olarak düzeltilir.
+    """
+    url = (os.environ.get("DATABASE_URL") or "").strip()
+
+    # Railway bazen postgres:// prefix'i kullanır; psycopg2 postgresql:// ister.
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+
+    if url:
+        return url
+
+    # DATABASE_URL yoksa bireysel PG* değişkenlerinden URL oluştur
+    host = os.environ.get("PGHOST", "").strip()
+    if host:
+        port     = os.environ.get("PGPORT",     "5432").strip()
+        user     = os.environ.get("PGUSER",     "postgres").strip()
+        password = os.environ.get("PGPASSWORD", "").strip()
+        database = os.environ.get("PGDATABASE", "railway").strip()
+        # Şifredeki özel karakterleri URL-encode et
+        import urllib.parse
+        encoded_password = urllib.parse.quote(password, safe="")
+        return f"postgresql://{user}:{encoded_password}@{host}:{port}/{database}"
+
+    return ""
 
 
 def is_postgres() -> bool:
     u = database_url()
-    return u.startswith("postgres://") or u.startswith("postgresql://")
+    return u.startswith("postgresql://")
 
 
 def backend() -> str:
@@ -224,16 +260,35 @@ class Conn:
 def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
     """
     Ortama göre bağlantı döndür.
-      - PostgreSQL: DATABASE_URL kullanılır (psycopg2 + DictCursor).
+      - PostgreSQL: DATABASE_URL (veya PG* değişkenleri) kullanılır (psycopg2 + DictCursor).
       - SQLite:    sqlite_path (vars. 02_VERI/bahis_agent.db), Row factory.
+
+    Bağlantı hatası durumunda açıklayıcı bir RuntimeError fırlatır.
     """
     if is_postgres():
-        import psycopg2
-        import psycopg2.extras
-        raw = psycopg2.connect(
-            database_url(),
-            cursor_factory=psycopg2.extras.DictCursor,
-        )
+        try:
+            import psycopg2
+            import psycopg2.extras
+        except ImportError as exc:
+            raise RuntimeError(
+                "psycopg2 kurulu değil. 'pip install psycopg2-binary' komutunu çalıştırın."
+            ) from exc
+        url = database_url()
+        try:
+            raw = psycopg2.connect(
+                url,
+                cursor_factory=psycopg2.extras.DictCursor,
+            )
+        except psycopg2.OperationalError as exc:
+            # Bağlantı bilgilerini logla (şifreyi gizle)
+            import re as _re
+            safe_url = _re.sub(r":[^:@]+@", ":***@", url)
+            raise RuntimeError(
+                f"PostgreSQL bağlantısı kurulamadı: {exc}\n"
+                f"Bağlantı URL'si (şifre gizli): {safe_url}\n"
+                "DATABASE_URL, PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE "
+                "ortam değişkenlerini kontrol edin."
+            ) from exc
         return Conn(raw, is_pg=True)
 
     import sqlite3
