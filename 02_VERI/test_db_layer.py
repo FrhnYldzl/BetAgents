@@ -70,6 +70,16 @@ check("zaten tırnaklı çift-tırnaklanmaz",
 check("UPDATE SET closing_X tırnaklanır",
       '"closing_X"' in db._xlate_dialect("UPDATE matches_v2 SET closing_X=?"))
 
+# 2-arg MAX/MIN → GREATEST/LEAST (PG'de skaler MAX/MIN yok)
+check("MAX(a,b) → GREATEST(a,b)",
+      "GREATEST(peak_bankroll, current_bankroll)" in
+      db._xlate_dialect("SET peak_bankroll = MAX(peak_bankroll, current_bankroll)"))
+check("MIN(a,b) → LEAST(a,b)",
+      "LEAST(a, b)" in db._xlate_dialect("SELECT MIN(a, b)"))
+check("aggregate MAX(col) korunur",
+      db._xlate_dialect("SELECT MAX(quality_score) FROM m")
+      == "SELECT MAX(quality_score) FROM m")
+
 
 # ============================================================
 # 2) SQLite İŞLEVSEL (yerel DB)

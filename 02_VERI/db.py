@@ -105,6 +105,20 @@ _RE_MIXED_CASE = re.compile(
     r'(?<![\w"])(' + "|".join(_MIXED_CASE_COLS) + r')(?![\w"])'
 )
 
+# SQLite'ta MAX(a,b)/MIN(a,b) skaler (2-arg) fonksiyondur; PostgreSQL'de YOK
+# (MAX/MIN sadece aggregate). 2-arg form → GREATEST/LEAST. Tek-arg aggregate'e
+# dokunma. (İç içe parantez içermeyen argümanlar için güvenli.)
+_RE_SCALAR_MAXMIN = re.compile(r"\b(MAX|MIN)\(([^()]+)\)", re.IGNORECASE)
+
+
+def _scalar_maxmin(sql: str) -> str:
+    def _repl(m):
+        fn, args = m.group(1), m.group(2)
+        if "," in args:  # 2 argüman → skaler
+            return ("GREATEST" if fn.upper() == "MAX" else "LEAST") + "(" + args + ")"
+        return m.group(0)  # tek argüman → aggregate, olduğu gibi bırak
+    return _RE_SCALAR_MAXMIN.sub(_repl, sql)
+
 
 def _xlate_dialect(sql: str) -> str:
     """SQLite-özel SQL yapılarını PostgreSQL'e çevir (placeholder hariç)."""
@@ -120,6 +134,8 @@ def _xlate_dialect(sql: str) -> str:
         )
     # Büyük harfli kolonları tırnakla (zaten tırnaklı/word-içi olanlara dokunma)
     s = _RE_MIXED_CASE.sub(r'"\1"', s)
+    # 2-arg MAX/MIN → GREATEST/LEAST
+    s = _scalar_maxmin(s)
     return s
 
 
