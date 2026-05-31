@@ -65,13 +65,27 @@ iddaa, biten maçı **birkaç saat sonra API'den siler** (özellikle yaz ligleri
 
 ---
 
-## 4. BetRadar Ekosistemi (köprü — gelecek)
-iddaa'nın `bri` (BetRadar ID) alanı ile bağlanılabilecek kaynaklar:
+## 4. Sofascore — xG + maç istatistiği (ENTEGRE ✅)
+**Adapter:** `02_VERI/data_sources/sofascore.py` · **Analiz:** `RAPOR/v3_SOFASCORE_API_ANALIZI.md`
+**Erişim:** Cloudflare korumalı (düz HTTP 403) → **headless Playwright + sayfa-içi `fetch()`** (gerçek tarayıcı bağlamı 200). Yalnız yerel/araştırma; canlı app import etmez.
+
+| Endpoint | Veri |
+|---|---|
+| `GET /api/v1/sport/football/scheduled-events/{YYYY-MM-DD}` | Günün tüm maçları (eşleme) |
+| `GET /api/v1/event/{id}/statistics` | **xG** + şut/big-chance/possession/korner/pas (~40 metrik) |
+| `GET /api/v1/event/{id}/lineups` | 11'ler + oyuncu rating (üst liglerde) |
+| `GET /api/v1/event/{id}/votes` | Kitle 1X2 tahmini |
+| `GET /api/v1/event/{id}/incidents` · `pregame-form` · `managers` | Olaylar / form / TD |
+
+**Kapsam (ampirik):** xG üst+orta liglerin neredeyse hepsinde (Brezilya/Çin/Mısır/İrlanda/İskandinavya…). **T1 (Türkiye): 2023+ xG var (%100 eşleşme).** En dip egzotik (Belarus 2.düzey) sığ → "xG yoksa PAS".
+**Tablo:** `sofascore_stats` (match_id FK) — matches_v2 şişmez.
+
+## 4b. BetRadar Ekosistemi (köprü — gelecek)
+iddaa'nın `bri` (BetRadar ID) alanı ile bağlanılabilecek diğer kaynaklar:
 | Kaynak | Veri | Durum |
 |---|---|---|
-| SportsBetData.com | Pre-match istatistik (ücretsiz feed) | 🔜 araştırılacak |
-| Sofascore | xG, şut haritası, top hakimiyeti | 🔜 BetRadar ID ile |
-| Sportradar API | Tam kadro, sakatlık, hakem | 🔜 ücretli |
+| **Mackolik arşivi** (arsiv.mackolik.com) | TR tarihsel derinlik (kadro/gol-dk/kart/H2H) | 🔜 değerlendirilecek (#149) |
+| Sportradar API | Tam kadro, sakatlık, hakem | 🔜 ücretli (lisanslı) |
 
 ---
 
