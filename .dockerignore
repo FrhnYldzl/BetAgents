@@ -1,0 +1,28 @@
+# Build context'i hafif tut (veri artefaktları imaja girmesin)
+.git
+.gitignore
+__pycache__/
+**/__pycache__/
+*.pyc
+*.py[cod]
+.venv/
+venv/
+
+# Veritabanı / büyük data
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db.gz
+02_VERI/backups/
+02_VERI/exports/
+02_VERI/snapshots/
+**/_cache*/
+**/*cache*/
+02_VERI/scrapers/iddaa_probe_cache/
+
+# Loglar / geçici
+**/*.log
+*.tmp
+*.bak
+.env
+.env.local

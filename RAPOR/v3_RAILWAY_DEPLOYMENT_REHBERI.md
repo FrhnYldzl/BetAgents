@@ -29,9 +29,12 @@ Railway Volume'ü tek servise bağlanabildiği için SQLite paylaşılamazdı �
 
 | Dosya | Görev |
 |---|---|
-| `railway.json` | Web servisi start command + healthcheck |
-| `nixpacks.toml` + `.python-version` | Python 3.12, pip kurulum (playwright browser İNDİRİLMEZ) |
-| `Procfile` | `web` + `worker` süreç tanımları |
+| `Dockerfile` | **Build deterministik** — alt-dizindeki Streamlit'i doğru başlatır (Railpack auto-detect sorununu kökten çözer) |
+| `requirements-railway.txt` | SLIM runtime (streamlit/pandas/numpy/plotly/psycopg2/APScheduler) — hızlı build |
+| `.dockerignore` | Veri artefaktları imaja girmez |
+| `railway.json` | Builder=DOCKERFILE + start command + healthcheck |
+| `.python-version` | Python 3.12 |
+| `Procfile` | `web` + `worker` süreç tanımları (yedek/dok.) |
 | `worker.py` | APScheduler: auto_play (06:00/15:00 UTC) + auto_settle (90 dk) |
 | `02_VERI/db.py` | DATABASE_URL'e göre SQLite/PostgreSQL otomatik seçim |
 | `02_VERI/migrate_to_postgres.py` | SQLite → PostgreSQL veri taşıma (21 tablo) |

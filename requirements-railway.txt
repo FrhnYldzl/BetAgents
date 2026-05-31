@@ -1,0 +1,13 @@
+# Railway RUNTIME bağımlılıkları (web + worker) — SLIM.
+# Canlı yol (app_unified/app_pro/app_trader/paper_engine/worker/auto_*) sadece
+# bunları import eder. lightgbm/scipy/scikit-learn/playwright RUNTIME'da
+# kullanılmaz (yalnız yerel model eğitimi/backtest/scrape için → requirements.txt).
+
+streamlit==1.57.0
+pandas==2.2.3
+numpy==2.2.1
+plotly==6.7.0
+requests==2.34.2
+sqlalchemy==2.0.49
+psycopg2-binary==2.9.9
+APScheduler==3.11.2
