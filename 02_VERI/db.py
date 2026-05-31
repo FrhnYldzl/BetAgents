@@ -31,7 +31,11 @@ from __future__ import annotations
 
 import os
 import re
+import warnings
 from pathlib import Path
+
+# pandas, raw psycopg2 bağlantısında "SQLAlchemy önerilir" uyarısı verir — zararsız.
+warnings.filterwarnings("ignore", message=r".*pandas only supports SQLAlchemy.*")
 
 THIS_DIR = Path(__file__).resolve().parent
 DEFAULT_SQLITE_PATH = THIS_DIR / "bahis_agent.db"
