@@ -58,6 +58,8 @@ def main():
                m.home_score, m.away_score,
                m.closing_1, m.closing_X, m.closing_2,
                m.closing_over25, m.closing_under25,
+               m.opening_1, m.opening_X, m.opening_2,
+               m.opening_over25, m.opening_under25,
                s.home_xg, s.away_xg
         FROM sofascore_stats s JOIN matches_v2 m ON s.match_id=m.match_id
         WHERE s.home_xg IS NOT NULL AND m.home_score IS NOT NULL
@@ -94,6 +96,11 @@ def main():
                 "odds": {"1": r["closing_1"], "X": r["closing_X"], "2": r["closing_2"]},
                 "res": res,
             }
+            # Açılış oranı (CLV teşhisi için)
+            if r["opening_1"] and r["opening_X"] and r["opening_2"]:
+                oH, oD, oA = vig_strip(r["opening_1"], r["opening_X"], r["opening_2"])
+                rec["imp_open"] = {"1": oH, "X": oD, "2": oA}
+                rec["odds_open"] = {"1": r["opening_1"], "X": r["opening_X"], "2": r["opening_2"]}
             # Alt/Üst 2.5 — xG'nin en doğrudan kullanımı (toplam gol)
             if r["closing_over25"] and r["closing_under25"]:
                 p_over = float(1 - poisson.cdf(2, lh + la))
@@ -141,6 +148,26 @@ def main():
         else:
             print(f"{T:>6.2f} {n:>6}      -        -")
     print("-" * 60)
+
+    # ── CLV TEŞHİSİ (1X2): model açılışı yeniyor mu? çizgi lehimize mi kıpırdıyor? ──
+    op = [p for p in preds if "imp_open" in p]
+    print(f"\n=== CLV TEŞHİSİ — 1X2 ({len(op)} maçta açılış oranı var) ===")
+    print(f"{'Eşik':>6} {'Bahis':>6} {'ROI@açılış':>11} {'ROI@kapanış':>12} {'ort.CLV%':>9}")
+    print("-" * 52)
+    for T in [0.05, 0.08]:
+        n = 0; pnl_o = pnl_c = clv = 0.0
+        for p in op:
+            for o in "1X2":
+                if p["p"][o] - p["imp_open"][o] > T:
+                    n += 1
+                    pnl_o += (p["odds_open"][o] - 1) if p["res"] == o else -1
+                    pnl_c += (p["odds"][o] - 1) if p["res"] == o else -1
+                    clv += (p["imp"][o] - p["imp_open"][o])   # +: piyasa lehimize
+        if n:
+            print(f"{T:>6.2f} {n:>6} {100*pnl_o/n:>+10.1f}% {100*pnl_c/n:>+11.1f}% {100*clv/n:>+8.2f}%")
+    print("-" * 52)
+    print("CLV% > 0 → piyasa seçimimize doğru hareket = GERÇEK sinyal (kapanışı geçiyoruz)")
+    print("CLV% ≤ 0 → sinyal yok / piyasa aleyhimize")
 
     # ── ALT/ÜST 2.5 BACKTEST (xG → toplam gol; en doğrudan kullanım) ──
     ou = [p["ou"] for p in preds if "ou" in p]
