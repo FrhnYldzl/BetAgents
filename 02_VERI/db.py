@@ -92,6 +92,15 @@ def backend() -> str:
 _RE_INSERT_OR_IGNORE = re.compile(r"INSERT\s+OR\s+IGNORE\s+INTO", re.IGNORECASE)
 _RE_INSERT_OR_REPLACE = re.compile(r"INSERT\s+OR\s+REPLACE\s+INTO", re.IGNORECASE)
 
+# Büyük harf içeren kolon adları: PostgreSQL tırnaksız identifier'ı küçük harfe
+# çevirir → "closing_X" kolonu `closing_x` aranınca bulunamaz. SQLite harf-duyarsız
+# olduğu için kod bu kolonları tırnaksız yazıyor. PG modunda otomatik tırnaklarız.
+# (uzun adlar önce → alternation'da doğru eşleşme)
+_MIXED_CASE_COLS = ["odd_open_X", "closing_X", "opening_X", "odd_X", "fp_X"]
+_RE_MIXED_CASE = re.compile(
+    r'(?<![\w"])(' + "|".join(_MIXED_CASE_COLS) + r')(?![\w"])'
+)
+
 
 def _xlate_dialect(sql: str) -> str:
     """SQLite-özel SQL yapılarını PostgreSQL'e çevir (placeholder hariç)."""
@@ -105,6 +114,8 @@ def _xlate_dialect(sql: str) -> str:
             "INSERT OR REPLACE PostgreSQL'e otomatik çevrilemiyor "
             "(ON CONFLICT ... DO UPDATE hedef sütun gerekir)."
         )
+    # Büyük harfli kolonları tırnakla (zaten tırnaklı/word-içi olanlara dokunma)
+    s = _RE_MIXED_CASE.sub(r'"\1"', s)
     return s
 
 

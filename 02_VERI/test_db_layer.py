@@ -58,6 +58,18 @@ try:
 except NotImplementedError:
     check("INSERT OR REPLACE → NotImplementedError", True)
 
+# Büyük harfli kolon otomatik tırnaklama (PG lowercase-folding sorunu)
+check("closing_X tırnaklanır, closing_1 dokunulmaz",
+      db._xlate_dialect("SELECT closing_1, closing_X, closing_2")
+      == 'SELECT closing_1, "closing_X", closing_2')
+check("signal kolonları (odd_X/odd_open_X/fp_X) tırnaklanır",
+      db._xlate_dialect("SELECT m.closing_X, ss.odd_X, ss.odd_open_X, ss.fp_X")
+      == 'SELECT m."closing_X", ss."odd_X", ss."odd_open_X", ss."fp_X"')
+check("zaten tırnaklı çift-tırnaklanmaz",
+      db._xlate_dialect('SELECT "closing_X"').count('"') == 2)
+check("UPDATE SET closing_X tırnaklanır",
+      '"closing_X"' in db._xlate_dialect("UPDATE matches_v2 SET closing_X=?"))
+
 
 # ============================================================
 # 2) SQLite İŞLEVSEL (yerel DB)
