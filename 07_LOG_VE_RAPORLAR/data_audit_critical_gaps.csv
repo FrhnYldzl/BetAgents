@@ -1,0 +1,18 @@
+lig,sezon,issue,severity
+T1,2223,DC sinyali %50 (yetersiz),ZAYIF
+T1,2425,DC sinyali %45 (yetersiz),ZAYIF
+T1,2526,DC sinyali %20 (yetersiz),ÇÖKÜNTÜ
+T1,2526,Closing odds %44 (mevcut sezon devam ediyor),ORTA
+E0,2526,DC sinyali %28 (yetersiz),ZAYIF
+D1,2425,DC sinyali %48 (yetersiz),ZAYIF
+D1,2526,DC sinyali %24 (yetersiz),ZAYIF
+D1,2526,Closing odds %49 (mevcut sezon devam ediyor),ORTA
+SP1,2122,DC sinyali %40 (yetersiz),ZAYIF
+SP1,2223,DC sinyali %50 (yetersiz),ZAYIF
+SP1,2425,DC sinyali %40 (yetersiz),ZAYIF
+SP1,2526,DC sinyali %21 (yetersiz),ZAYIF
+SP1,2526,Closing odds %49 (mevcut sezon devam ediyor),ORTA
+I1,2526,DC sinyali %20 (yetersiz),ZAYIF
+F1,2324,DC sinyali %50 (yetersiz),ZAYIF
+F1,2425,DC sinyali %50 (yetersiz),ZAYIF
+F1,2526,DC sinyali %26 (yetersiz),ZAYIF

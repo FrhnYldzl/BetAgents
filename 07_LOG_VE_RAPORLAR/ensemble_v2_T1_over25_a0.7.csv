@@ -1,0 +1,1751 @@
+match_date,home_team,away_team,home_goals,away_goals,y,p_dc,p_lgbm,p_ensemble
+2021-08-13,Besiktas,Rizespor,3,0,1,,,
+2021-08-14,Karagumruk,Gaziantep,3,2,1,,,
+2021-08-14,Altay,Kayserispor,3,0,1,,,
+2021-08-14,Hatayspor,Kasimpasa,1,1,0,,,
+2021-08-15,Buyuksehyr,Alanyaspor,0,1,0,,,
+2021-08-15,Ad. Demirspor,Fenerbahce,0,1,0,,,
+2021-08-15,Antalyaspor,Goztep,1,1,0,,,
+2021-08-16,Sivasspor,Konyaspor,0,1,0,,,
+2021-08-16,Yeni Malatyaspor,Trabzonspor,1,5,1,,,
+2021-08-16,Giresunspor,Galatasaray,0,2,0,,,
+2021-08-20,Kayserispor,Ad. Demirspor,1,1,0,,,
+2021-08-21,Rizespor,Karagumruk,0,0,0,,,
+2021-08-21,Kasimpasa,Giresunspor,2,0,0,,,
+2021-08-21,Gaziantep,Besiktas,0,0,0,,,
+2021-08-21,Alanyaspor,Altay,1,4,1,,,
+2021-08-22,Konyaspor,Buyuksehyr,2,1,1,,,
+2021-08-22,Fenerbahce,Antalyaspor,2,0,0,,,
+2021-08-22,Goztep,Yeni Malatyaspor,0,1,0,,,
+2021-08-23,Trabzonspor,Sivasspor,2,1,1,,,
+2021-08-23,Galatasaray,Hatayspor,2,1,1,,,
+2021-08-27,Antalyaspor,Rizespor,3,2,1,,,
+2021-08-27,Ad. Demirspor,Konyaspor,1,1,0,,,
+2021-08-28,Buyuksehyr,Kayserispor,0,1,0,,,
+2021-08-28,Yeni Malatyaspor,Gaziantep,2,0,0,,,
+2021-08-28,Besiktas,Karagumruk,1,0,0,,,
+2021-08-28,Hatayspor,Alanyaspor,5,0,1,,,
+2021-08-29,Kasimpasa,Galatasaray,2,2,1,,,
+2021-08-29,Sivasspor,Goztep,2,2,1,,,
+2021-08-29,Altay,Fenerbahce,0,2,0,,,
+2021-08-29,Giresunspor,Trabzonspor,0,1,0,,,
+2021-09-11,Karagumruk,Ad. Demirspor,4,0,1,,,
+2021-09-11,Konyaspor,Altay,3,1,1,,,
+2021-09-11,Besiktas,Yeni Malatyaspor,3,0,1,,,
+2021-09-11,Kayserispor,Kasimpasa,2,0,0,,,
+2021-09-12,Fenerbahce,Sivasspor,1,1,0,,,
+2021-09-12,Rizespor,Hatayspor,0,2,0,,,
+2021-09-12,Goztep,Buyuksehyr,2,1,1,,,
+2021-09-12,Trabzonspor,Galatasaray,2,2,1,,,
+2021-09-13,Alanyaspor,Giresunspor,1,0,0,,,
+2021-09-13,Gaziantep,Antalyaspor,2,0,0,,,
+2021-09-17,Altay,Goztep,2,1,1,,,
+2021-09-17,Yeni Malatyaspor,Karagumruk,3,4,1,,,
+2021-09-18,Sivasspor,Gaziantep,1,1,0,,,
+2021-09-18,Kasimpasa,Trabzonspor,0,1,0,,,
+2021-09-18,Ad. Demirspor,Rizespor,3,1,1,,,
+2021-09-18,Antalyaspor,Besiktas,2,3,1,,,
+2021-09-19,Buyuksehyr,Fenerbahce,2,0,0,,,
+2021-09-19,Hatayspor,Kayserispor,2,1,1,,,
+2021-09-19,Giresunspor,Konyaspor,0,0,0,,,
+2021-09-19,Galatasaray,Alanyaspor,0,1,0,,,
+2021-09-21,Karagumruk,Antalyaspor,0,0,0,,,
+2021-09-21,Rizespor,Altay,1,2,1,,,
+2021-09-21,Besiktas,Ad. Demirspor,3,3,1,,,
+2021-09-21,Yeni Malatyaspor,Sivasspor,0,1,0,,,
+2021-09-22,Gaziantep,Buyuksehyr,1,0,0,,,
+2021-09-22,Goztep,Hatayspor,0,2,0,,,
+2021-09-22,Kayserispor,Galatasaray,3,0,1,,,
+2021-09-23,Konyaspor,Trabzonspor,2,2,1,,,
+2021-09-23,Alanyaspor,Kasimpasa,2,0,0,,,
+2021-09-23,Fenerbahce,Giresunspor,2,1,1,,,
+2021-09-24,Altay,Besiktas,2,1,1,,,
+2021-09-25,Sivasspor,Karagumruk,4,0,1,,,
+2021-09-25,Antalyaspor,Yeni Malatyaspor,1,0,0,,,
+2021-09-25,Ad. Demirspor,Gaziantep,4,0,1,,,
+2021-09-26,Buyuksehyr,Rizespor,3,0,1,,,
+2021-09-26,Giresunspor,Kayserispor,1,1,0,,,
+2021-09-26,Galatasaray,Goztep,2,1,1,,,
+2021-09-26,Hatayspor,Fenerbahce,1,2,1,,,
+2021-09-27,Kasimpasa,Konyaspor,2,2,1,,,
+2021-09-27,Trabzonspor,Alanyaspor,1,1,0,,,
+2021-10-01,Antalyaspor,Ad. Demirspor,1,2,1,,,
+2021-10-01,Karagumruk,Buyuksehyr,3,1,1,,,
+2021-10-02,Kayserispor,Trabzonspor,1,2,1,,,
+2021-10-02,Besiktas,Sivasspor,2,1,1,,,
+2021-10-02,Konyaspor,Alanyaspor,1,1,0,,,
+2021-10-02,Goztep,Giresunspor,0,1,0,,,
+2021-10-03,Yeni Malatyaspor,Hatayspor,0,2,0,,,
+2021-10-03,Fenerbahce,Kasimpasa,2,1,1,,,
+2021-10-03,Gaziantep,Altay,4,1,1,,,
+2021-10-03,Rizespor,Galatasaray,2,3,1,,,
+2021-10-15,Buyuksehyr,Besiktas,3,2,1,,,
+2021-10-16,Giresunspor,Rizespor,2,0,0,,,
+2021-10-16,Sivasspor,Antalyaspor,2,2,1,,,
+2021-10-16,Ad. Demirspor,Yeni Malatyaspor,0,2,0,,,
+2021-10-17,Kasimpasa,Goztep,1,2,1,,,
+2021-10-17,Altay,Karagumruk,0,1,0,,,
+2021-10-17,Galatasaray,Konyaspor,1,0,0,,,
+2021-10-17,Trabzonspor,Fenerbahce,3,1,1,,,
+2021-10-18,Alanyaspor,Kayserispor,6,3,1,,,
+2021-10-18,Hatayspor,Gaziantep,2,1,1,,,
+2021-10-22,Yeni Malatyaspor,Altay,2,1,1,,,
+2021-10-23,Rizespor,Kasimpasa,2,1,1,,,
+2021-10-23,Gaziantep,Giresunspor,1,1,0,,,
+2021-10-23,Konyaspor,Kayserispor,2,0,0,,,
+2021-10-23,Goztep,Trabzonspor,0,1,0,,,
+2021-10-24,Karagumruk,Hatayspor,1,1,0,,,
+2021-10-24,Antalyaspor,Buyuksehyr,1,2,1,,,
+2021-10-24,Sivasspor,Ad. Demirspor,1,1,0,,,
+2021-10-24,Fenerbahce,Alanyaspor,1,2,1,,,
+2021-10-25,Besiktas,Galatasaray,2,1,1,,,
+2021-10-29,Trabzonspor,Rizespor,2,1,1,,,
+2021-10-30,Kasimpasa,Yeni Malatyaspor,2,0,0,,,
+2021-10-30,Altay,Sivasspor,1,1,0,,,
+2021-10-30,Hatayspor,Besiktas,1,0,0,,,
+2021-10-30,Konyaspor,Fenerbahce,2,1,1,,,
+2021-10-31,Kayserispor,Karagumruk,2,1,1,,,
+2021-10-31,Alanyaspor,Goztep,2,2,1,,,
+2021-10-31,Galatasaray,Gaziantep,2,0,0,,,
+2021-11-01,Buyuksehyr,Ad. Demirspor,2,1,1,,,
+2021-11-01,Giresunspor,Antalyaspor,1,2,1,,,
+2021-11-05,Gaziantep,Kasimpasa,2,0,0,,,
+2021-11-05,Rizespor,Alanyaspor,2,0,0,,,
+2021-11-06,Sivasspor,Giresunspor,0,0,0,,,
+2021-11-06,Antalyaspor,Altay,1,0,0,,,
+2021-11-06,Yeni Malatyaspor,Buyuksehyr,1,3,1,,,
+2021-11-06,Besiktas,Trabzonspor,1,2,1,,,
+2021-11-07,Goztep,Konyaspor,0,2,0,,,
+2021-11-07,Ad. Demirspor,Hatayspor,1,0,0,,,
+2021-11-07,Karagumruk,Galatasaray,1,1,0,,,
+2021-11-07,Fenerbahce,Kayserispor,2,2,1,,,
+2021-11-20,Buyuksehyr,Sivasspor,2,1,1,,,
+2021-11-20,Hatayspor,Antalyaspor,3,1,1,,,
+2021-11-20,Alanyaspor,Besiktas,2,0,0,,,
+2021-11-20,Giresunspor,Yeni Malatyaspor,1,0,0,,,
+2021-11-21,Kasimpasa,Karagumruk,1,3,1,,,
+2021-11-21,Altay,Ad. Demirspor,1,3,1,,,
+2021-11-21,Konyaspor,Rizespor,3,0,1,,,
+2021-11-21,Galatasaray,Fenerbahce,1,2,1,,,
+2021-11-22,Kayserispor,Goztep,1,1,0,,,
+2021-11-22,Trabzonspor,Gaziantep,3,0,1,,,
+2021-11-26,Ad. Demirspor,Kasimpasa,0,0,0,,,
+2021-11-26,Buyuksehyr,Altay,0,0,0,,,
+2021-11-27,Antalyaspor,Alanyaspor,3,0,1,,,
+2021-11-27,Rizespor,Kayserispor,1,0,0,,,
+2021-11-27,Besiktas,Giresunspor,0,4,1,,,
+2021-11-28,Karagumruk,Trabzonspor,0,2,0,,,
+2021-11-28,Gaziantep,Konyaspor,3,2,1,,,
+2021-11-28,Yeni Malatyaspor,Galatasaray,0,0,0,,,
+2021-11-28,Sivasspor,Hatayspor,4,0,1,,,
+2021-11-29,Goztep,Fenerbahce,1,1,0,,,
+2021-12-03,Kasimpasa,Besiktas,1,1,0,,,
+2021-12-04,Alanyaspor,Sivasspor,0,1,0,,,
+2021-12-04,Trabzonspor,Ad. Demirspor,2,0,0,,,
+2021-12-04,Galatasaray,Altay,2,2,1,,,
+2021-12-05,Kayserispor,Antalyaspor,2,0,0,,,
+2021-12-05,Giresunspor,Karagumruk,3,1,1,,,
+2021-12-05,Hatayspor,Buyuksehyr,0,3,1,,,
+2021-12-05,Fenerbahce,Rizespor,4,0,1,,,
+2021-12-06,Goztep,Gaziantep,2,1,1,,,
+2021-12-06,Konyaspor,Yeni Malatyaspor,0,0,0,,,
+2021-12-10,Altay,Hatayspor,1,2,1,,,
+2021-12-11,Karagumruk,Konyaspor,1,4,1,,,
+2021-12-11,Buyuksehyr,Kasimpasa,2,1,1,,,
+2021-12-11,Rizespor,Goztep,3,1,1,,,
+2021-12-11,Antalyaspor,Trabzonspor,2,1,1,,,
+2021-12-12,Ad. Demirspor,Giresunspor,1,0,0,,,
+2021-12-12,Yeni Malatyaspor,Alanyaspor,2,6,1,,,
+2021-12-12,Besiktas,Kayserispor,4,2,1,,,
+2021-12-13,Sivasspor,Galatasaray,1,0,0,,,
+2021-12-13,Gaziantep,Fenerbahce,3,2,1,,,
+2021-12-17,Giresunspor,Altay,3,1,1,,,
+2021-12-18,Kasimpasa,Sivasspor,1,3,1,,,
+2021-12-18,Konyaspor,Antalyaspor,1,0,0,,,
+2021-12-18,Trabzonspor,Hatayspor,2,0,0,,,
+2021-12-18,Alanyaspor,Ad. Demirspor,1,3,1,,,
+2021-12-18,Galatasaray,Buyuksehyr,1,1,0,,,
+2021-12-19,Rizespor,Yeni Malatyaspor,1,0,0,,,
+2021-12-19,Goztep,Karagumruk,0,1,0,,,
+2021-12-19,Kayserispor,Gaziantep,0,0,0,,,
+2021-12-19,Fenerbahce,Besiktas,2,2,1,,,
+2021-12-21,Antalyaspor,Kasimpasa,1,1,0,,,
+2021-12-21,Buyuksehyr,Giresunspor,3,1,1,,,
+2021-12-21,Ad. Demirspor,Galatasaray,2,0,0,,,
+2021-12-21,Altay,Trabzonspor,1,2,1,,,
+2021-12-22,Sivasspor,Rizespor,1,1,0,,,
+2021-12-22,Hatayspor,Konyaspor,1,3,1,,,
+2021-12-22,Karagumruk,Fenerbahce,1,1,0,,,
+2021-12-22,Gaziantep,Alanyaspor,2,1,1,,,
+2021-12-23,Yeni Malatyaspor,Kayserispor,2,2,1,,,
+2021-12-23,Besiktas,Goztep,2,1,1,,,
+2021-12-25,Kasimpasa,Altay,2,0,0,,,
+2021-12-25,Galatasaray,Antalyaspor,2,0,0,,,
+2021-12-25,Giresunspor,Hatayspor,0,1,0,,,
+2021-12-25,Trabzonspor,Buyuksehyr,0,0,0,,,
+2021-12-26,Rizespor,Gaziantep,0,1,0,,,
+2021-12-26,Alanyaspor,Karagumruk,1,1,0,,,
+2021-12-26,Goztep,Ad. Demirspor,1,1,0,,,
+2021-12-26,Fenerbahce,Yeni Malatyaspor,2,0,0,,,
+2021-12-27,Kayserispor,Sivasspor,3,0,1,,,
+2021-12-27,Konyaspor,Besiktas,1,0,0,,,
+2022-01-07,Trabzonspor,Yeni Malatyaspor,1,0,0,,,
+2022-01-08,Gaziantep,Karagumruk,3,1,1,,,
+2022-01-08,Alanyaspor,Buyuksehyr,1,1,0,,,
+2022-01-08,Kasimpasa,Hatayspor,3,1,1,,,
+2022-01-08,Galatasaray,Giresunspor,0,1,0,,,
+2022-01-09,Konyaspor,Sivasspor,0,1,0,,,
+2022-01-09,Goztep,Antalyaspor,4,0,1,,,
+2022-01-09,Kayserispor,Altay,1,0,0,,,
+2022-01-09,Rizespor,Besiktas,2,2,1,,,
+2022-01-10,Fenerbahce,Ad. Demirspor,1,2,1,,,
+2022-01-14,Besiktas,Gaziantep,1,0,0,,,
+2022-01-14,Yeni Malatyaspor,Goztep,1,2,1,,,
+2022-01-15,Karagumruk,Rizespor,2,0,0,,,
+2022-01-15,Ad. Demirspor,Kayserispor,1,1,0,,,
+2022-01-15,Antalyaspor,Fenerbahce,1,1,0,,,
+2022-01-15,Sivasspor,Trabzonspor,1,1,0,,,
+2022-01-16,Altay,Alanyaspor,0,2,0,,,
+2022-01-16,Giresunspor,Kasimpasa,0,2,0,,,
+2022-01-16,Hatayspor,Galatasaray,4,2,1,,,
+2022-01-18,Karagumruk,Besiktas,0,1,0,,,
+2022-01-18,Konyaspor,Ad. Demirspor,1,0,0,,,
+2022-01-19,Goztep,Sivasspor,2,1,1,,,
+2022-01-19,Kayserispor,Buyuksehyr,1,0,0,,,
+2022-01-19,Fenerbahce,Altay,2,1,1,,,
+2022-01-19,Trabzonspor,Giresunspor,1,1,0,,,
+2022-01-20,Alanyaspor,Hatayspor,6,0,1,,,
+2022-01-20,Rizespor,Antalyaspor,2,1,1,,,
+2022-01-20,Galatasaray,Kasimpasa,1,3,1,,,
+2022-01-22,Ad. Demirspor,Karagumruk,5,0,1,,,
+2022-01-22,Yeni Malatyaspor,Besiktas,1,1,0,,,
+2022-01-22,Buyuksehyr,Goztep,1,2,1,,,
+2022-01-22,Sivasspor,Fenerbahce,1,1,0,,,
+2022-01-23,Hatayspor,Rizespor,0,0,0,,,
+2022-01-23,Kasimpasa,Kayserispor,3,1,1,,,
+2022-01-23,Altay,Konyaspor,0,1,0,,,
+2022-01-23,Antalyaspor,Gaziantep,0,0,0,,,
+2022-01-23,Giresunspor,Alanyaspor,1,3,1,,,
+2022-01-23,Galatasaray,Trabzonspor,1,2,1,,,
+2022-02-04,Kayserispor,Hatayspor,4,3,1,,,
+2022-02-04,Konyaspor,Giresunspor,1,0,0,,,
+2022-02-05,Gaziantep,Sivasspor,5,1,1,,,
+2022-02-05,Karagumruk,Yeni Malatyaspor,1,0,0,,,
+2022-02-05,Trabzonspor,Kasimpasa,1,0,0,,,
+2022-02-05,Fenerbahce,Buyuksehyr,0,1,0,,,
+2022-02-06,Alanyaspor,Galatasaray,1,1,0,,,
+2022-02-06,Rizespor,Ad. Demirspor,1,3,1,,,
+2022-02-06,Besiktas,Antalyaspor,0,0,0,,,
+2022-02-06,Goztep,Altay,0,2,0,,,
+2022-02-11,Altay,Rizespor,0,0,0,,,
+2022-02-12,Buyuksehyr,Gaziantep,2,0,0,,,
+2022-02-12,Giresunspor,Fenerbahce,1,2,1,,,
+2022-02-12,Galatasaray,Kayserispor,1,1,0,,,
+2022-02-13,Kasimpasa,Alanyaspor,2,2,1,,,
+2022-02-13,Trabzonspor,Konyaspor,2,1,1,,,
+2022-02-13,Sivasspor,Yeni Malatyaspor,2,1,1,,,
+2022-02-13,Antalyaspor,Karagumruk,3,0,1,,,
+2022-02-14,Ad. Demirspor,Besiktas,1,1,0,,,
+2022-02-14,Hatayspor,Goztep,2,1,1,,,
+2022-02-18,Konyaspor,Kasimpasa,4,4,1,,,
+2022-02-18,Rizespor,Buyuksehyr,0,2,0,,,
+2022-02-19,Yeni Malatyaspor,Antalyaspor,1,2,1,,,
+2022-02-19,Kayserispor,Giresunspor,2,1,1,,,
+2022-02-19,Besiktas,Altay,1,0,0,,,
+2022-02-20,Gaziantep,Ad. Demirspor,0,3,1,,,
+2022-02-20,Alanyaspor,Trabzonspor,0,4,1,,,
+2022-02-20,Karagumruk,Sivasspor,1,0,0,,,
+2022-02-20,Fenerbahce,Hatayspor,2,0,0,,,
+2022-02-21,Goztep,Galatasaray,2,3,1,,,
+2022-02-22,Buyuksehyr,Konyaspor,2,1,1,,,
+2022-02-23,Gaziantep,Yeni Malatyaspor,0,0,0,,,
+2022-02-25,Ad. Demirspor,Antalyaspor,0,0,0,,,
+2022-02-25,Trabzonspor,Kayserispor,3,2,1,,,
+2022-02-26,Buyuksehyr,Karagumruk,1,2,1,,,
+2022-02-26,Sivasspor,Besiktas,2,3,1,,,
+2022-02-27,Altay,Gaziantep,3,2,1,,,
+2022-02-27,Giresunspor,Goztep,3,1,1,,,
+2022-02-27,Alanyaspor,Konyaspor,5,1,1,,,
+2022-02-27,Hatayspor,Yeni Malatyaspor,5,2,1,,,
+2022-02-27,Galatasaray,Rizespor,4,2,1,,,
+2022-02-28,Kasimpasa,Fenerbahce,1,2,1,,,
+2022-03-04,Yeni Malatyaspor,Ad. Demirspor,1,0,0,,,
+2022-03-05,Konyaspor,Galatasaray,2,0,0,,,
+2022-03-05,Goztep,Kasimpasa,2,3,1,,,
+2022-03-05,Rizespor,Giresunspor,1,2,1,,,
+2022-03-06,Karagumruk,Altay,0,0,0,,,
+2022-03-06,Antalyaspor,Sivasspor,1,0,0,,,
+2022-03-06,Fenerbahce,Trabzonspor,1,1,0,,,
+2022-03-07,Besiktas,Buyuksehyr,2,2,1,,,
+2022-03-07,Gaziantep,Hatayspor,2,2,1,,,
+2022-03-07,Kayserispor,Alanyaspor,1,2,1,,,
+2022-03-12,Hatayspor,Karagumruk,3,0,1,,,
+2022-03-12,Altay,Yeni Malatyaspor,1,0,0,,,
+2022-03-12,Kasimpasa,Rizespor,3,1,1,,,
+2022-03-12,Trabzonspor,Goztep,4,2,1,,,
+2022-03-13,Alanyaspor,Fenerbahce,2,5,1,,,
+2022-03-13,Kayserispor,Konyaspor,2,3,1,,,
+2022-03-13,Ad. Demirspor,Sivasspor,2,3,1,,,
+2022-03-14,Buyuksehyr,Antalyaspor,0,1,0,,,
+2022-03-14,Galatasaray,Besiktas,2,1,1,,,
+2022-03-14,Giresunspor,Gaziantep,2,1,1,,,
+2022-03-18,Karagumruk,Kayserispor,3,0,1,,,
+2022-03-18,Rizespor,Trabzonspor,3,2,1,,,
+2022-03-19,Yeni Malatyaspor,Kasimpasa,0,2,0,,,
+2022-03-19,Ad. Demirspor,Buyuksehyr,2,1,1,,,
+2022-03-19,Goztep,Alanyaspor,0,2,0,,,
+2022-03-19,Besiktas,Hatayspor,1,1,0,,,
+2022-03-20,Antalyaspor,Giresunspor,4,1,1,,,
+2022-03-20,Sivasspor,Altay,2,1,1,,,
+2022-03-20,Gaziantep,Galatasaray,3,1,1,,,
+2022-03-20,Fenerbahce,Konyaspor,2,1,1,,,
+2022-04-02,Giresunspor,Sivasspor,2,2,1,,,
+2022-04-02,Altay,Antalyaspor,1,2,1,,,
+2022-04-02,Kayserispor,Fenerbahce,0,4,1,,,
+2022-04-02,Galatasaray,Karagumruk,2,0,0,,,
+2022-04-03,Kasimpasa,Gaziantep,2,1,1,,,
+2022-04-03,Alanyaspor,Rizespor,2,1,1,,,
+2022-04-03,Konyaspor,Goztep,3,0,1,,,
+2022-04-03,Trabzonspor,Besiktas,1,1,0,,,
+2022-04-04,Buyuksehyr,Yeni Malatyaspor,1,0,0,,,
+2022-04-04,Hatayspor,Ad. Demirspor,0,0,0,,,
+2022-04-09,Rizespor,Konyaspor,2,1,1,,,
+2022-04-09,Goztep,Kayserispor,1,2,1,,,
+2022-04-09,Gaziantep,Trabzonspor,0,0,0,,,
+2022-04-09,Besiktas,Alanyaspor,4,1,1,,,
+2022-04-09,Karagumruk,Kasimpasa,3,2,1,,,
+2022-04-10,Yeni Malatyaspor,Giresunspor,0,1,0,,,
+2022-04-10,Ad. Demirspor,Altay,3,1,1,,,
+2022-04-10,Sivasspor,Buyuksehyr,0,2,0,,,
+2022-04-10,Fenerbahce,Galatasaray,2,0,0,,,
+2022-04-11,Antalyaspor,Hatayspor,4,1,1,,,
+2022-04-15,Kayserispor,Rizespor,1,1,0,,,
+2022-04-15,Trabzonspor,Karagumruk,1,1,0,,,
+2022-04-16,Hatayspor,Sivasspor,1,1,0,,,
+2022-04-16,Alanyaspor,Antalyaspor,1,3,1,,,
+2022-04-16,Altay,Buyuksehyr,1,1,0,,,
+2022-04-16,Fenerbahce,Goztep,2,0,0,,,
+2022-04-17,Konyaspor,Gaziantep,4,1,1,,,
+2022-04-17,Kasimpasa,Ad. Demirspor,4,0,1,,,
+2022-04-17,Giresunspor,Besiktas,0,0,0,,,
+2022-04-18,Galatasaray,Yeni Malatyaspor,2,0,0,,,
+2022-04-22,Rizespor,Fenerbahce,0,6,1,,,
+2022-04-23,Gaziantep,Goztep,1,1,0,,,
+2022-04-23,Karagumruk,Giresunspor,2,1,1,,,
+2022-04-23,Ad. Demirspor,Trabzonspor,1,3,1,,,
+2022-04-24,Buyuksehyr,Hatayspor,3,0,1,,,
+2022-04-24,Yeni Malatyaspor,Konyaspor,2,3,1,,,
+2022-04-24,Altay,Galatasaray,0,1,0,,,
+2022-04-24,Antalyaspor,Kayserispor,1,1,0,,,
+2022-04-25,Besiktas,Kasimpasa,0,3,1,,,
+2022-04-25,Sivasspor,Alanyaspor,1,0,0,,,
+2022-04-29,Fenerbahce,Gaziantep,3,2,1,,,
+2022-04-29,Giresunspor,Ad. Demirspor,2,0,0,,,
+2022-04-30,Kasimpasa,Buyuksehyr,2,3,1,,,
+2022-04-30,Konyaspor,Karagumruk,1,2,1,,,
+2022-04-30,Hatayspor,Altay,0,1,0,,,
+2022-04-30,Trabzonspor,Antalyaspor,2,2,1,,,
+2022-05-01,Alanyaspor,Yeni Malatyaspor,2,1,1,,,
+2022-05-01,Kayserispor,Besiktas,2,3,1,,,
+2022-05-01,Galatasaray,Sivasspor,2,3,1,,,
+2022-05-01,Goztep,Rizespor,1,7,1,,,
+2022-05-06,Gaziantep,Kayserispor,1,1,0,,,
+2022-05-06,Hatayspor,Trabzonspor,1,1,0,,,
+2022-05-07,Karagumruk,Goztep,3,1,1,,,
+2022-05-07,Sivasspor,Kasimpasa,1,3,1,,,
+2022-05-07,Ad. Demirspor,Alanyaspor,1,2,1,,,
+2022-05-07,Buyuksehyr,Galatasaray,0,0,0,,,
+2022-05-08,Altay,Giresunspor,1,1,0,,,
+2022-05-08,Yeni Malatyaspor,Rizespor,1,3,1,,,
+2022-05-08,Besiktas,Fenerbahce,1,1,0,,,
+2022-05-09,Antalyaspor,Konyaspor,3,2,1,,,
+2022-05-14,Kayserispor,Yeni Malatyaspor,3,0,1,,,
+2022-05-15,Goztep,Besiktas,0,2,0,,,
+2022-05-15,Trabzonspor,Altay,2,1,1,,,
+2022-05-15,Konyaspor,Hatayspor,3,1,1,,,
+2022-05-15,Alanyaspor,Gaziantep,3,0,1,,,
+2022-05-15,Giresunspor,Buyuksehyr,1,1,0,,,
+2022-05-15,Kasimpasa,Antalyaspor,2,4,1,,,
+2022-05-15,Fenerbahce,Karagumruk,0,0,0,,,
+2022-05-16,Galatasaray,Ad. Demirspor,3,2,1,,,
+2022-05-16,Rizespor,Sivasspor,1,2,1,,,
+2022-05-20,Antalyaspor,Galatasaray,1,1,0,,,
+2022-05-20,Gaziantep,Rizespor,2,0,0,,,
+2022-05-21,Altay,Kasimpasa,2,4,1,,,
+2022-05-21,Sivasspor,Kayserispor,2,1,1,,,
+2022-05-21,Besiktas,Konyaspor,1,1,0,,,
+2022-05-21,Yeni Malatyaspor,Fenerbahce,0,5,1,,,
+2022-05-22,Karagumruk,Alanyaspor,0,1,0,,,
+2022-05-22,Ad. Demirspor,Goztep,7,0,1,,,
+2022-05-22,Buyuksehyr,Trabzonspor,3,1,1,,,
+2022-05-22,Hatayspor,Giresunspor,4,1,1,,,
+2022-08-05,Istanbulspor,Trabzonspor,0,2,0,,,
+2022-08-06,Sivasspor,Gaziantep,1,1,0,,,
+2022-08-06,Besiktas,Kayserispor,1,0,0,,,
+2022-08-07,Giresunspor,Ad. Demirspor,2,3,1,,,
+2022-08-07,Karagumruk,Alanyaspor,2,4,1,,,
+2022-08-07,Antalyaspor,Galatasaray,0,1,0,,,
+2022-08-08,Buyuksehyr,Kasimpasa,4,0,1,,,
+2022-08-08,Ankaragucu,Konyaspor,0,0,0,,,
+2022-08-08,Fenerbahce,Umraniyespor,3,3,1,,,
+2022-08-12,Trabzonspor,Hatayspor,1,0,0,,,
+2022-08-13,Kayserispor,Istanbulspor,1,0,0,,,
+2022-08-13,Ad. Demirspor,Sivasspor,3,0,1,,,
+2022-08-13,Galatasaray,Giresunspor,0,1,0,,,
+2022-08-14,Umraniyespor,Antalyaspor,0,1,0,,,
+2022-08-14,Alanyaspor,Besiktas,3,3,1,,,
+2022-08-14,Gaziantep,Ankaragucu,1,0,0,,,
+2022-08-15,Konyaspor,Buyuksehyr,0,0,0,,,
+2022-08-15,Kasimpasa,Fenerbahce,0,6,1,,,
+2022-08-19,Umraniyespor,Galatasaray,0,1,0,,,
+2022-08-20,Giresunspor,Kasimpasa,1,0,0,,,
+2022-08-20,Hatayspor,Gaziantep,1,2,1,,,
+2022-08-20,Antalyaspor,Trabzonspor,5,2,1,,,
+2022-08-21,Buyuksehyr,Kayserispor,2,0,0,,,
+2022-08-21,Besiktas,Karagumruk,4,1,1,,,
+2022-08-22,Istanbulspor,Konyaspor,0,4,1,,,
+2022-08-22,Sivasspor,Alanyaspor,1,1,0,,,
+2022-08-22,Fenerbahce,Ad. Demirspor,4,2,1,,,
+2022-08-26,Gaziantep,Antalyaspor,5,2,1,,,
+2022-08-27,Karagumruk,Ankaragucu,4,1,1,,,
+2022-08-27,Ad. Demirspor,Umraniyespor,1,0,0,,,
+2022-08-27,Alanyaspor,Istanbulspor,0,1,0,,,
+2022-08-28,Kasimpasa,Hatayspor,1,0,0,,,
+2022-08-28,Kayserispor,Giresunspor,3,0,1,,,
+2022-08-28,Trabzonspor,Galatasaray,0,0,0,,,
+2022-08-29,Konyaspor,Fenerbahce,1,0,0,,,
+2022-08-29,Besiktas,Sivasspor,3,1,1,,,
+2022-09-02,Umraniyespor,Trabzonspor,0,1,0,,,
+2022-09-03,Buyuksehyr,Alanyaspor,2,0,0,,,
+2022-09-03,Sivasspor,Karagumruk,0,0,0,,,
+2022-09-03,Fenerbahce,Kayserispor,2,0,0,,,
+2022-09-03,Giresunspor,Konyaspor,0,1,0,,,
+2022-09-04,Hatayspor,Ad. Demirspor,1,1,0,,,
+2022-09-04,Ankaragucu,Besiktas,2,3,1,,,
+2022-09-04,Antalyaspor,Kasimpasa,0,2,0,,,
+2022-09-05,Galatasaray,Gaziantep,2,1,1,,,
+2022-09-09,Alanyaspor,Ankaragucu,2,1,1,,,
+2022-09-10,Konyaspor,Hatayspor,1,0,0,,,
+2022-09-10,Karagumruk,Giresunspor,1,1,0,,,
+2022-09-11,Sivasspor,Istanbulspor,1,1,0,,,
+2022-09-11,Gaziantep,Umraniyespor,1,1,0,,,
+2022-09-11,Kasimpasa,Galatasaray,2,3,1,,,
+2022-09-11,Kayserispor,Antalyaspor,1,0,0,,,
+2022-09-12,Besiktas,Buyuksehyr,0,1,0,,,
+2022-09-12,Ad. Demirspor,Trabzonspor,3,2,1,,,
+2022-09-16,Galatasaray,Konyaspor,2,1,1,,,
+2022-09-16,Hatayspor,Kayserispor,0,4,1,,,
+2022-09-17,Antalyaspor,Ad. Demirspor,0,3,1,,,
+2022-09-17,Istanbulspor,Besiktas,2,2,1,,,
+2022-09-17,Umraniyespor,Kasimpasa,1,2,1,,,
+2022-09-18,Buyuksehyr,Karagumruk,0,0,0,,,
+2022-09-18,Trabzonspor,Gaziantep,3,2,1,,,
+2022-09-18,Ankaragucu,Sivasspor,2,1,1,,,
+2022-09-18,Fenerbahce,Alanyaspor,5,0,1,,,
+2022-10-01,Kasimpasa,Gaziantep,1,0,0,,,
+2022-10-01,Ankaragucu,Buyuksehyr,1,2,1,,,
+2022-10-01,Kayserispor,Trabzonspor,1,2,1,,,
+2022-10-01,Ad. Demirspor,Galatasaray,0,0,0,,,
+2022-10-02,Alanyaspor,Giresunspor,1,1,0,,,
+2022-10-02,Sivasspor,Hatayspor,1,2,1,,,
+2022-10-02,Konyaspor,Umraniyespor,1,0,0,,,
+2022-10-02,Besiktas,Fenerbahce,0,0,0,,,
+2022-10-03,Karagumruk,Istanbulspor,1,2,1,,,
+2022-10-07,Gaziantep,Ad. Demirspor,1,1,0,,,
+2022-10-08,Istanbulspor,Ankaragucu,1,2,1,,,
+2022-10-08,Antalyaspor,Konyaspor,1,1,0,,,
+2022-10-08,Giresunspor,Besiktas,0,1,0,,,
+2022-10-09,Umraniyespor,Kayserispor,2,2,1,,,
+2022-10-09,Hatayspor,Alanyaspor,1,0,0,,,
+2022-10-09,Fenerbahce,Karagumruk,5,4,1,,,
+2022-10-10,Buyuksehyr,Sivasspor,0,2,0,,,
+2022-10-10,Trabzonspor,Kasimpasa,0,0,0,,,
+2022-10-14,Alanyaspor,Antalyaspor,3,2,1,,,
+2022-10-15,Karagumruk,Hatayspor,3,0,1,,,
+2022-10-15,Kasimpasa,Ad. Demirspor,1,4,1,,,
+2022-10-15,Kayserispor,Galatasaray,2,1,1,,,
+2022-10-15,Konyaspor,Gaziantep,0,1,0,,,
+2022-10-16,Buyuksehyr,Istanbulspor,2,0,0,,,
+2022-10-16,Besiktas,Trabzonspor,2,2,1,,,
+2022-10-17,Ankaragucu,Fenerbahce,0,3,1,,,
+2022-10-17,Sivasspor,Giresunspor,3,0,1,,,
+2022-10-21,Antalyaspor,Istanbulspor,2,1,1,,,
+2022-10-22,Umraniyespor,Karagumruk,1,3,1,,,
+2022-10-22,Trabzonspor,Sivasspor,1,0,0,,,
+2022-10-22,Fenerbahce,Buyuksehyr,1,0,0,,,
+2022-10-23,Kasimpasa,Kayserispor,0,1,0,,,
+2022-10-23,Ad. Demirspor,Konyaspor,1,1,0,,,
+2022-10-23,Galatasaray,Alanyaspor,2,2,1,,,
+2022-10-24,Giresunspor,Ankaragucu,1,1,0,,,
+2022-10-24,Hatayspor,Besiktas,2,1,1,,,
+2022-10-28,Karagumruk,Galatasaray,0,2,0,,,
+2022-10-29,Konyaspor,Kasimpasa,1,1,0,,,
+2022-10-29,Alanyaspor,Gaziantep,2,0,0,,,
+2022-10-30,Ankaragucu,Hatayspor,4,1,1,,,
+2022-10-30,Besiktas,Umraniyespor,5,2,1,,,
+2022-10-30,Kayserispor,Ad. Demirspor,2,2,1,,,
+2022-10-30,Istanbulspor,Fenerbahce,2,5,1,,,
+2022-10-31,Buyuksehyr,Giresunspor,3,1,1,,,
+2022-10-31,Sivasspor,Antalyaspor,0,2,0,,,
+2022-11-04,Kasimpasa,Ankaragucu,1,1,0,,,
+2022-11-04,Umraniyespor,Alanyaspor,3,1,1,,,
+2022-11-05,Giresunspor,Istanbulspor,3,2,1,,,
+2022-11-05,Galatasaray,Besiktas,2,1,1,,,
+2022-11-06,Gaziantep,Kayserispor,1,2,1,,,
+2022-11-06,Antalyaspor,Karagumruk,4,2,1,,,
+2022-11-06,Trabzonspor,Konyaspor,2,2,1,,,
+2022-11-07,Fenerbahce,Sivasspor,1,0,0,,,
+2022-11-07,Hatayspor,Buyuksehyr,3,3,1,,,
+2022-11-11,Alanyaspor,Ad. Demirspor,0,0,0,,,
+2022-11-11,Ankaragucu,Trabzonspor,1,1,0,,,
+2022-11-12,Sivasspor,Umraniyespor,2,2,1,,,
+2022-11-12,Fenerbahce,Giresunspor,1,2,1,,,
+2022-11-12,Buyuksehyr,Galatasaray,0,7,1,,,
+2022-11-13,Kayserispor,Konyaspor,1,2,1,,,
+2022-11-13,Karagumruk,Gaziantep,3,3,1,,,
+2022-11-13,Istanbulspor,Hatayspor,0,1,0,,,
+2022-12-23,Antalyaspor,Ankaragucu,0,2,0,,,
+2022-12-23,Umraniyespor,Buyuksehyr,1,3,1,,,
+2022-12-24,Hatayspor,Giresunspor,1,1,0,,,
+2022-12-24,Kasimpasa,Sivasspor,1,2,1,,,
+2022-12-24,Trabzonspor,Fenerbahce,2,0,0,,,
+2022-12-25,Ad. Demirspor,Karagumruk,2,1,1,,,
+2022-12-25,Gaziantep,Besiktas,1,1,0,,,
+2022-12-25,Konyaspor,Alanyaspor,2,2,1,,,
+2022-12-25,Galatasaray,Istanbulspor,2,1,1,,,
+2022-12-27,Ankaragucu,Umraniyespor,1,2,1,,,
+2022-12-27,Buyuksehyr,Antalyaspor,2,0,0,,,
+2022-12-27,Fenerbahce,Hatayspor,4,0,1,,,
+2022-12-28,Istanbulspor,Kasimpasa,2,1,1,,,
+2022-12-28,Karagumruk,Trabzonspor,4,1,1,,,
+2022-12-28,Alanyaspor,Kayserispor,3,1,1,,,
+2022-12-29,Giresunspor,Gaziantep,2,1,1,,,
+2022-12-29,Sivasspor,Galatasaray,1,2,1,,,
+2022-12-29,Besiktas,Ad. Demirspor,1,0,0,,,
+2023-01-03,Umraniyespor,Hatayspor,2,2,1,,,
+2023-01-03,Antalyaspor,Fenerbahce,1,2,1,,,
+2023-01-04,Kasimpasa,Alanyaspor,4,1,1,,,
+2023-01-04,Kayserispor,Karagumruk,2,4,1,,,
+2023-01-04,Galatasaray,Ankaragucu,2,1,1,,,
+2023-01-04,Konyaspor,Sivasspor,2,2,1,,,
+2023-01-05,Trabzonspor,Giresunspor,3,0,1,,,
+2023-01-05,Gaziantep,Buyuksehyr,1,1,0,,,
+2023-01-05,Ad. Demirspor,Istanbulspor,6,0,1,,,
+2023-01-07,Hatayspor,Antalyaspor,0,0,0,,,
+2023-01-07,Besiktas,Kasimpasa,2,1,1,,,
+2023-01-08,Karagumruk,Konyaspor,3,3,1,,,
+2023-01-08,Ankaragucu,Kayserispor,2,1,1,,,
+2023-01-08,Giresunspor,Umraniyespor,0,1,0,,,
+2023-01-08,Fenerbahce,Galatasaray,0,3,1,,,
+2023-01-09,Buyuksehyr,Ad. Demirspor,2,1,1,,,
+2023-01-09,Alanyaspor,Trabzonspor,5,0,1,,,
+2023-01-09,Istanbulspor,Gaziantep,1,1,0,,,
+2023-01-13,Kayserispor,Sivasspor,4,1,1,,,
+2023-01-13,Galatasaray,Hatayspor,4,0,1,,,
+2023-01-14,Antalyaspor,Giresunspor,2,2,1,,,
+2023-01-14,Ad. Demirspor,Ankaragucu,3,1,1,,,
+2023-01-14,Konyaspor,Besiktas,1,2,1,,,
+2023-01-14,Trabzonspor,Buyuksehyr,1,0,0,,,
+2023-01-15,Umraniyespor,Istanbulspor,0,2,0,,,
+2023-01-15,Kasimpasa,Karagumruk,2,2,1,,,
+2023-01-15,Gaziantep,Fenerbahce,1,2,1,,,
+2023-01-20,Ad. Demirspor,Giresunspor,1,1,0,,,
+2023-01-21,Kasimpasa,Buyuksehyr,1,3,1,,,
+2023-01-21,Galatasaray,Antalyaspor,2,1,1,,,
+2023-01-22,Gaziantep,Sivasspor,1,2,1,,,
+2023-01-22,Alanyaspor,Karagumruk,2,2,1,,,
+2023-01-22,Kayserispor,Besiktas,0,2,0,,,
+2023-01-22,Trabzonspor,Istanbulspor,4,0,1,,,
+2023-01-23,Konyaspor,Ankaragucu,0,1,0,,,
+2023-01-23,Umraniyespor,Fenerbahce,1,2,1,,,
+2023-01-27,Besiktas,Alanyaspor,3,0,1,,,
+2023-01-28,Sivasspor,Ad. Demirspor,1,2,1,,,
+2023-01-28,Ankaragucu,Gaziantep,0,2,0,,,
+2023-01-28,Hatayspor,Trabzonspor,2,1,1,,,
+2023-01-28,Antalyaspor,Umraniyespor,3,2,1,,,
+2023-01-28,Giresunspor,Galatasaray,0,4,1,,,
+2023-01-29,Istanbulspor,Kayserispor,2,4,1,,,
+2023-01-29,Buyuksehyr,Konyaspor,2,0,0,,,
+2023-01-29,Fenerbahce,Kasimpasa,5,1,1,,,
+2023-01-31,Alanyaspor,Sivasspor,0,3,1,,,
+2023-01-31,Karagumruk,Besiktas,1,1,0,,,
+2023-02-01,Kasimpasa,Giresunspor,5,1,1,,,
+2023-02-01,Gaziantep,Hatayspor,4,1,1,,,
+2023-02-01,Trabzonspor,Antalyaspor,2,0,0,,,
+2023-02-01,Galatasaray,Umraniyespor,3,2,1,,,
+2023-02-02,Kayserispor,Buyuksehyr,1,0,0,,,
+2023-02-02,Konyaspor,Istanbulspor,0,1,0,,,
+2023-02-02,Ad. Demirspor,Fenerbahce,1,1,0,,,
+2023-02-04,Ankaragucu,Karagumruk,0,2,0,,,
+2023-02-04,Sivasspor,Besiktas,1,0,0,,,
+2023-02-04,Antalyaspor,Gaziantep,1,0,0,,,
+2023-02-05,Istanbulspor,Alanyaspor,2,1,1,,,
+2023-02-05,Hatayspor,Kasimpasa,1,0,0,,,
+2023-02-05,Galatasaray,Trabzonspor,2,1,1,,,
+2023-02-25,Umraniyespor,Gaziantep,3,0,1,,,
+2023-02-25,Fenerbahce,Konyaspor,4,0,1,,,
+2023-02-25,Giresunspor,Kayserispor,1,2,1,,,
+2023-02-26,Umraniyespor,Ad. Demirspor,1,1,0,,,
+2023-02-26,Besiktas,Antalyaspor,0,0,0,,,
+2023-03-03,Alanyaspor,Buyuksehyr,1,0,0,,,
+2023-03-04,Karagumruk,Sivasspor,4,3,1,,,
+2023-03-04,Trabzonspor,Umraniyespor,1,2,1,,,
+2023-03-04,Kayserispor,Fenerbahce,1,2,1,,,
+2023-03-05,Ad. Demirspor,Hatayspor,3,0,1,,,
+2023-03-05,Gaziantep,Galatasaray,0,3,1,,,
+2023-03-05,Konyaspor,Giresunspor,0,0,0,,,
+2023-03-05,Besiktas,Ankaragucu,2,1,1,,,
+2023-03-06,Kasimpasa,Antalyaspor,3,1,1,,,
+2023-03-10,Giresunspor,Karagumruk,2,2,1,,,
+2023-03-11,Antalyaspor,Kayserispor,4,0,1,,,
+2023-03-11,Galatasaray,Kasimpasa,1,0,0,,,
+2023-03-12,Ankaragucu,Alanyaspor,2,0,0,0.5796635876005248,0.7245738761523508,0.6231366741660727
+2023-03-12,Hatayspor,Konyaspor,0,3,1,0.4693367859443132,0.7537438797551052,0.5546589140875509
+2023-03-12,Trabzonspor,Ad. Demirspor,4,1,1,0.5038621169101599,0.6954522880534505,0.5613391682531471
+2023-03-12,Buyuksehyr,Besiktas,0,2,0,0.3696195603278544,0.8173256461205172,0.5039313860656534
+2023-03-13,Istanbulspor,Sivasspor,3,0,1,0.536340002540391,0.7578379801633494,0.6027893958272785
+2023-03-17,Konyaspor,Galatasaray,2,1,1,0.43288752313549794,0.7115256581746441,0.5164789636472418
+2023-03-18,Kasimpasa,Umraniyespor,1,1,0,0.6825971154009501,0.3860215054740746,0.5936244324228874
+2023-03-18,Ad. Demirspor,Antalyaspor,2,0,0,0.5394407744385848,0.7236621743094297,0.5947071943998383
+2023-03-18,Besiktas,Istanbulspor,3,1,1,0.6003035371787871,0.6084664491623438,0.6027524107738542
+2023-03-19,Karagumruk,Buyuksehyr,2,2,1,0.5256062710406597,0.8097142700557289,0.6108386707451805
+2023-03-19,Sivasspor,Ankaragucu,2,0,0,0.48291056355476686,0.7363795399876252,0.5589512564846244
+2023-03-19,Alanyaspor,Fenerbahce,1,3,1,0.6910347735381098,0.39806476255654843,0.6031437702436414
+2023-03-19,Gaziantep,Trabzonspor,0,3,1,0.498833492887141,0.8567750748571487,0.6062159674781433
+2023-03-19,Kayserispor,Hatayspor,3,0,1,0.609891006729908,0.6890054551707628,0.6336253412621645
+2023-04-01,Buyuksehyr,Ankaragucu,1,0,0,0.4272437968540294,0.7835734387506791,0.5341426894230243
+2023-04-01,Trabzonspor,Kayserispor,3,4,1,0.599409393160862,0.663731227012075,0.6187059433162259
+2023-04-01,Galatasaray,Ad. Demirspor,2,0,0,0.4922250629141373,0.7635173473520015,0.5736127482454966
+2023-04-02,Umraniyespor,Konyaspor,2,2,1,0.5175168207020424,0.5909891809942291,0.5395585287896985
+2023-04-02,Giresunspor,Alanyaspor,2,2,1,0.5343066095943655,0.6427491840115706,0.566839381919527
+2023-04-02,Gaziantep,Kasimpasa,0,3,1,0.5992077335860937,0.7047190884865512,0.630861140056231
+2023-04-02,Hatayspor,Sivasspor,0,3,1,0.5105653228506438,0.7296552183964368,0.5762922915143818
+2023-04-02,Fenerbahce,Besiktas,2,4,1,0.5608181169951955,0.6082031655636103,0.57503363156572
+2023-04-03,Istanbulspor,Karagumruk,0,1,0,0.68244722578706,0.6197878346198719,0.6636494084369036
+2023-04-07,Konyaspor,Antalyaspor,1,1,0,0.4586558274045631,0.7322297258179924,0.5407279969285919
+2023-04-08,Ankaragucu,Istanbulspor,3,2,1,0.5287796408618655,0.6004358114533948,0.5502764920393243
+2023-04-08,Kasimpasa,Trabzonspor,2,0,0,0.604479846959545,0.8100814016493809,0.6661603133664958
+2023-04-09,Sivasspor,Buyuksehyr,1,1,0,0.3912097017350538,0.8218191209177435,0.5203925274898608
+2023-04-09,Ad. Demirspor,Gaziantep,3,0,1,0.5550502225652504,0.7756373571810797,0.6212263629499992
+2023-04-09,Alanyaspor,Hatayspor,3,0,1,0.6539755508343968,0.708091755987874,0.67021041238044
+2023-04-09,Besiktas,Giresunspor,3,1,1,0.4585604061351745,0.749093509331802,0.5457203370941628
+2023-04-10,Kayserispor,Umraniyespor,3,1,1,0.6477215218686346,0.5999608825918911,0.6333933300856116
+2023-04-10,Karagumruk,Fenerbahce,1,2,1,0.7126512851958674,0.7829477848543005,0.7337402350933973
+2023-04-14,Antalyaspor,Alanyaspor,3,1,1,0.616044830533841,0.603032612485138,0.6121411651192301
+2023-04-14,Galatasaray,Kayserispor,6,0,1,0.6050632770327313,0.5492320073155217,0.5883138961175685
+2023-04-15,Istanbulspor,Buyuksehyr,1,0,0,0.4664676756534543,0.6744627136169363,0.5288661870424989
+2023-04-15,Fenerbahce,Ankaragucu,2,1,1,0.6544502559357216,0.701144879756718,0.6684586430820205
+2023-04-15,Ad. Demirspor,Kasimpasa,5,0,1,0.6489310655261591,0.7024160380056579,0.6649765572700088
+2023-04-16,Gaziantep,Konyaspor,0,3,1,0.4442316253913394,0.7742597588294634,0.5432400654227766
+2023-04-16,Giresunspor,Sivasspor,1,0,0,0.42194617474431395,0.7610735609299855,0.5236843906000154
+2023-04-16,Trabzonspor,Besiktas,0,0,0,0.4694921175770381,0.6590378170746158,0.5263558274263115
+2023-04-16,Hatayspor,Karagumruk,0,3,1,0.654860819738101,0.6582904896884514,0.6558897207232061
+2023-04-18,Alanyaspor,Galatasaray,1,4,1,0.5971494412598911,0.5716575668209328,0.5895018789282036
+2023-04-18,Karagumruk,Umraniyespor,4,2,1,0.7188027745648812,0.7823545209050131,0.7378682984669207
+2023-04-19,Besiktas,Hatayspor,3,0,1,0.5504891066827001,0.6199787019144462,0.571335985252224
+2023-04-19,Buyuksehyr,Fenerbahce,1,2,1,0.4501981625854288,0.68963283233742,0.5220285635110262
+2023-04-19,Istanbulspor,Antalyaspor,3,3,1,0.5455036788749885,0.5595701423238328,0.5497236179096419
+2023-04-19,Kayserispor,Kasimpasa,0,0,0,0.6761219098751841,0.4453765378385624,0.6068982982641975
+2023-04-19,Konyaspor,Ad. Demirspor,1,2,1,0.45323943753682605,0.714123167524765,0.5315045565332077
+2023-04-20,Ankaragucu,Giresunspor,3,1,1,0.4076708332771289,0.5621881090802197,0.45402601601805614
+2023-04-20,Sivasspor,Trabzonspor,4,1,1,0.4948302139446529,0.7377806557452882,0.5677153464848435
+2023-04-22,Umraniyespor,Besiktas,0,2,0,0.5655832447685692,0.7681317525756514,0.6263477971106939
+2023-04-23,Kasimpasa,Konyaspor,1,2,1,0.5297865269175394,0.7964790263973994,0.6097942767614974
+2023-04-23,Ad. Demirspor,Kayserispor,5,3,1,0.6487030695510583,0.8157589359409814,0.6988198294680352
+2023-04-23,Galatasaray,Karagumruk,3,3,1,0.6727700517813419,0.8616371343139059,0.7294301765411111
+2023-04-23,Gaziantep,Alanyaspor,0,3,1,0.6033128442187036,0.7886738993132428,0.6589211607470654
+2023-04-23,Hatayspor,Ankaragucu,0,3,1,0.463808246764819,0.6240395475115611,0.5118776369888416
+2023-04-24,Giresunspor,Buyuksehyr,2,4,1,0.34155379231814237,0.6153378511587383,0.42368900997032116
+2023-04-24,Antalyaspor,Sivasspor,1,2,1,0.5091565150620132,0.8050189813013614,0.5979152549338177
+2023-04-24,Fenerbahce,Istanbulspor,3,3,1,0.7745546267862184,0.7275253803760766,0.7604458528631759
+2023-04-28,Alanyaspor,Umraniyespor,1,0,0,0.7126394176922789,0.45030937238847507,0.6339404041011377
+2023-04-29,Karagumruk,Antalyaspor,0,1,0,0.6497599816588348,0.6672810366088218,0.6550162981438308
+2023-04-29,Konyaspor,Trabzonspor,2,1,1,0.4897333736126632,0.49760114271099226,0.49209370434216193
+2023-04-29,Ankaragucu,Kasimpasa,0,0,0,0.5475832607970401,0.7605673186080605,0.6114784781403462
+2023-04-29,Sivasspor,Fenerbahce,1,3,1,0.5844458508674623,0.892549009088778,0.676876798333857
+2023-04-30,Besiktas,Galatasaray,3,1,1,0.45911094048756795,0.8435399013135241,0.5744396287353548
+2023-04-30,Buyuksehyr,Hatayspor,3,0,1,0.4721539616754432,0.7166638011558856,0.5455069135195759
+2023-04-30,Kayserispor,Gaziantep,3,0,1,0.59561403310729,0.7983147019728127,0.6564242337669468
+2023-05-01,Istanbulspor,Giresunspor,1,0,0,0.5060515226975699,0.7792249587555355,0.5880035535149596
+2023-05-06,Antalyaspor,Besiktas,1,3,1,0.481149469564778,0.8245951411439003,0.5841831710385147
+2023-05-06,Ad. Demirspor,Alanyaspor,4,2,1,0.6855539453768846,0.888807076686737,0.7465298847698403
+2023-05-07,Umraniyespor,Sivasspor,4,1,1,0.5779217171451396,0.6188749419930719,0.5902076845995193
+2023-05-07,Konyaspor,Kayserispor,2,2,1,0.5645372507699454,0.6348450983913949,0.5856296050563803
+2023-05-07,Giresunspor,Fenerbahce,1,1,0,0.5682180308115597,0.8840352480109277,0.6629631959713702
+2023-05-07,Gaziantep,Karagumruk,0,3,1,0.6174920791424974,0.6626366694664392,0.6310354562396799
+2023-05-07,Hatayspor,Istanbulspor,0,3,1,0.5486486580074316,0.6503944400489489,0.5791723926198867
+2023-05-08,Galatasaray,Buyuksehyr,1,0,0,0.40282342447577457,0.734929394542068,0.5024552154956626
+2023-05-08,Trabzonspor,Ankaragucu,2,0,0,0.5392529704305481,0.5560561560374742,0.5442939261126258
+2023-05-16,Sivasspor,Kasimpasa,1,2,1,0.5720286884260686,0.6881463611152304,0.6068639902328171
+2023-05-16,Alanyaspor,Konyaspor,0,3,1,0.5764252894599455,0.6562931205897892,0.6003856387988986
+2023-05-16,Istanbulspor,Galatasaray,0,2,0,0.6045274243861712,0.7851763672919265,0.6587221072578978
+2023-05-17,Besiktas,Gaziantep,3,0,1,0.5445121788173367,0.795966847080018,0.6199485792961411
+2023-05-17,Ankaragucu,Antalyaspor,1,1,0,0.4859973873097826,0.7834214829417324,0.5752246159993676
+2023-05-17,Karagumruk,Ad. Demirspor,2,3,1,0.6430752129275813,0.7646262746290631,0.6795405314380258
+2023-05-17,Giresunspor,Hatayspor,3,0,1,0.44698912402524776,0.7737012777997321,0.545002770157593
+2023-05-17,Buyuksehyr,Umraniyespor,1,1,0,0.5076681414834165,0.6475590880201517,0.5496354254444371
+2023-05-18,Fenerbahce,Trabzonspor,3,1,1,0.6458387945993275,0.5782039605389129,0.6255483443812031
+2023-05-20,Kasimpasa,Istanbulspor,1,0,0,0.6666484344288438,0.7827304489742684,0.7014730387924712
+2023-05-20,Galatasaray,Sivasspor,2,0,0,0.547324210297736,0.7291067462141406,0.6018589710726574
+2023-05-20,Kayserispor,Alanyaspor,0,4,1,0.7086017357474369,0.6082814076021237,0.678505637303843
+2023-05-21,Umraniyespor,Ankaragucu,1,2,1,0.5635525210962601,0.41636292692036675,0.519395642843492
+2023-05-21,Ad. Demirspor,Besiktas,1,4,1,0.4857232543573171,0.7830593596285357,0.5749240859386827
+2023-05-21,Antalyaspor,Buyuksehyr,0,0,0,0.3934289958150665,0.5050483977242798,0.42691481638783046
+2023-05-21,Gaziantep,Giresunspor,0,3,1,0.43118805933922855,0.7928280404415737,0.5396800536699321
+2023-05-21,Hatayspor,Fenerbahce,0,3,1,0.6532721187692843,0.9062558797721673,0.7291672470701491
+2023-05-22,Trabzonspor,Karagumruk,4,1,1,0.6718068298955955,0.41421965292920737,0.5945306768056791
+2023-05-30,Giresunspor,Trabzonspor,2,4,1,0.47791588069441127,0.732294520270072,0.5542294725671095
+2023-05-30,Ankaragucu,Galatasaray,1,4,1,0.48947494563166905,0.8850790157720997,0.6081561666737982
+2023-05-30,Buyuksehyr,Gaziantep,3,0,1,0.4308680903139412,0.6849918401091553,0.5071052152525054
+2023-05-30,Fenerbahce,Antalyaspor,2,0,0,0.6590120655989243,0.7001475972744416,0.6713527251015796
+2023-05-30,Sivasspor,Konyaspor,1,0,0,0.4519186080128346,0.6897047891378139,0.5232544623503284
+2023-05-30,Hatayspor,Umraniyespor,0,3,1,0.5424081747156788,0.8602825871163248,0.6377704984358725
+2023-05-30,Istanbulspor,Ad. Demirspor,0,2,0,0.636305053046658,0.6782902887095587,0.6489006237455281
+2023-05-30,Karagumruk,Kayserispor,2,0,0,0.7596338667099873,0.6285959907302048,0.7203225039160526
+2023-05-30,Alanyaspor,Kasimpasa,1,3,1,0.6604423532797747,0.5921619271646024,0.639958225445223
+2023-06-03,Gaziantep,Istanbulspor,0,3,1,0.5072034700844756,0.7575571164422183,0.5823095639917985
+2023-06-03,Konyaspor,Karagumruk,1,1,0,0.6074615230210489,0.47797785688848,0.5686164231812783
+2023-06-03,Ad. Demirspor,Buyuksehyr,2,3,1,0.4567435174411651,0.43353579901416733,0.4497812019130658
+2023-06-03,Antalyaspor,Hatayspor,3,0,1,0.5249315768228536,0.9026141076324958,0.6382363360657464
+2023-06-03,Trabzonspor,Alanyaspor,5,1,1,0.6914801332529671,0.5869999113536917,0.6601360666831845
+2023-06-03,Kasimpasa,Besiktas,2,5,1,0.5316001646951,0.8763888664012559,0.6350367752069468
+2023-06-03,Umraniyespor,Giresunspor,0,1,0,0.5485556632066857,0.6921139451023862,0.5916231477753959
+2023-06-03,Kayserispor,Ankaragucu,0,1,0,0.5823836290217194,0.47451690704471866,0.5500236124286192
+2023-06-04,Galatasaray,Fenerbahce,3,0,1,0.5828108395400347,0.782143087434364,0.6426105139083335
+2023-06-06,Karagumruk,Kasimpasa,3,0,1,0.6907829715904599,0.7355785037934257,0.7042216312513496
+2023-06-06,Sivasspor,Kayserispor,1,1,0,0.611883427784846,0.6935281153007627,0.636376834039621
+2023-06-06,Buyuksehyr,Trabzonspor,3,1,1,0.43639742440236906,0.8410495875299805,0.5577930733406524
+2023-06-07,Fenerbahce,Gaziantep,3,0,1,0.7174587308930782,0.8994210173120888,0.7720474168187814
+2023-06-07,Besiktas,Konyaspor,3,3,1,0.45843190906146253,0.5329540175414581,0.4807885416054612
+2023-06-07,Ankaragucu,Ad. Demirspor,1,2,1,0.5484188366700954,0.34786891422207367,0.48825385993568887
+2023-06-07,Giresunspor,Antalyaspor,2,0,0,0.4548530931894534,0.5216997096836138,0.4749070781377015
+2023-06-07,Istanbulspor,Umraniyespor,4,0,1,0.6083324882545913,0.610883359877456,0.6090977497414507
+2023-06-07,Hatayspor,Galatasaray,0,3,1,0.5915735753710877,0.9082347812955482,0.6865719371484259
+2023-08-11,Trabzonspor,Antalyaspor,1,0,0,0.5525922597378746,0.3141012549134153,0.48104495829053684
+2023-08-12,Kasimpasa,Ankaragucu,3,2,1,0.5140783739315283,0.39919535860299127,0.4796134693329672
+2023-08-12,Konyaspor,Istanbulspor,1,1,0,0.5405759053859476,0.4274441705781807,0.5066363849436175
+2023-08-12,Kayserispor,Galatasaray,0,0,0,0.6398500411000276,0.7464088179257187,0.671817674147735
+2023-08-12,Pendikspor,Hatayspor,1,5,1,,,
+2023-08-13,Sivasspor,Samsunspor,1,1,0,,,
+2023-08-13,Ad. Demirspor,Rizespor,2,1,1,0.7174641297539678,0.6842174349732553,0.7074901213197541
+2023-08-13,Fenerbahce,Gaziantep,2,1,1,0.7174587308930782,0.8914709888196808,0.769662408271059
+2023-08-14,Alanyaspor,Buyuksehyr,2,0,0,0.49405398334405914,0.5107354176045161,0.4990584136221963
+2023-08-14,Karagumruk,Besiktas,0,1,0,0.6255200099722251,0.7148704240360638,0.6523251341913767
+2023-08-18,Antalyaspor,Konyaspor,1,1,0,0.4347694303430314,0.6888982161893258,0.5110080660969197
+2023-08-18,Istanbulspor,Kayserispor,1,1,0,0.6546058493486542,0.5316230017510867,0.6177109950693839
+2023-08-19,Rizespor,Alanyaspor,0,0,0,0.6699618320126822,0.37754312262547773,0.5822362191965209
+2023-08-19,Galatasaray,Trabzonspor,2,0,0,0.5838595208054227,0.7161049705414008,0.6235331557262161
+2023-08-19,Hatayspor,Kasimpasa,0,0,0,0.5309680567733487,0.8673695678862888,0.6318885101072307
+2023-08-20,Buyuksehyr,Karagumruk,0,2,0,0.5370430175674462,0.5033487157214455,0.526934727013646
+2023-08-20,Besiktas,Pendikspor,1,1,0,,0.8732414343393793,
+2023-08-20,Gaziantep,Sivasspor,1,3,1,0.4684087938907291,0.8200409304405732,0.5738984348556824
+2023-08-21,Ankaragucu,Ad. Demirspor,1,1,0,0.5484188366700954,0.5160629904588465,0.5387120828067208
+2023-08-21,Samsunspor,Fenerbahce,0,2,0,,0.6559732154214456,
+2023-08-25,Konyaspor,Gaziantep,2,0,0,0.5081558439803607,0.8910161403247562,0.6230139328836795
+2023-08-26,Kasimpasa,Pendikspor,1,1,0,,0.7474094433583099,
+2023-08-26,Trabzonspor,Rizespor,2,3,1,0.6777721464871367,0.6353078723407629,0.6650328642432245
+2023-08-26,Sivasspor,Antalyaspor,1,1,0,0.4755531897674891,0.6097461504158371,0.5158110779619935
+2023-08-27,Karagumruk,Ankaragucu,1,1,0,0.6221315306420243,0.4979187937026004,0.5848677095601971
+2023-08-27,Kayserispor,Samsunspor,2,1,1,,0.4780670941877719,
+2023-08-27,Alanyaspor,Hatayspor,0,0,0,0.6579695340568762,0.822789939741037,0.7074156557621245
+2023-09-01,Kasimpasa,Trabzonspor,1,5,1,0.5946070045091372,0.6912199561885578,0.6235908900129634
+2023-09-01,Rizespor,Karagumruk,1,0,0,0.6438957552834973,0.1580445297407482,0.49814038762067253
+2023-09-02,Buyuksehyr,Konyaspor,0,1,0,0.37011993681589705,0.14825782069912227,0.3035613019808646
+2023-09-02,Pendikspor,Alanyaspor,1,1,0,0.657598763652945,0.2569347203832219,0.537399550672028
+2023-09-02,Antalyaspor,Kayserispor,1,1,0,0.5390443215966103,0.33217626907103176,0.4769839058389367
+2023-09-02,Gaziantep,Galatasaray,0,3,1,0.5536238955746549,0.5991585867813418,0.567284302936661
+2023-09-03,Hatayspor,Ad. Demirspor,3,3,1,0.6215487990206847,0.5401670389968307,0.5971342710135286
+2023-09-03,Besiktas,Sivasspor,2,0,0,0.550616090268528,0.301849336071716,0.47598606400948434
+2023-09-03,Ankaragucu,Fenerbahce,0,1,0,0.5616083443038995,0.1944867265283789,0.4514718589712433
+2023-09-16,Kayserispor,Gaziantep,2,0,0,0.5758462570922557,0.31351312463600856,0.49714631735538156
+2023-09-16,Konyaspor,Rizespor,1,2,1,0.5355254293173142,0.6935597314736318,0.5829357199642095
+2023-09-16,Ad. Demirspor,Pendikspor,3,0,1,0.7710206622601005,0.2966437524591815,0.6287075893198247
+2023-09-16,Galatasaray,Samsunspor,4,2,1,0.4610519339986592,0.41785713349917325,0.44809349384881336
+2023-09-17,Fenerbahce,Antalyaspor,3,2,1,0.6003455555626342,0.1632750861670091,0.46922441474394666
+2023-09-17,Istanbulspor,Buyuksehyr,0,2,0,0.43544876874853705,0.14944208860609737,0.34964676470580514
+2023-09-17,Alanyaspor,Kasimpasa,3,3,1,0.6717523122109205,0.3096482501910056,0.563121093604946
+2023-09-17,Trabzonspor,Besiktas,3,0,1,0.587789849007212,0.1883053150261658,0.46794448881289813
+2023-09-18,Karagumruk,Hatayspor,0,0,0,0.6645083572013316,0.29668190235831204,0.5541604207484256
+2023-09-18,Sivasspor,Ankaragucu,1,3,1,0.457194537264799,0.5843178010672249,0.49533151640552675
+2023-09-22,Gaziantep,Istanbulspor,2,0,0,0.4972641659815488,0.8888345792106785,0.6147352899502878
+2023-09-23,Pendikspor,Karagumruk,1,1,0,0.6958659710512441,0.30253912633815055,0.577867917637316
+2023-09-23,Rizespor,Sivasspor,1,1,0,0.5277586671975761,0.1609477659411569,0.41771539682065034
+2023-09-23,Antalyaspor,Samsunspor,2,0,0,0.3272553996494186,0.5941799481048284,0.40733276418604153
+2023-09-23,Buyuksehyr,Galatasaray,1,2,1,0.3831580864420533,0.2912342698508659,0.35558094146469704
+2023-09-24,Ankaragucu,Konyaspor,1,1,0,0.4197278072736173,0.17134645143424887,0.34521340052180677
+2023-09-24,Besiktas,Kayserispor,2,1,1,0.6330089516196712,0.24579154481812465,0.5168437295792072
+2023-09-24,Alanyaspor,Fenerbahce,0,1,0,0.6981084031454496,0.18951231775574112,0.545529577528537
+2023-09-24,Kasimpasa,Ad. Demirspor,2,1,1,0.6649117540053838,0.14891639758674038,0.5101131470797907
+2023-09-25,Hatayspor,Trabzonspor,3,2,1,0.613371858907316,0.5216463148031947,0.5858541956760797
+2023-09-26,Istanbulspor,Galatasaray,0,1,0,0.5439505749424552,0.2330324681640555,0.4506751429089353
+2023-09-27,Ad. Demirspor,Besiktas,4,2,1,0.5816898438724574,0.2972725244656615,0.4963646480504186
+2023-09-28,Fenerbahce,Buyuksehyr,4,0,1,0.49933072744655227,0.20061827647816188,0.40971699215603513
+2023-09-29,Samsunspor,Gaziantep,1,2,1,0.2809187975975069,0.28961372810718367,0.2835272767504099
+2023-09-30,Sivasspor,Hatayspor,0,0,0,0.5221015505594092,0.25827047244712587,0.4429522271257242
+2023-09-30,Istanbulspor,Antalyaspor,1,2,1,0.4919079890763318,0.37966491254544815,0.4582350661170667
+2023-09-30,Trabzonspor,Pendikspor,2,1,1,0.7598089726497981,0.4791997784954084,0.6756262144034813
+2023-09-30,Galatasaray,Ankaragucu,2,1,1,0.5161835081840747,0.3826379577793434,0.4761198430626553
+2023-10-01,Karagumruk,Kasimpasa,2,3,1,0.695915679940084,0.19310137100399266,0.5450713872592565
+2023-10-01,Fenerbahce,Rizespor,5,0,1,0.7159330036553162,0.7513983663622715,0.7265726124674028
+2023-10-01,Ad. Demirspor,Alanyaspor,4,0,1,0.7123258116015232,0.13998874093931335,0.5406246904028602
+2023-10-01,Konyaspor,Besiktas,0,2,0,0.46218286805366915,0.18087801795364988,0.37779141302366337
+2023-10-02,Kayserispor,Buyuksehyr,0,0,0,0.4732738715500401,0.2714765011658188,0.4127346604347737
+2023-10-06,Ad. Demirspor,Trabzonspor,1,0,0,0.673279903276592,0.4077288039954103,0.5936145734922375
+2023-10-06,Alanyaspor,Karagumruk,2,1,1,0.6985405955379069,0.22714062487308417,0.5571206043384601
+2023-10-07,Pendikspor,Sivasspor,2,3,1,0.5629396955123689,0.32375306583662306,0.49118370660964517
+2023-10-07,Ankaragucu,Kayserispor,3,0,1,0.528380218889279,0.17950583566520142,0.4237179039220557
+2023-10-07,Antalyaspor,Galatasaray,0,2,0,0.4638880109416776,0.3395181601854379,0.4265770557148057
+2023-10-07,Buyuksehyr,Gaziantep,2,0,0,0.4647695983557126,0.25758221485327965,0.4026133833049827
+2023-10-08,Rizespor,Samsunspor,1,0,0,0.3566039236295155,0.5121411301951407,0.40326508559920304
+2023-10-08,Besiktas,Istanbulspor,2,0,0,0.5982894791042905,0.7567152418943633,0.6458172079413124
+2023-10-08,Hatayspor,Konyaspor,3,1,1,0.4752480304599533,0.23995020474293347,0.4046586827448473
+2023-10-08,Kasimpasa,Fenerbahce,0,2,0,0.692227016006949,0.580883493492254,0.6588239592525404
+2023-10-21,Gaziantep,Antalyaspor,1,0,0,0.44147284313537855,0.7991399037474023,0.5487729613189857
+2023-10-21,Kayserispor,Rizespor,3,1,1,0.5521160303680069,0.7350261744125868,0.6069890735813809
+2023-10-21,Galatasaray,Besiktas,2,1,1,0.5047652866685539,0.730400960284125,0.5724559887532252
+2023-10-21,Konyaspor,Pendikspor,1,2,1,0.5283855346635491,0.6374901732359142,0.5611169262352587
+2023-10-22,Sivasspor,Kasimpasa,0,1,0,0.5927302781435398,0.39894212278967156,0.5345938315373794
+2023-10-22,Istanbulspor,Ankaragucu,2,1,1,0.4512185396410149,0.7838131379847925,0.5509969191441482
+2023-10-22,Fenerbahce,Hatayspor,4,2,1,0.7389979160218261,0.7175840447847357,0.732573754650699
+2023-10-22,Samsunspor,Buyuksehyr,0,0,0,0.363478507641193,0.5543117855579208,0.42072849101621135
+2023-10-23,Karagumruk,Ad. Demirspor,2,0,0,0.6715211858224023,0.5113278273212263,0.6234631782720494
+2023-10-23,Trabzonspor,Alanyaspor,1,0,0,0.7021998080703868,0.7395650558362837,0.713409382400156
+2023-10-27,Hatayspor,Kayserispor,1,2,1,0.5382127588794758,0.4009587454346133,0.49703655484601705
+2023-10-27,Kasimpasa,Istanbulspor,3,1,1,0.605022359972488,0.49772765312516154,0.57283394791829
+2023-10-28,Alanyaspor,Sivasspor,1,2,1,0.5837539414135797,0.5190468143356324,0.5643418032901955
+2023-10-28,Ad. Demirspor,Konyaspor,3,0,1,0.5747860540451355,0.5279405943058498,0.5607324161233498
+2023-10-28,Rizespor,Galatasaray,0,1,0,0.5367674318819653,0.2722362502057818,0.4574080773791102
+2023-10-29,Karagumruk,Trabzonspor,0,0,0,0.6582039474046055,0.38141356559627876,0.5751668328621075
+2023-10-29,Ankaragucu,Samsunspor,2,0,0,0.4568023379562523,0.4821010344661534,0.46439194690922264
+2023-10-29,Antalyaspor,Buyuksehyr,1,0,0,0.36426508362669474,0.5699696300854297,0.42597644756431524
+2023-10-29,Pendikspor,Fenerbahce,0,5,1,0.6650268610454111,0.3211128140992183,0.5618526469615532
+2023-10-30,Besiktas,Gaziantep,2,0,0,0.6251439413698231,0.6576332359825422,0.6348907297536388
+2023-11-03,Galatasaray,Kasimpasa,2,1,1,0.6698030351715984,0.7521497013303037,0.69450703501921
+2023-11-04,Istanbulspor,Pendikspor,2,4,1,0.5016354945762814,0.3487658466686476,0.4557746002039913
+2023-11-04,Samsunspor,Hatayspor,2,1,1,0.3877565223567401,0.6099826599834738,0.45442436364476024
+2023-11-04,Fenerbahce,Trabzonspor,2,3,1,0.6781571866198444,0.6419080726476682,0.6672824524281915
+2023-11-05,Sivasspor,Ad. Demirspor,1,1,0,0.5942432822148661,0.45790771100825023,0.5533426108528814
+2023-11-05,Buyuksehyr,Ankaragucu,3,3,1,0.36914325470814613,0.7582444106945352,0.4858736015040629
+2023-11-05,Konyaspor,Karagumruk,1,1,0,0.546252009432974,0.7232927331367993,0.5993642265441217
+2023-11-05,Antalyaspor,Besiktas,3,2,1,0.4874349808147651,0.4742604897359713,0.48348263349112697
+2023-11-06,Gaziantep,Rizespor,2,0,0,0.44992391475306703,0.6376342620521501,0.506237018942792
+2023-11-06,Kayserispor,Alanyaspor,1,0,0,0.6382145718879763,0.5398174807245523,0.6086954445389491
+2023-11-08,Samsunspor,Istanbulspor,2,1,1,0.4040189899330123,0.7856684585372812,0.518513830514293
+2023-11-10,Ankaragucu,Antalyaspor,0,4,1,0.43219597782730573,0.19952782440184297,0.3623955317996669
+2023-11-10,Trabzonspor,Konyaspor,2,1,1,0.5533331722563793,0.39224858227332904,0.5050077952614642
+2023-11-11,Kasimpasa,Kayserispor,3,4,1,0.6494523657175872,0.536494321822132,0.6155649525489506
+2023-11-11,Alanyaspor,Gaziantep,0,3,1,0.5897244877636525,0.6168635430342627,0.5978662043448355
+2023-11-11,Karagumruk,Sivasspor,3,0,1,0.5835360303772068,0.3662627405529871,0.5183540434299408
+2023-11-11,Hatayspor,Galatasaray,2,1,1,0.5777366189526602,0.4532571726739201,0.5403927850690381
+2023-11-12,Besiktas,Buyuksehyr,1,0,0,0.42172493425592117,0.5636682033610771,0.46430791498746793
+2023-11-12,Pendikspor,Samsunspor,1,0,0,0.3987528818389317,0.5737180707904668,0.4512424385243923
+2023-11-12,Ad. Demirspor,Fenerbahce,0,0,0,0.653196985765518,0.5838013838059866,0.6323783051776586
+2023-11-12,Rizespor,Istanbulspor,1,0,0,0.487429349125082,0.7264021154547269,0.5591211790239754
+2023-11-25,Gaziantep,Ankaragucu,0,1,0,0.43341095464633733,0.7509930711465688,0.5286855895964068
+2023-11-25,Istanbulspor,Hatayspor,2,1,1,0.5000729029831786,0.4208269636196506,0.4762991211741202
+2023-11-25,Galatasaray,Alanyaspor,4,0,1,0.6690801447986152,0.8095324332639062,0.7112158313382025
+2023-11-25,Konyaspor,Kasimpasa,2,0,0,0.5746230892777083,0.7529687728469727,0.6281267943484876
+2023-11-26,Kayserispor,Ad. Demirspor,1,1,0,0.6486204819981416,0.5887843701319893,0.6306696484382959
+2023-11-26,Antalyaspor,Rizespor,0,0,0,0.4834559631266025,0.6570609627389568,0.5355374630103088
+2023-11-26,Samsunspor,Besiktas,1,2,1,0.5276064465472567,0.5507037049878571,0.5345356240794369
+2023-11-26,Fenerbahce,Karagumruk,2,1,1,0.7068283269945224,0.5673873728390912,0.664996040747893
+2023-11-27,Buyuksehyr,Pendikspor,4,1,1,0.5315893797687876,0.5582438082860679,0.5395857083239717
+2023-11-27,Sivasspor,Trabzonspor,3,3,1,0.5432058564168273,0.37399171292651745,0.4924416133697343
+2023-12-01,Hatayspor,Antalyaspor,3,3,1,0.48968548993363564,0.5398152713646867,0.504724424362951
+2023-12-01,Karagumruk,Istanbulspor,3,0,1,0.6129768097128971,0.6871167059643568,0.6352187785883351
+2023-12-02,Pendikspor,Galatasaray,0,2,0,0.6415451496617391,0.5047824257997003,0.6005163325031275
+2023-12-02,Ad. Demirspor,Samsunspor,2,3,1,0.5741603608675605,0.5840709187069784,0.5771335282193859
+2023-12-02,Rizespor,Buyuksehyr,3,2,1,0.3452820132642781,0.4424835731949229,0.3744424812434715
+2023-12-02,Alanyaspor,Konyaspor,2,2,1,0.5219414211467683,0.7343411503125399,0.5856613398964998
+2023-12-03,Kasimpasa,Gaziantep,4,2,1,0.5809174739868961,0.45611326059317725,0.5434762099687804
+2023-12-03,Trabzonspor,Kayserispor,0,1,0,0.6523556546012049,0.5993797251412912,0.6364628757632308
+2023-12-03,Ankaragucu,Besiktas,1,1,0,0.5193719191434641,0.4654466448238494,0.5031943368475797
+2023-12-04,Fenerbahce,Sivasspor,4,1,1,0.6490235370120532,0.7317791483613846,0.6738502204168526
+2023-12-08,Galatasaray,Ad. Demirspor,3,1,1,0.5579820831878252,0.8151946381349745,0.63514584967197
+2023-12-09,Besiktas,Fenerbahce,1,3,1,0.5822624096568725,0.7147934546111349,0.6220217231431512
+2023-12-09,Antalyaspor,Karagumruk,2,1,1,0.5142652962697152,0.3464092354922485,0.46390847803647517
+2023-12-09,Samsunspor,Kasimpasa,4,2,1,0.47092037858870767,0.42070939009403835,0.4558570820403069
+2023-12-10,Kayserispor,Pendikspor,2,0,0,0.6725387810403087,0.5399940456549355,0.6327753604246967
+2023-12-10,Istanbulspor,Alanyaspor,0,1,0,0.5821248676601278,0.753868840374771,0.6336480594745207
+2023-12-10,Buyuksehyr,Hatayspor,1,0,0,0.4777383512299975,0.3467570258709045,0.4384439536222696
+2023-12-10,Gaziantep,Trabzonspor,1,3,1,0.5442514652337461,0.45875326639035796,0.5186020055807297
+2023-12-11,Ankaragucu,Rizespor,1,1,0,0.4534942183306982,0.5165707385168995,0.4724171743865586
+2023-12-11,Konyaspor,Sivasspor,0,1,0,0.4517709776482711,0.7150528900703449,0.5307555513748933
+2023-12-19,Istanbulspor,Trabzonspor,0,3,1,0.6000308450495003,0.7495967396642327,0.64490061343392
+2023-12-19,Buyuksehyr,Sivasspor,3,1,1,0.39571798694482396,0.2954679451515423,0.36564297440683946
+2023-12-19,Gaziantep,Ad. Demirspor,2,2,1,0.5544145545672273,0.2858253779995808,0.47383780159693334
+2023-12-20,Kayserispor,Fenerbahce,3,4,1,0.655997003819693,0.605701551801218,0.6409083682141504
+2023-12-20,Antalyaspor,Kasimpasa,0,0,0,0.5725018997325717,0.613726550083422,0.5848692948378268
+2023-12-20,Galatasaray,Karagumruk,1,0,0,0.5842236106282552,0.7027122093853879,0.619770190255395
+2023-12-21,Rizespor,Pendikspor,5,1,1,0.5224834858334485,0.6747474547813485,0.5681626765178185
+2023-12-21,Samsunspor,Konyaspor,1,1,0,0.355926252760532,0.3402515085259333,0.3512238294901524
+2023-12-21,Ankaragucu,Hatayspor,0,0,0,0.5474147055565874,0.29428326709332964,0.4714752740176101
+2023-12-21,Besiktas,Alanyaspor,1,3,1,0.6618130914294252,0.38666457304549484,0.5792685359142461
+2023-12-23,Sivasspor,Istanbulspor,1,0,0,0.5113693199935861,0.615517257825345,0.5426137013431138
+2023-12-23,Karagumruk,Gaziantep,0,3,1,0.5639876551840255,0.669625308713852,0.5956789512429734
+2023-12-23,Trabzonspor,Buyuksehyr,1,1,0,0.4607553234923013,0.7994844926949202,0.5623740742530869
+2023-12-24,Konyaspor,Kayserispor,2,0,0,0.5262336960037806,0.8573189568062438,0.6255592742445195
+2023-12-24,Ad. Demirspor,Antalyaspor,2,1,1,0.5529340924931702,0.700829657652089,0.5973027620408458
+2023-12-24,Fenerbahce,Galatasaray,0,0,0,0.5436715899691612,0.8859368739763335,0.6463511751713129
+2023-12-25,Alanyaspor,Samsunspor,3,1,1,0.4653994248188713,0.5739044612419528,0.49795093574579574
+2023-12-25,Kasimpasa,Rizespor,2,2,1,0.554119165559552,0.6272355220130683,0.5760540724956069
+2023-12-25,Hatayspor,Besiktas,1,2,1,0.5908266802935425,0.6422461024731687,0.6062525069474304
+2023-12-25,Pendikspor,Ankaragucu,1,1,0,0.5775229053769011,0.6540531686723703,0.6004819843655419
+2024-01-05,Gaziantep,Pendikspor,2,2,1,0.5259483688245691,0.4040187480191558,0.4893694825829451
+2024-01-05,Antalyaspor,Alanyaspor,0,0,0,0.5524460649270371,0.4555347687592667,0.5233726760767059
+2024-01-05,Besiktas,Kasimpasa,1,3,1,0.6704082524729109,0.4027553596744068,0.5901123846333597
+2024-01-06,Rizespor,Hatayspor,2,0,0,0.4578407254060823,0.38959060062821144,0.437365687972721
+2024-01-06,Buyuksehyr,Ad. Demirspor,0,0,0,0.44687264440949787,0.3366180510111681,0.4137962663899989
+2024-01-06,Ankaragucu,Trabzonspor,0,1,0,0.5544873242188167,0.32769308267319447,0.4864490517551301
+2024-01-06,Samsunspor,Karagumruk,1,0,0,0.44542316082684863,0.33370203298639817,0.4119068224747135
+2024-01-07,Galatasaray,Konyaspor,3,0,1,0.5016741551132644,0.7717010095257891,0.5826822114370218
+2024-01-07,Kayserispor,Sivasspor,1,3,1,0.5524247368872564,0.44651506684319564,0.5206518358740382
+2024-01-07,Istanbulspor,Fenerbahce,1,5,1,0.6526495481908384,0.847504478573985,0.7111060273057823
+2024-01-09,Alanyaspor,Ankaragucu,1,1,0,0.49879621214813197,0.5831531994486798,0.5241033083382963
+2024-01-09,Pendikspor,Antalyaspor,0,1,0,0.5667653641165412,0.32369492884931655,0.4938442335363738
+2024-01-09,Kasimpasa,Buyuksehyr,0,3,1,0.5197801901070057,0.6017096118922223,0.5443590166425707
+2024-01-09,Rizespor,Besiktas,0,4,1,0.5449460617794913,0.490040876163926,0.5284745060948217
+2024-01-10,Hatayspor,Gaziantep,0,0,0,0.4879758885871984,0.6446256812327648,0.5349708263808683
+2024-01-10,Karagumruk,Kayserispor,4,1,1,0.589995771061033,0.5060011180354705,0.5647973751533643
+2024-01-10,Ad. Demirspor,Istanbulspor,2,2,1,0.6481012816412933,0.7917706480237797,0.6912020915560393
+2024-01-10,Fenerbahce,Konyaspor,7,1,1,0.6074759527647686,0.698526063694733,0.6347909860437579
+2024-01-11,Sivasspor,Galatasaray,1,1,0,0.4809076892577011,0.3993183662074335,0.4564308923426208
+2024-01-11,Trabzonspor,Samsunspor,2,1,1,0.5971706838206228,0.6223252948680441,0.6047170671348492
+2024-01-13,Besiktas,Karagumruk,3,0,1,0.5861224214057617,0.7215757424739506,0.6267584177262183
+2024-01-13,Ankaragucu,Kasimpasa,3,1,1,0.5610712770498641,0.4595996987981646,0.5306298035743543
+2024-01-13,Hatayspor,Pendikspor,1,1,0,0.6021246267346295,0.7847204362106204,0.6569033695774268
+2024-01-13,Rizespor,Ad. Demirspor,1,0,0,0.582032938336837,0.4666344765865992,0.5474133998117656
+2024-01-13,Buyuksehyr,Alanyaspor,3,2,1,0.48745901732221136,0.6683588566974255,0.5417289691347756
+2024-01-14,Istanbulspor,Konyaspor,0,0,0,0.4364772859028745,0.734845687253817,0.5259878063081572
+2024-01-14,Antalyaspor,Trabzonspor,1,1,0,0.5086393472401552,0.6087288525042716,0.5386661988193902
+2024-01-14,Samsunspor,Sivasspor,2,0,0,0.4639062529648844,0.43627826351334986,0.45561785612942407
+2024-01-14,Gaziantep,Fenerbahce,0,1,0,0.6572565734552349,0.649922979608508,0.6550564953012168
+2024-01-15,Galatasaray,Kayserispor,2,1,1,0.5909471026959949,0.8724938754926113,0.6754111345349798
+2024-01-20,Kasimpasa,Hatayspor,3,0,1,0.6662363755309713,0.3624372084395734,0.5750966254035519
+2024-01-20,Alanyaspor,Rizespor,2,1,1,0.5638924812738944,0.7653823651081815,0.6243394464241805
+2024-01-20,Karagumruk,Buyuksehyr,1,1,0,0.4302999536500321,0.5300517602955367,0.4602254956436835
+2024-01-20,Ad. Demirspor,Ankaragucu,1,1,0,0.5518833964827812,0.6730099547523373,0.588221363963648
+2024-01-20,Pendikspor,Besiktas,4,0,1,0.6809374886935787,0.6639186013904149,0.6758318225026295
+2024-01-21,Fenerbahce,Samsunspor,1,1,0,0.6979415193499762,0.6500473007582177,0.6835732537724486
+2024-01-21,Sivasspor,Gaziantep,2,2,1,0.5030602088665345,0.4674266364775025,0.49237013714982486
+2024-01-21,Trabzonspor,Galatasaray,1,5,1,0.49583561050326463,0.732123209902918,0.5667218903231607
+2024-01-21,Konyaspor,Antalyaspor,1,1,0,0.4111498798482309,0.5003481928684033,0.4379093737542826
+2024-01-22,Kayserispor,Istanbulspor,0,1,0,0.5679555164211082,0.4639858015534754,0.5367646019608183
+2024-01-23,Hatayspor,Alanyaspor,1,1,0,0.5630923136350516,0.8577760766122214,0.6514974425282025
+2024-01-23,Besiktas,Ad. Demirspor,0,0,0,0.6109211501774465,0.6478172136905337,0.6219899692313726
+2024-01-23,Pendikspor,Kasimpasa,3,2,1,0.7223906047486534,0.34917925189410376,0.6104271988922885
+2024-01-24,Ankaragucu,Karagumruk,2,0,0,0.46742537566491404,0.4874539237879658,0.47343394010182954
+2024-01-24,Gaziantep,Konyaspor,1,1,0,0.4438100667064309,0.7487351011294111,0.535287577033325
+2024-01-24,Antalyaspor,Sivasspor,2,1,1,0.4614279623215412,0.8473398259900569,0.5772015214220959
+2024-01-24,Buyuksehyr,Fenerbahce,0,1,0,0.48783709927930086,0.7941033699786562,0.5797169804891075
+2024-01-25,Galatasaray,Istanbulspor,3,1,1,0.6119285491324756,0.8973241810424831,0.697547238705478
+2024-01-25,Rizespor,Trabzonspor,1,0,0,0.5630773968521915,0.45919929678456095,0.5319139668319023
+2024-01-25,Samsunspor,Kayserispor,2,0,0,0.5237746236648371,0.3064748957589187,0.4585847052930615
+2024-01-27,Alanyaspor,Pendikspor,1,1,0,0.6919918608929808,0.5828289402561814,0.659242984701941
+2024-01-27,Ad. Demirspor,Hatayspor,0,1,0,0.6831572548387819,0.7342589669009482,0.6984877684574318
+2024-01-28,Konyaspor,Buyuksehyr,2,3,1,0.35849299180270805,0.5952134835778523,0.4295091393352513
+2024-01-28,Karagumruk,Rizespor,4,0,1,0.5473874035050182,0.7823252101240091,0.6178687454907155
+2024-01-28,Sivasspor,Besiktas,1,0,0,0.534406592183737,0.5798627838524557,0.5480434496843526
+2024-01-28,Fenerbahce,Ankaragucu,2,1,1,0.6209993106602453,0.8227797590970106,0.6815334451912749
+2024-01-29,Galatasaray,Gaziantep,2,1,1,0.6151122259943043,0.9274570601034995,0.7088156762270629
+2024-01-29,Trabzonspor,Kasimpasa,2,3,1,0.7077320330051268,0.6288963023328514,0.6840813138034442
+2024-01-29,Istanbulspor,Samsunspor,1,1,0,0.42934517657520854,0.7456053599821698,0.524223231597297
+2024-01-29,Kayserispor,Antalyaspor,1,1,0,0.4912781982302773,0.566950395935021,0.5139798575417004
+2024-02-02,Samsunspor,Galatasaray,0,2,0,0.44982970349818874,0.15974316667607774,0.3628037424515554
+2024-02-02,Ankaragucu,Sivasspor,0,0,0,0.4381193748088578,0.6022521893489731,0.4873592191708924
+2024-02-02,Hatayspor,Karagumruk,3,1,1,0.5196681280749781,0.49286707336037006,0.5116278116605957
+2024-02-03,Buyuksehyr,Istanbulspor,2,0,0,0.47582882579330493,0.5164160446846773,0.48800499146071663
+2024-02-03,Rizespor,Konyaspor,0,0,0,0.4629851557288955,0.28576601968977794,0.40981941491716023
+2024-02-03,Gaziantep,Kayserispor,1,1,0,0.5185839318926792,0.4831463932918974,0.5079526703124446
+2024-02-03,Antalyaspor,Fenerbahce,0,2,0,0.5452948013593731,0.21524040374356654,0.44627848207463117
+2024-02-04,Pendikspor,Ad. Demirspor,2,1,1,0.6512343822433436,0.24486988257175227,0.5293250323418661
+2024-02-04,Kasimpasa,Alanyaspor,2,1,1,0.7021685302416741,0.5121348812332656,0.6451584355391515
+2024-02-04,Besiktas,Trabzonspor,2,0,0,0.6010286675817355,0.6053656095221339,0.6023297501638549
+2024-02-09,Ad. Demirspor,Kasimpasa,1,3,1,0.7085834083871866,0.4771700172554381,0.6391593910476621
+2024-02-10,Karagumruk,Pendikspor,2,0,0,0.674080227190769,0.5405509389579918,0.6340214407209358
+2024-02-10,Galatasaray,Buyuksehyr,2,0,0,0.43034101868523617,0.7603932866858425,0.5293566990854182
+2024-02-11,Istanbulspor,Gaziantep,1,3,1,0.4507284933848426,0.5962350397453058,0.4943804572929816
+2024-02-11,Sivasspor,Rizespor,1,0,0,0.49003372120397076,0.36012865284417783,0.45106220069603287
+2024-02-11,Fenerbahce,Alanyaspor,2,2,1,0.7560784485407476,0.8586783515269356,0.786858419436604
+2024-02-11,Konyaspor,Ankaragucu,1,0,0,0.41613720062496046,0.627119226328043,0.4794318083358852
+2024-02-12,Trabzonspor,Hatayspor,2,0,0,0.6246223771224877,0.4254542030657257,0.5648719249054591
+2024-02-12,Kayserispor,Besiktas,0,0,0,0.5812296304925572,0.346117952421203,0.510696127071151
+2024-02-12,Samsunspor,Antalyaspor,2,0,0,0.3910551590964628,0.14195674010036816,0.3163256333976344
+2024-02-16,Kasimpasa,Karagumruk,1,1,0,0.6778267080537421,0.27564693150683134,0.5571727750896689
+2024-02-17,Hatayspor,Sivasspor,1,1,0,0.4616794717447306,0.5270670319523423,0.4812957398070141
+2024-02-17,Rizespor,Fenerbahce,1,3,1,0.6300754063582552,0.5092325871762027,0.5938225606036395
+2024-02-17,Antalyaspor,Istanbulspor,2,2,1,0.4685679374507406,0.7033403400600741,0.5389996582335407
+2024-02-18,Pendikspor,Trabzonspor,0,2,0,0.6756584835311364,0.2047074671432206,0.5343731786147616
+2024-02-18,Alanyaspor,Ad. Demirspor,3,3,1,0.6033231313724075,0.2596298782892092,0.500215155447448
+2024-02-18,Gaziantep,Samsunspor,1,1,0,0.4167094106133344,0.49658517373805516,0.4406721395507507
+2024-02-18,Ankaragucu,Galatasaray,0,3,1,0.42617328262367044,0.3621629728445519,0.40697018968993487
+2024-02-19,Besiktas,Konyaspor,2,0,0,0.5343674276237176,0.4449306964219919,0.5075364082631999
+2024-02-19,Buyuksehyr,Kayserispor,2,3,1,0.5045278156866213,0.4991622946251442,0.5029181593681782
+2024-02-23,Samsunspor,Rizespor,3,0,1,0.4437428602805178,0.6407740555095636,0.5028522188492315
+2024-02-24,Kayserispor,Ankaragucu,3,2,1,0.4854696704590712,0.530076117681902,0.49885160462592043
+2024-02-24,Gaziantep,Buyuksehyr,0,2,0,0.41029853514680836,0.40979018006194257,0.41014602862134864
+2024-02-24,Fenerbahce,Kasimpasa,2,1,1,0.8106189148946823,0.6328066733789237,0.7572752424399547
+2024-02-24,Konyaspor,Hatayspor,2,0,0,0.4866806162105615,0.6180189241689328,0.5260821085980729
+2024-02-25,Sivasspor,Pendikspor,4,1,1,0.6066406423696681,0.6785374930696484,0.6282096975796622
+2024-02-25,Karagumruk,Alanyaspor,1,1,0,0.6177401037248557,0.5244418587380493,0.5897506302288138
+2024-02-25,Trabzonspor,Ad. Demirspor,1,0,0,0.6125492552529181,0.48795843784308807,0.5751720100299691
+2024-02-25,Istanbulspor,Besiktas,0,2,0,0.5334569402941991,0.5430996004801432,0.5363497383499823
+2024-02-26,Galatasaray,Antalyaspor,2,1,1,0.480271332884632,0.7681773699396025,0.5666431440011231
+2024-03-01,Kasimpasa,Sivasspor,0,0,0,0.6378130585075162,0.5266044532229557,0.6044504769221481
+2024-03-02,Hatayspor,Fenerbahce,0,2,0,0.6615383681791498,0.3638106711448662,0.5722200590688646
+2024-03-02,Ankaragucu,Istanbulspor,1,1,0,0.45389340879667933,0.6133488212596566,0.5017300325355726
+2024-03-02,Rizespor,Kayserispor,3,0,1,0.5374385341486638,0.5818675391618178,0.55076723565261
+2024-03-03,Buyuksehyr,Samsunspor,1,0,0,0.39973377505513924,0.4185425955994026,0.40537642121841827
+2024-03-03,Pendikspor,Konyaspor,0,2,0,0.5690091876691206,0.2839777803248717,0.48349976546584594
+2024-03-03,Besiktas,Galatasaray,0,1,0,0.4848597161826743,0.42424106195836314,0.466674119915381
+2024-03-04,Ad. Demirspor,Karagumruk,1,0,0,0.5963059301913174,0.2958733416590315,0.5061761536316316
+2024-03-04,Alanyaspor,Trabzonspor,3,1,1,0.6186999631590336,0.14018699654586364,0.4751460731750826
+2024-03-04,Antalyaspor,Gaziantep,1,0,0,0.46254133925520824,0.21673026616142144,0.38879801732707214
+2024-03-08,Galatasaray,Rizespor,6,2,1,0.5800929435352319,0.9490558605863767,0.6907818186505754
+2024-03-09,Buyuksehyr,Antalyaspor,1,0,0,0.3946282624103019,0.19277630705983628,0.3340726758051622
+2024-03-09,Trabzonspor,Karagumruk,5,1,1,0.5846573303243952,0.17603327230764487,0.46207011291937006
+2024-03-09,Sivasspor,Alanyaspor,1,2,1,0.5494679673969868,0.31274371910854976,0.4784506929104556
+2024-03-09,Konyaspor,Ad. Demirspor,2,2,1,0.4942945267192782,0.18875720676171154,0.4026333307320082
+2024-03-10,Kayserispor,Hatayspor,1,1,0,0.5565656380334341,0.22007506972222596,0.4556184675400716
+2024-03-10,Istanbulspor,Kasimpasa,1,2,1,0.6101948335251318,0.29633274908582985,0.5160362081933412
+2024-03-10,Samsunspor,Ankaragucu,2,1,1,0.3729824658952997,0.6073148751787901,0.44328218868034686
+2024-03-10,Fenerbahce,Pendikspor,4,1,1,0.8237271007822576,0.9046937701090318,0.84801710158029
+2024-03-11,Gaziantep,Besiktas,2,0,0,0.4981985851001705,0.30082611786874486,0.4389868449307428
+2024-03-15,Karagumruk,Konyaspor,1,1,0,0.4812090206186548,0.21104877489529683,0.4001609469016474
+2024-03-15,Pendikspor,Istanbulspor,1,0,0,0.5556687059105665,0.5830644318041771,0.5638874236786497
+2024-03-16,Alanyaspor,Kayserispor,1,0,0,0.6364430925858022,0.19875992469848341,0.5051381422196065
+2024-03-16,Ankaragucu,Buyuksehyr,2,1,1,0.36323417548792164,0.26682851925731604,0.33431247861873997
+2024-03-16,Ad. Demirspor,Sivasspor,4,1,1,0.5396940316043101,0.17225583425649185,0.4294625723999646
+2024-03-16,Besiktas,Antalyaspor,1,2,1,0.4729073245730281,0.6447837429610723,0.5244702500894414
+2024-03-17,Rizespor,Gaziantep,3,1,1,0.459779603523001,0.3840249899629948,0.4370532194549992
+2024-03-17,Hatayspor,Samsunspor,3,0,1,0.3979679151242783,0.39239716044160194,0.39629668871947543
+2024-03-17,Kasimpasa,Galatasaray,3,4,1,0.6093956247253973,0.17640813417487272,0.47949937756023997
+2024-03-17,Trabzonspor,Fenerbahce,2,3,1,0.629864728522387,0.0895630594651514,0.46777422780521627
+2024-04-02,Istanbulspor,Rizespor,0,4,1,0.45736047578672195,0.6510862251413294,0.5154782005931042
+2024-04-02,Antalyaspor,Ankaragucu,1,1,0,0.3946752613587785,0.3943374257075349,0.3945739106634054
+2024-04-02,Galatasaray,Hatayspor,1,0,0,0.6345793242993973,0.6207204013328087,0.6304216474094207
+2024-04-02,Gaziantep,Alanyaspor,0,3,1,0.544311538150929,0.25879479566715585,0.45865651540579705
+2024-04-03,Sivasspor,Karagumruk,1,0,0,0.4950280549819454,0.2523936427866908,0.42223773132336906
+2024-04-03,Fenerbahce,Ad. Demirspor,4,2,1,0.6769866607765017,0.49813382497332326,0.6233308100355481
+2024-04-03,Kayserispor,Kasimpasa,0,2,0,0.6829049894578246,0.26515929242806857,0.5575812803488978
+2024-04-03,Konyaspor,Trabzonspor,1,3,1,0.49686679653988663,0.2811827077372345,0.432161569899091
+2024-04-04,Buyuksehyr,Besiktas,1,1,0,0.41621076682633085,0.14834574621060978,0.3358512606416145
+2024-04-04,Samsunspor,Pendikspor,0,0,0,0.538367442946741,0.6673471284117007,0.5770613485862289
+2024-04-12,Trabzonspor,Sivasspor,0,1,0,0.5462087974537311,0.2522146320338023,0.45801054782775247
+2024-04-13,Kasimpasa,Konyaspor,0,2,0,0.5751952468667483,0.3733804562758947,0.5146508096894922
+2024-04-13,Ankaragucu,Gaziantep,3,1,1,0.43442476858396856,0.34667842299856755,0.40810086490834824
+2024-04-13,Ad. Demirspor,Kayserispor,0,0,0,0.6360754994226456,0.23768590055726727,0.5165586197630321
+2024-04-13,Besiktas,Samsunspor,1,1,0,0.4569295660016093,0.6120825708109863,0.5034754674444224
+2024-04-14,Hatayspor,Istanbulspor,0,3,1,0.4459207564401629,0.36950494904789705,0.4229960142224831
+2024-04-14,Pendikspor,Buyuksehyr,2,3,1,0.5164785125949525,0.3777669784570995,0.47486505235359655
+2024-04-14,Karagumruk,Fenerbahce,1,2,1,0.6232024292993645,0.1608260306967164,0.4844895097185701
+2024-04-14,Rizespor,Antalyaspor,3,0,1,0.42328369206443706,0.22180626848569948,0.3628404649908158
+2024-04-15,Alanyaspor,Galatasaray,0,4,1,0.570937155780486,0.0935425150016535,0.42771876354683624
+2024-04-19,Besiktas,Ankaragucu,2,0,0,0.46899445617097396,0.6126617129309349,0.5120946331989622
+2024-04-20,Istanbulspor,Karagumruk,1,2,1,0.5160400513893288,0.4034088881697297,0.4822507024234491
+2024-04-20,Konyaspor,Alanyaspor,0,2,0,0.5304178919594054,0.09865493365290666,0.40088900446745573
+2024-04-20,Kayserispor,Trabzonspor,1,2,1,0.6105643208629269,0.37277404410553183,0.5392272378357084
+2024-04-20,Samsunspor,Ad. Demirspor,1,1,0,0.4705018399283385,0.3894960522193862,0.4462001036156528
+2024-04-21,Buyuksehyr,Rizespor,2,0,0,0.44542884943308075,0.28498960332622725,0.3972970756010247
+2024-04-21,Antalyaspor,Hatayspor,2,1,1,0.4634226655709369,0.2395759370761285,0.39626864702249437
+2024-04-21,Galatasaray,Pendikspor,4,1,1,0.7292525785618325,0.8684757552890349,0.7710195315799933
+2024-04-21,Gaziantep,Kasimpasa,2,0,0,0.6018364811304816,0.6692368949950622,0.6220566052898558
+2024-04-22,Sivasspor,Fenerbahce,2,2,1,0.5942167624174254,0.5477921979462272,0.580289393076066
+2024-04-26,Ad. Demirspor,Galatasaray,0,3,1,0.5517034980136724,0.46745294703342005,0.5264283327195967
+2024-04-27,Kasimpasa,Samsunspor,1,0,0,0.5312597208214297,0.27153490143641135,0.45334227500592417
+2024-04-27,Sivasspor,Konyaspor,1,0,0,0.4170534333384753,0.4670230338118299,0.43204431348048167
+2024-04-27,Fenerbahce,Besiktas,2,1,1,0.6187671882699893,0.4584863145529891,0.5706829261548892
+2024-04-27,Hatayspor,Buyuksehyr,1,2,1,0.41149410332554226,0.6730376991293121,0.48995718206667316
+2024-04-28,Alanyaspor,Istanbulspor,6,0,1,0.5880576951119117,0.2841488515888495,0.49688504205499306
+2024-04-28,Pendikspor,Kayserispor,1,2,1,0.5849374211284724,0.7416796784017441,0.6319600983104539
+2024-04-28,Rizespor,Ankaragucu,2,2,1,0.47997783710163755,0.5154487728080077,0.4906191178135486
+2024-04-28,Trabzonspor,Gaziantep,4,2,1,0.6178944779602981,0.37604299270662056,0.5453390323841948
+2024-04-29,Karagumruk,Antalyaspor,4,1,1,0.46519533766049725,0.4263604008492997,0.453544856617138
+2024-05-03,Ankaragucu,Alanyaspor,1,1,0,0.5132241904761626,0.5900270677364596,0.5362650536542517
+2024-05-03,Besiktas,Rizespor,3,2,1,0.5616054146946702,0.3823251806116192,0.5078213444697549
+2024-05-04,Istanbulspor,Ad. Demirspor,0,1,0,0.5605627867130434,0.7477953838463806,0.6167325658530446
+2024-05-04,Kayserispor,Karagumruk,2,2,1,0.542020228003917,0.4676102335390762,0.5196972296644647
+2024-05-04,Samsunspor,Trabzonspor,3,1,1,0.46692879747031857,0.8034201040381846,0.5678761894406784
+2024-05-05,Buyuksehyr,Kasimpasa,4,1,1,0.5717072951196942,0.2977974033937882,0.4895343276019224
+2024-05-05,Galatasaray,Sivasspor,6,1,1,0.5643444740038153,0.8178601470853785,0.6403991759282842
+2024-05-05,Gaziantep,Hatayspor,1,1,0,0.4347279452851587,0.4053754593357999,0.42592219950035104
+2024-05-06,Antalyaspor,Pendikspor,1,2,1,0.5436296314576707,0.284468375069135,0.46588125454111
+2024-05-06,Konyaspor,Fenerbahce,0,0,0,0.5794740420332934,0.555624456253383,0.5723191662993203
+2024-05-12,Konyaspor,Samsunspor,3,0,1,0.36605327828685097,0.23852798293311206,0.32779568968072925
+2024-05-12,Kasimpasa,Antalyaspor,3,1,1,0.5644519852846385,0.4629424772572114,0.5339991328764103
+2024-05-12,Ad. Demirspor,Gaziantep,1,6,1,0.5998994762552478,0.4582994463750486,0.557419467291188
+2024-05-12,Alanyaspor,Besiktas,1,1,0,0.5524287471495533,0.5238015541337142,0.5438405892448015
+2024-05-12,Hatayspor,Ankaragucu,2,1,1,0.4074313529653385,0.4630178122112547,0.42410729073911335
+2024-05-12,Sivasspor,Buyuksehyr,0,1,0,0.3920677957501506,0.3454094400673431,0.37807028904530837
+2024-05-12,Pendikspor,Rizespor,2,1,1,0.5972338930374618,0.6054185794251584,0.5996892989537708
+2024-05-12,Trabzonspor,Istanbulspor,3,0,1,0.6359459678082914,0.19787257934031957,0.5045239512678998
+2024-05-12,Karagumruk,Galatasaray,2,3,1,0.5437109885272822,0.45830242055130715,0.5180884181344897
+2024-05-12,Fenerbahce,Kayserispor,3,0,1,0.7358476749927468,0.5120409370992856,0.6687056536247085
+2024-05-17,Istanbulspor,Sivasspor,1,3,1,0.44773596892956485,0.7067803324699183,0.5254492779916708
+2024-05-17,Antalyaspor,Ad. Demirspor,2,1,1,0.49067928020275675,0.4235374273782398,0.4705367243554016
+2024-05-18,Besiktas,Hatayspor,2,2,1,0.5416346401945691,0.513292123321931,0.5331318851327776
+2024-05-18,Ankaragucu,Pendikspor,0,0,0,0.5443768133231199,0.5675677621045888,0.5513340979575606
+2024-05-18,Samsunspor,Alanyaspor,1,1,0,0.4674971202944815,0.5619143773068362,0.49582229739818795
+2024-05-18,Buyuksehyr,Trabzonspor,0,1,0,0.4910128508175245,0.8779208936485065,0.6070852636668191
+2024-05-18,Rizespor,Kasimpasa,0,0,0,0.6561617849858274,0.5548992491696013,0.6257830242409597
+2024-05-18,Kayserispor,Konyaspor,2,2,1,0.47094314908210344,0.438912259560131,0.46133388222551175
+2024-05-18,Gaziantep,Karagumruk,3,1,1,0.5017564034083588,0.44728893724844593,0.485416163560385
+2024-05-19,Galatasaray,Fenerbahce,0,1,0,0.5787657026631162,0.7475944173461506,0.6294143170680265
+2024-05-24,Alanyaspor,Antalyaspor,1,1,0,0.5044733407400558,0.8768482453633288,0.6161858121270377
+2024-05-25,Karagumruk,Samsunspor,3,1,1,0.4342679133045285,0.33978548922748886,0.40592318608141664
+2024-05-25,Sivasspor,Kayserispor,2,1,1,0.4908859092321582,0.5558694497688712,0.5103809713931721
+2024-05-26,Ad. Demirspor,Buyuksehyr,2,6,1,0.47997936710485883,0.4616011403912164,0.4744658990907661
+2024-05-26,Fenerbahce,Istanbulspor,6,0,1,0.7676104065433027,0.9006667570773061,0.8075273117035038
+2024-05-26,Hatayspor,Rizespor,2,0,0,0.4864685525497956,0.4572260010999482,0.4776957871148414
+2024-05-26,Kasimpasa,Besiktas,2,1,1,0.6115823658607358,0.4333337215748126,0.5581077725749588
+2024-05-26,Konyaspor,Galatasaray,1,3,1,0.47868532744746484,0.5534383520066503,0.5011112348152205
+2024-05-26,Pendikspor,Gaziantep,0,1,0,0.556143803666854,0.6501953562810917,0.5843592694511254
+2024-05-26,Trabzonspor,Ankaragucu,4,2,1,0.5342276989649433,0.7448375329459379,0.5974106491592417
+2024-08-09,Galatasaray,Hatayspor,2,1,1,0.6733977492277078,0.6473469217737816,0.6655825009915299
+2024-08-10,Fenerbahce,Ad. Demirspor,1,0,0,0.740953698220888,0.9005739670969983,0.7888397788837211
+2024-08-10,Kasimpasa,Konyaspor,2,3,1,0.5509292857565716,0.6043029780457045,0.5669413934433115
+2024-08-10,Antalyaspor,Goztep,0,0,0,0.5538219509729112,0.7721188484126121,0.6193110202048215
+2024-08-11,Sivasspor,Trabzonspor,0,0,0,0.5423171169917194,0.4190233729365197,0.5053289937751595
+2024-08-11,Alanyaspor,Eyupspor,1,1,0,,,
+2024-08-11,Samsunspor,Besiktas,0,2,0,0.4087835726185377,0.6748995151318576,0.48861835537253373
+2024-08-12,Bodrumspor,Gaziantep,0,1,0,,,
+2024-08-12,Rizespor,Buyuksehyr,1,1,0,0.47220504292323867,0.4350173936624028,0.4610487481449879
+2024-08-16,Konyaspor,Galatasaray,1,2,1,0.4826097808316926,0.613242441038991,0.5217995788938821
+2024-08-17,Kayserispor,Sivasspor,1,2,1,0.5007930977750167,0.7428150719011507,0.5733996900128568
+2024-08-17,Ad. Demirspor,Rizespor,1,2,1,0.6327873972358731,0.6109049632780342,0.6262226670485215
+2024-08-17,Goztep,Fenerbahce,2,2,1,0.7534761244386083,0.7784507637554863,0.7609685162336717
+2024-08-18,Buyuksehyr,Alanyaspor,4,2,1,0.5273115934907668,0.498235439816259,0.5185887473884145
+2024-08-18,Besiktas,Antalyaspor,4,2,1,0.4747696454683389,0.8094831708546503,0.5751837030842323
+2024-08-18,Gaziantep,Samsunspor,0,1,0,0.4215916667588932,0.5982446953510521,0.47458757533654083
+2024-08-19,Eyupspor,Bodrumspor,4,1,1,,0.4351949042638035,
+2024-08-19,Hatayspor,Kasimpasa,1,1,0,0.5692624716433892,0.6456893544851458,0.5921905364959161
+2024-08-23,Alanyaspor,Goztep,1,1,0,0.6773058125791532,0.7739546502594679,0.7063004638832476
+2024-08-24,Sivasspor,Eyupspor,0,1,0,,0.659370100269126,
+2024-08-24,Bodrumspor,Konyaspor,3,1,1,,0.7257557488304175,
+2024-08-25,Kasimpasa,Ad. Demirspor,2,2,1,0.6916769119240254,0.686836493755638,0.6902247864735092
+2024-08-25,Antalyaspor,Hatayspor,3,2,1,0.4448276628567219,0.8130086796310343,0.5552819678890156
+2024-08-25,Rizespor,Fenerbahce,0,5,1,0.6519983102108281,0.4804623621285213,0.6005375257861361
+2024-08-30,Fenerbahce,Alanyaspor,3,0,1,0.7253541042988598,0.8780540804621524,0.7711640971478476
+2024-08-31,Konyaspor,Kayserispor,0,0,0,0.4817945908550579,0.7414093579522463,0.5596790209842144
+2024-08-31,Rizespor,Kasimpasa,0,1,0,0.6275215061558804,0.597095374498837,0.6183936666587674
+2024-08-31,Ad. Demirspor,Galatasaray,1,5,1,0.6160026906114697,0.641937416101813,0.6237831082585727
+2024-08-31,Goztep,Bodrumspor,2,0,0,,0.593039067056746,
+2024-09-01,Hatayspor,Samsunspor,0,3,1,0.37579736798892055,0.6529372738135518,0.45893933973630996
+2024-09-01,Besiktas,Sivasspor,2,0,0,0.5009099749884781,0.68914918273349,0.5573817373119817
+2024-09-01,Eyupspor,Trabzonspor,0,0,0,,0.6123630496270177,
+2024-09-01,Buyuksehyr,Antalyaspor,5,2,1,0.4287476228080261,0.8142663965385898,0.5444032549271952
+2024-09-14,Samsunspor,Konyaspor,0,1,0,0.35948432116301454,0.5199667825326777,0.4076290595739135
+2024-09-14,Sivasspor,Gaziantep,3,2,1,0.5069097854227006,0.6574366294132877,0.5520678386198767
+2024-09-14,Bodrumspor,Buyuksehyr,0,1,0,,0.8033584152810149,
+2024-09-14,Galatasaray,Rizespor,5,0,1,0.6766999428674965,0.8978648098115176,0.7430494029507029
+2024-09-15,Alanyaspor,Hatayspor,0,0,0,0.5639240124067384,0.6722762518887523,0.5964296842513426
+2024-09-15,Trabzonspor,Besiktas,1,1,0,0.5616787629456719,0.7363709035523952,0.6140864051276889
+2024-09-15,Kasimpasa,Fenerbahce,0,2,0,0.7092558293763216,0.49149750359642935,0.643928331642354
+2024-09-15,Kayserispor,Eyupspor,2,2,1,,0.7414719538064309,
+2024-09-16,Antalyaspor,Ad. Demirspor,2,1,1,0.5352461157717712,0.6503428798083875,0.569775144982756
+2024-09-17,Galatasaray,Gaziantep,3,1,1,0.6886163876916842,0.7967999261743975,0.7210714492364982
+2024-09-18,Samsunspor,Buyuksehyr,2,0,0,0.3636345680850542,0.3881399259868781,0.3709861754556013
+2024-09-19,Trabzonspor,Kayserispor,2,2,1,0.6354236108871432,0.8535027328356473,0.7008473474716944
+2024-09-20,Hatayspor,Bodrumspor,0,1,0,,0.5636862822517569,
+2024-09-21,Konyaspor,Sivasspor,0,0,0,0.4278028602207311,0.673712929790294,0.5015758810916
+2024-09-21,Fenerbahce,Galatasaray,1,3,1,0.5560731786996994,0.6102715323129402,0.5723326847836716
+2024-09-22,Kasimpasa,Antalyaspor,0,0,0,0.5943450575468429,0.5135398932532371,0.5701035082587611
+2024-09-22,Rizespor,Samsunspor,0,1,0,0.40495640891830065,0.664833353950394,0.48291949242792864
+2024-09-22,Ad. Demirspor,Alanyaspor,0,2,0,0.643644561866263,0.5969585526799519,0.6296387591103696
+2024-09-22,Besiktas,Eyupspor,2,1,1,0.39350198868062597,0.4706729091751299,0.41665326482897713
+2024-09-23,Gaziantep,Trabzonspor,0,0,0,0.5716296503559446,0.3670503233589192,0.510255852256837
+2024-09-23,Goztep,Kayserispor,3,0,1,0.5109752223806642,0.4853434666828014,0.5032856956713053
+2024-09-27,Sivasspor,Buyuksehyr,1,2,1,0.4316527486220521,0.4343040227663436,0.4324481308653396
+2024-09-28,Samsunspor,Goztep,4,3,1,0.38874288488326436,0.6012927240118754,0.4525078366218477
+2024-09-28,Alanyaspor,Rizespor,1,0,0,0.5868521829093544,0.789991056022981,0.6477938448434424
+2024-09-28,Galatasaray,Kasimpasa,3,3,1,0.7371980077466488,0.64869790157966,0.7106479758965522
+2024-09-29,Eyupspor,Gaziantep,3,2,1,0.5041101933138938,0.3615748954188076,0.46134960394536795
+2024-09-29,Trabzonspor,Konyaspor,3,2,1,0.5151904370623069,0.45066699885584294,0.4958334056003677
+2024-09-29,Antalyaspor,Fenerbahce,0,2,0,0.6046598488626262,0.5573916302692015,0.5904793832845988
+2024-09-29,Bodrumspor,Ad. Demirspor,3,1,1,0.48678241589688914,0.48700645220019656,0.48684962678788135
+2024-09-30,Kayserispor,Besiktas,0,3,1,0.5352363710022988,0.3690198311935108,0.48537140905966236
+2024-10-04,Rizespor,Antalyaspor,2,1,1,0.5102675717525119,0.6777784375483006,0.5605208314912485
+2024-10-05,Kasimpasa,Bodrumspor,0,0,0,0.5296761039816996,0.598692320253176,0.5503809688631425
+2024-10-05,Goztep,Sivasspor,3,2,1,0.43754463512231007,0.37910325807800876,0.42001222200901966
+2024-10-05,Buyuksehyr,Kayserispor,1,1,0,0.5474782683538922,0.8505027500079787,0.6383856128501182
+2024-10-05,Hatayspor,Trabzonspor,1,1,0,0.5303126806701288,0.5547261446784775,0.5376367198726334
+2024-10-06,Konyaspor,Eyupspor,2,1,1,0.3531992697317256,0.5145979718685914,0.40161888037278537
+2024-10-06,Ad. Demirspor,Samsunspor,1,3,1,0.4816791885875672,0.622453098999811,0.5239113617112403
+2024-10-06,Galatasaray,Alanyaspor,1,0,0,0.6926244051863544,0.6922558580990246,0.6925138410601555
+2024-10-06,Gaziantep,Besiktas,1,1,0,0.518930453314673,0.2761633728237196,0.446100329167387
+2024-10-19,Kayserispor,Gaziantep,2,2,1,0.5429079916471274,0.5890486033644399,0.5567501751623212
+2024-10-19,Trabzonspor,Buyuksehyr,1,0,0,0.5288776251647965,0.30132396440415393,0.46061152693660373
+2024-10-19,Antalyaspor,Galatasaray,0,3,1,0.5761416774909427,0.5460377983786402,0.567110513757252
+2024-10-19,Eyupspor,Goztep,1,0,0,0.4818203830702398,0.5298634510105505,0.496233303452333
+2024-10-20,Sivasspor,Hatayspor,3,2,1,0.4384109921330897,0.3539498894452821,0.4130726613267474
+2024-10-20,Besiktas,Konyaspor,2,0,0,0.4652872260309621,0.4755568902994065,0.4683681253114954
+2024-10-20,Alanyaspor,Kasimpasa,1,2,1,0.6480376471306696,0.5638451047143679,0.622779884405779
+2024-10-20,Samsunspor,Fenerbahce,2,2,1,0.4918190878940998,0.2709372674406944,0.42555454175807816
+2024-10-21,Bodrumspor,Rizespor,0,1,0,0.4039766562312589,0.41164349195541844,0.40627670694850676
+2024-10-25,Ad. Demirspor,Sivasspor,2,4,1,0.5491544289146454,0.4802894971020221,0.5284949493708584
+2024-10-26,Goztep,Trabzonspor,2,1,1,0.5493566693318732,0.20634382548631974,0.44645281617820715
+2024-10-26,Hatayspor,Kayserispor,0,1,0,0.47586886907034087,0.5100902379125749,0.48613527972301107
+2024-10-26,Kasimpasa,Samsunspor,1,4,1,0.48363951232530317,0.4548125932705703,0.4749914366088833
+2024-10-27,Gaziantep,Konyaspor,3,1,1,0.4403441389742714,0.4231245896302689,0.43517827417107063
+2024-10-27,Alanyaspor,Antalyaspor,1,2,1,0.5521035342175215,0.6359573644824259,0.5772596832969927
+2024-10-27,Fenerbahce,Bodrumspor,2,0,0,0.6806591795698285,0.834484172991142,0.7268066775962225
+2024-10-28,Buyuksehyr,Eyupspor,1,1,0,0.3715232000688133,0.6130990071223548,0.44399594218487576
+2024-10-28,Galatasaray,Besiktas,2,1,1,0.5702212425918654,0.5818782535750251,0.5737183458868133
+2024-11-01,Gaziantep,Goztep,2,1,1,0.48887617798274596,0.5306449861463427,0.5014068204318249
+2024-11-02,Sivasspor,Rizespor,2,1,1,0.48830827592400944,0.4919785465261647,0.48940935710465605
+2024-11-02,Kayserispor,Ad. Demirspor,0,0,0,0.6165912872225752,0.6038354361829851,0.6127645319106981
+2024-11-02,Besiktas,Kasimpasa,1,3,1,0.6264255509567808,0.727201082797395,0.6566582105089651
+2024-11-03,Eyupspor,Hatayspor,2,0,0,0.4846267903793765,0.25181462377742975,0.41478314039879244
+2024-11-03,Trabzonspor,Fenerbahce,2,3,1,0.6211006334083401,0.4799992766902456,0.5787702263929118
+2024-11-03,Konyaspor,Buyuksehyr,3,2,1,0.4124885664286372,0.48970276043849764,0.4356528246315953
+2024-11-03,Bodrumspor,Alanyaspor,0,0,0,0.4470908311028848,0.45434711438377684,0.44926771608715244
+2024-11-04,Samsunspor,Antalyaspor,2,0,0,0.4472517365221074,0.5624522298676431,0.4818118845257681
+2024-11-08,Kasimpasa,Kayserispor,1,2,1,0.6109393430597214,0.7447533931344716,0.6510835580821465
+2024-11-09,Antalyaspor,Bodrumspor,3,2,1,0.24278652544429563,0.7008193430074977,0.3801963707132563
+2024-11-09,Hatayspor,Gaziantep,3,1,1,0.4604652260996329,0.7998642500919643,0.5622849332973323
+2024-11-09,Ad. Demirspor,Eyupspor,0,1,0,0.5558777927813834,0.7916680594878094,0.6266148727933112
+2024-11-09,Rizespor,Trabzonspor,3,1,1,0.5466347125743569,0.636806658836012,0.5736862964528534
+2024-11-10,Goztep,Konyaspor,2,0,0,0.5660429413569986,0.4379790950462942,0.5276237874637872
+2024-11-10,Galatasaray,Samsunspor,3,2,1,0.5631118158778611,0.7279741772019624,0.6125705242750915
+2024-11-10,Buyuksehyr,Besiktas,0,0,0,0.472217207191094,0.5827221271959734,0.5053686831925578
+2024-11-10,Fenerbahce,Sivasspor,4,0,1,0.6707133200920687,0.5979311853546091,0.6488786796708309
+2024-11-23,Eyupspor,Rizespor,1,2,1,0.5136977039030538,0.337944654702728,0.46097178914295606
+2024-11-23,Gaziantep,Buyuksehyr,3,0,1,0.5021454154099252,0.7776802761483255,0.5848058736314452
+2024-11-23,Kayserispor,Fenerbahce,2,6,1,0.6360895725995874,0.7977203517710889,0.6845788063510378
+2024-11-23,Bodrumspor,Galatasaray,0,1,0,0.3518420456782646,0.813852664165649,0.4904452312244799
+2024-11-24,Konyaspor,Hatayspor,1,1,0,0.4562672490855208,0.7495125976955679,0.5442408536685349
+2024-11-24,Sivasspor,Kasimpasa,0,0,0,0.5975686966377072,0.7762476932451581,0.6511723956199424
+2024-11-24,Besiktas,Goztep,2,4,1,0.6231963978216803,0.6305236309038159,0.6253945677463211
+2024-11-24,Samsunspor,Alanyaspor,1,1,0,0.47118937244327325,0.44574614732668166,0.46355640490829575
+2024-11-25,Trabzonspor,Ad. Demirspor,5,0,1,0.6702642827138565,0.46071189607877094,0.6073985667233308
+2024-11-29,Antalyaspor,Sivasspor,2,1,1,0.4768064489293021,0.7620322346896219,0.5623741846573981
+2024-11-30,Samsunspor,Bodrumspor,4,0,1,0.24526159879338907,0.4808300258457017,0.3159321269090829
+2024-11-30,Ad. Demirspor,Konyaspor,0,1,0,0.5692425005936244,0.797518449120981,0.6377252851518314
+2024-11-30,Alanyaspor,Trabzonspor,2,1,1,0.554287874710247,0.7975398495698711,0.6272634671681343
+2024-11-30,Buyuksehyr,Goztep,4,1,1,0.5966051062459434,0.756457834955166,0.6445609248587102
+2024-12-01,Rizespor,Kayserispor,3,0,1,0.4905295151797344,0.7239547739863249,0.5605570928217116
+2024-12-01,Galatasaray,Eyupspor,2,2,1,0.514890616023658,0.6762808310151278,0.563307680521099
+2024-12-02,Fenerbahce,Gaziantep,3,1,1,0.7213542502871679,0.8290782836040956,0.7536714602822463
+2024-12-02,Hatayspor,Besiktas,1,1,0,0.480382307981876,0.8355429977347364,0.5869305149077342
+2024-12-06,Trabzonspor,Kasimpasa,2,2,1,0.6630685978617533,0.7213323946062007,0.6805477368850875
+2024-12-07,Konyaspor,Antalyaspor,1,1,0,0.4567460972645048,0.7209821507269647,0.5360169133032429
+2024-12-07,Goztep,Ad. Demirspor,3,1,1,0.692417249795433,0.402448563374112,0.6054266438690367
+2024-12-07,Besiktas,Fenerbahce,1,0,0,0.5612646649738076,0.7392079431894931,0.6146476484385133
+2024-12-08,Eyupspor,Samsunspor,3,0,1,0.42845413693070533,0.5466786079107324,0.4639214782247134
+2024-12-08,Kayserispor,Alanyaspor,2,0,0,0.5093229926576714,0.7888068099925964,0.593168137858149
+2024-12-08,Sivasspor,Galatasaray,2,3,1,0.5712446996906001,0.8571014879414875,0.6570017361658664
+2024-12-08,Buyuksehyr,Hatayspor,3,0,1,0.5084622627529787,0.5845399719427713,0.5312855755099165
+2024-12-09,Gaziantep,Rizespor,1,0,0,0.511174637846321,0.7029030113120096,0.5686931498860276
+2024-12-13,Bodrumspor,Sivasspor,2,0,0,0.24478800540243506,0.82408545749533,0.4185772410303036
+2024-12-13,Kasimpasa,Eyupspor,2,0,0,0.5514148369195883,0.7232812724101001,0.6029747675667418
+2024-12-14,Rizespor,Konyaspor,1,1,0,0.4606738701893109,0.4660897225849833,0.46229862590801263
+2024-12-14,Alanyaspor,Gaziantep,3,0,1,0.5380338987294659,0.8801274628491582,0.6406619679653737
+2024-12-15,Antalyaspor,Kayserispor,2,0,0,0.48530579862781525,0.7702154362428317,0.5707786899123202
+2024-12-15,Fenerbahce,Buyuksehyr,3,1,1,0.5902461539031694,0.7257353600830586,0.6308929157571361
+2024-12-15,Hatayspor,Goztep,1,1,0,0.5405698202360549,0.8240977892086288,0.625628210927827
+2024-12-16,Ad. Demirspor,Besiktas,2,1,1,0.597773007580368,0.8789550138606986,0.6821276094644673
+2024-12-16,Galatasaray,Trabzonspor,4,3,1,0.6287252156740495,0.7751177164950277,0.672642965920343
+2024-12-20,Eyupspor,Fenerbahce,1,1,0,0.5163881082075205,0.3678554002418195,0.47182829581781016
+2024-12-21,Sivasspor,Samsunspor,0,0,0,0.4527451961967192,0.7408799670499466,0.5391856274526875
+2024-12-21,Besiktas,Alanyaspor,1,1,0,0.536116933371322,0.674633921918914,0.5776720299355996
+2024-12-22,Gaziantep,Antalyaspor,2,0,0,0.4932419840835209,0.7543643291041385,0.5715786875897062
+2024-12-22,Goztep,Rizespor,3,0,1,0.6355126923919286,0.612287122068021,0.6285450212947563
+2024-12-22,Kayserispor,Galatasaray,1,5,1,0.6474079250099689,0.40760371243497584,0.575466661237471
+2024-12-22,Trabzonspor,Bodrumspor,1,0,0,0.46745228600340566,0.32474395368749054,0.42463978630863114
+2024-12-23,Buyuksehyr,Kasimpasa,2,2,1,0.5860299981440655,0.39346135951339134,0.5282594065548633
+2024-12-23,Hatayspor,Ad. Demirspor,1,3,1,0.5209555267490825,0.33380860324354633,0.4648114496974216
+2025-01-03,Alanyaspor,Konyaspor,2,1,1,0.44730096115414164,0.6912798322334435,0.5204946224779322
+2025-01-03,Rizespor,Besiktas,1,1,0,0.4737923761117508,0.2272301823587021,0.39982371798583616
+2025-01-04,Ad. Demirspor,Buyuksehyr,0,1,0,0.5634965751375495,0.4512184241593508,0.5298131298440898
+2025-01-04,Antalyaspor,Eyupspor,1,4,1,0.4114027620538677,0.5064287520871582,0.4399105590638549
+2025-01-04,Galatasaray,Goztep,2,1,1,0.7781874058976684,0.7161477199230675,0.7595755001052882
+2025-01-04,Samsunspor,Trabzonspor,2,1,1,0.539557341325203,0.5105335915568446,0.5308502163946955
+2025-01-05,Kasimpasa,Gaziantep,2,2,1,0.607830039498462,0.5754837473645422,0.5981261518582861
+2025-01-05,Bodrumspor,Kayserispor,1,1,0,0.3364072584293641,0.3258793253215923,0.33324887849703255
+2025-01-05,Fenerbahce,Hatayspor,2,1,1,0.7252541645557004,0.8858251778222974,0.7734254685356794
+2025-01-11,Kayserispor,Samsunspor,0,1,0,0.4800159936944287,0.4318201717496741,0.4655572471110023
+2025-01-11,Hatayspor,Rizespor,1,2,1,0.4296566240535346,0.36098672562926465,0.4090556545262536
+2025-01-11,Besiktas,Bodrumspor,2,1,1,0.38746860199511457,0.6451735609119489,0.46478008967016493
+2025-01-12,Trabzonspor,Antalyaspor,5,0,1,0.5947244051365783,0.39564066316106894,0.5349992825439255
+2025-01-12,Sivasspor,Alanyaspor,1,1,0,0.48249962716597805,0.46032866393778715,0.47584833819752076
+2025-01-12,Gaziantep,Ad. Demirspor,1,0,0,0.5953486254526213,0.3131346554384449,0.5106844344483684
+2025-01-12,Buyuksehyr,Galatasaray,1,2,1,0.5492155467193536,0.6781500724598221,0.5878959044414942
+2025-01-13,Goztep,Kasimpasa,5,0,1,0.712210809562799,0.40813150204127674,0.6209870173063423
+2025-01-13,Konyaspor,Fenerbahce,2,3,1,0.554106702005516,0.7302562400836156,0.606951563428946
+2025-01-17,Hatayspor,Galatasaray,1,1,0,0.6093235534175798,0.4204489402711737,0.552661169473658
+2025-01-18,Buyuksehyr,Rizespor,2,0,0,0.5146185091451208,0.5220568499838221,0.5168500113967311
+2025-01-18,Gaziantep,Bodrumspor,0,0,0,0.3522282475676683,0.2321058871903931,0.31619153945448575
+2025-01-18,Besiktas,Samsunspor,0,0,0,0.4582664095434591,0.6867936620793718,0.5268245853042329
+2025-01-19,Goztep,Antalyaspor,1,0,0,0.6243030663985261,0.4118909472604669,0.5605794306571084
+2025-01-19,Konyaspor,Kasimpasa,3,3,1,0.5245558592707203,0.30440121778560114,0.45850946682518456
+2025-01-19,Ad. Demirspor,Fenerbahce,0,4,1,0.7054197632916427,0.5926287741659623,0.6715824665539386
+2025-01-19,Eyupspor,Alanyaspor,3,0,1,0.4545590908628589,0.2526766780922614,0.3939943670316796
+2025-01-20,Trabzonspor,Sivasspor,4,0,1,0.5983308322450006,0.5293658547950421,0.577641339010013
+2025-01-24,Samsunspor,Gaziantep,2,1,1,0.5051870412936417,0.7966472944453244,0.5926251172391466
+2025-01-25,Alanyaspor,Buyuksehyr,5,4,1,0.4752057635441166,0.6472282522152223,0.5268125101454483
+2025-01-25,Galatasaray,Konyaspor,1,0,0,0.623651005561498,0.6201731829324516,0.6226076587727841
+2025-01-25,Sivasspor,Kayserispor,5,2,1,0.5158380015852949,0.34587829754082566,0.4648500903719541
+2025-01-26,Rizespor,Ad. Demirspor,3,2,1,0.5697604050585949,0.2758465032719266,0.4815862345225944
+2025-01-26,Antalyaspor,Besiktas,1,1,0,0.46531070884800324,0.3235738289525467,0.42278964487936627
+2025-01-26,Bodrumspor,Eyupspor,0,1,0,0.2885383409781612,0.674014287159647,0.40418112483260693
+2025-01-26,Fenerbahce,Goztep,3,2,1,0.7878115659355885,0.7394798300348473,0.7733120451653662
+2025-01-27,Kasimpasa,Hatayspor,5,4,1,0.5655153046598356,0.3708906020343635,0.5071278938721939
+2025-01-31,Eyupspor,Sivasspor,1,0,0,0.46055238613946614,0.3638442571945833,0.4315399474560013
+2025-01-31,Konyaspor,Bodrumspor,3,1,1,0.3080937098340508,0.33967672955011396,0.3175686157488698
+2025-02-01,Kayserispor,Trabzonspor,0,0,0,0.6004531825940037,0.3791927990805099,0.5340750675399555
+2025-02-01,Buyuksehyr,Samsunspor,4,0,1,0.45539290155013173,0.3655601271563459,0.428443069231996
+2025-02-01,Hatayspor,Antalyaspor,2,3,1,0.42503056068278794,0.29256194811281994,0.38528997691179756
+2025-02-02,Goztep,Alanyaspor,0,1,0,0.6298862376350924,0.47996044848155045,0.5849085008890298
+2025-02-02,Fenerbahce,Rizespor,3,2,1,0.7070916548719403,0.8338200809559124,0.7451101826971318
+2025-02-02,Ad. Demirspor,Kasimpasa,3,5,1,0.6589728490622102,0.4898679436290275,0.6082413774322555
+2025-02-03,Gaziantep,Galatasaray,0,1,0,0.6339243298014002,0.6584462904722541,0.6412809180026564
+2025-02-07,Samsunspor,Hatayspor,2,0,0,0.4870542662989183,0.6708360565962809,0.542188803388127
+2025-02-08,Kayserispor,Konyaspor,3,2,1,0.4847095643302147,0.2358624592261654,0.4100554327989999
+2025-02-08,Sivasspor,Besiktas,0,2,0,0.4614476436343067,0.5544735094978954,0.4893554033933833
+2025-02-09,Alanyaspor,Fenerbahce,0,2,0,0.6277995523902292,0.5958791875243011,0.6182234429304508
+2025-02-09,Antalyaspor,Buyuksehyr,0,0,0,0.5046762119606206,0.33140603466965995,0.4526951587733324
+2025-02-09,Kasimpasa,Rizespor,3,2,1,0.6570639839178797,0.5761943593203858,0.6328030965386315
+2025-02-09,Galatasaray,Ad. Demirspor,3,0,1,0.7728957862421008,0.8963976415133956,0.8099463428234892
+2025-02-10,Bodrumspor,Goztep,0,0,0,0.3766962650769384,0.7028934747221984,0.4745554279705164
+2025-02-10,Trabzonspor,Eyupspor,1,0,0,0.4660975571116859,0.7099026954984506,0.5392390986277154
+2025-02-14,Ad. Demirspor,Antalyaspor,1,1,0,0.5868360079729583,0.2953551096011444,0.49939173846141416
+2025-02-15,Gaziantep,Sivasspor,2,1,1,0.479034297719681,0.1805714897979432,0.38949545534315966
+2025-02-15,Buyuksehyr,Bodrumspor,0,1,0,0.3822488813901563,0.8059246067035494,0.5093515989841743
+2025-02-15,Besiktas,Trabzonspor,2,1,1,0.5277349413597482,0.5786784110853093,0.5430179822774166
+2025-02-16,Hatayspor,Alanyaspor,1,0,0,0.4986445167867798,0.3280559596372277,0.44746794964191416
+2025-02-16,Eyupspor,Kayserispor,1,1,0,0.5511380973543965,0.5196077935771082,0.54167900622121
+2025-02-16,Konyaspor,Samsunspor,0,1,0,0.4139146279947796,0.45848908294221247,0.4272869644790095
+2025-02-16,Fenerbahce,Kasimpasa,3,1,1,0.8237729685102181,0.8721041255513861,0.8382723156225684
+2025-02-17,Rizespor,Galatasaray,1,2,1,0.5924442167904365,0.43462084890733826,0.5450972064255071
+2025-02-21,Bodrumspor,Hatayspor,1,0,0,0.27996329743528564,0.23376099618114246,0.2661026070590427
+2025-02-21,Eyupspor,Besiktas,1,3,1,0.4015650526064985,0.422152709307292,0.4077413496167365
+2025-02-22,Sivasspor,Konyaspor,1,1,0,0.46520328305571784,0.36463348828467823,0.435032344624406
+2025-02-22,Antalyaspor,Kasimpasa,2,1,1,0.6407219876983765,0.5372712361719144,0.6096867622404378
+2025-02-22,Samsunspor,Rizespor,2,3,1,0.46940080945839957,0.6541626572368116,0.5248293637919232
+2025-02-23,Kayserispor,Goztep,1,0,0,0.6055386581168323,0.7698262529598022,0.6548249365697232
+2025-02-23,Alanyaspor,Ad. Demirspor,3,2,1,0.6233003140885937,0.7253639238670792,0.6539193970221393
+2025-02-23,Trabzonspor,Gaziantep,3,2,1,0.5957294897882252,0.8272277227858904,0.6651789596875247
+2025-02-24,Galatasaray,Fenerbahce,0,0,0,0.6223655903200901,0.778148390801634,0.6691004304645533
+2025-03-01,Ad. Demirspor,Bodrumspor,0,0,0,0.38832558800746725,0.5189808279353897,0.427522159985844
+2025-03-01,Besiktas,Kayserispor,2,0,0,0.5495074769181147,0.8200358009366124,0.6306659741236641
+2025-03-02,Rizespor,Alanyaspor,3,1,1,0.5077582209400818,0.44122045772447016,0.48779689197539833
+2025-03-02,Kasimpasa,Galatasaray,3,3,1,0.7182057804746617,0.5731151123148839,0.6746785800267283
+2025-03-02,Fenerbahce,Antalyaspor,3,0,1,0.724093843733663,0.8567844093896658,0.7639010134304639
+2025-03-03,Gaziantep,Eyupspor,3,1,1,0.42073330737022424,0.25415544648455307,0.3707599491045229
+2025-03-03,Konyaspor,Trabzonspor,1,0,0,0.5286135059400849,0.5497389034967008,0.5349511252070698
+2025-03-03,Buyuksehyr,Sivasspor,1,0,0,0.5421471915883649,0.6461311299602135,0.5733423730999194
+2025-03-03,Goztep,Samsunspor,2,2,1,0.5327397818326941,0.42549503245177817,0.5005663570184193
+2025-03-07,Bodrumspor,Kasimpasa,1,0,0,0.4212081306318893,0.38603289297044274,0.4106555593334553
+2025-03-08,Kayserispor,Buyuksehyr,3,1,1,0.5358354378685263,0.6125340020395807,0.5588450071198426
+2025-03-08,Antalyaspor,Rizespor,2,1,1,0.4949366386085507,0.7030910140121589,0.5573829512296331
+2025-03-08,Trabzonspor,Hatayspor,1,2,1,0.6352405776282843,0.6383643027397524,0.6361776951617247
+2025-03-09,Sivasspor,Goztep,3,1,1,0.57526960801754,0.7597021095877814,0.6305993584886125
+2025-03-09,Eyupspor,Konyaspor,2,1,1,0.4498765702190021,0.3241630340484761,0.4121625093678443
+2025-03-09,Samsunspor,Ad. Demirspor,3,2,1,0.5645183349197418,0.5245986598872536,0.5525424324099953
+2025-03-09,Alanyaspor,Galatasaray,1,2,1,0.5805788746484744,0.7876825283321203,0.6427099707535682
+2025-03-10,Besiktas,Gaziantep,1,2,1,0.4948207111877992,0.8833847302381959,0.6113899169029182
+2025-03-14,Galatasaray,Antalyaspor,4,0,1,0.6820354781830061,0.7351142675073679,0.6979591149803146
+2025-03-15,Gaziantep,Kayserispor,1,0,0,0.5108958720583489,0.38362957437822964,0.4727159827543131
+2025-03-15,Kasimpasa,Alanyaspor,2,1,1,0.6615427835158485,0.47763821261328937,0.6063714122450807
+2025-03-15,Buyuksehyr,Trabzonspor,0,3,1,0.5701877546080522,0.6526303946939555,0.5949205466338231
+2025-03-15,Konyaspor,Besiktas,1,0,0,0.43174775541605387,0.6321834713084292,0.4918784701837665
+2025-03-16,Rizespor,Bodrumspor,0,2,0,0.2528077796040452,0.6428939807618858,0.3698336399513974
+2025-03-16,Goztep,Eyupspor,1,1,0,0.5245051059912038,0.532202287926973,0.5268142605719346
+2025-03-16,Hatayspor,Sivasspor,3,2,1,0.4597662439517023,0.5724981614010181,0.493585819186497
+2025-03-16,Fenerbahce,Samsunspor,0,0,0,0.621230142477651,0.724577248136629,0.6522342741753444
+2025-03-28,Antalyaspor,Alanyaspor,2,1,1,0.4907851539219767,0.6934840463726044,0.551594821657165
+2025-03-28,Kayserispor,Hatayspor,5,0,1,0.4978777434327757,0.6604013692167454,0.5466348311679666
+2025-03-28,Bodrumspor,Fenerbahce,2,4,1,0.3250994500532317,0.28591035500423484,0.31334272153853265
+2025-03-28,Konyaspor,Gaziantep,1,0,0,0.46685524247323573,0.7114942899323167,0.54024695671096
+2025-03-29,Sivasspor,Ad. Demirspor,5,1,1,0.5904397095053688,0.5850533894798188,0.5888238134977039
+2025-03-29,Samsunspor,Kasimpasa,0,2,0,0.6400943387444261,0.7443327811962924,0.671365871479986
+2025-03-29,Trabzonspor,Goztep,1,1,0,0.6461543152814603,0.5637308508843494,0.6214272759623269
+2025-03-29,Besiktas,Galatasaray,2,1,1,0.4949746750817843,0.8382783643145003,0.5979657818515991
+2025-03-31,Eyupspor,Buyuksehyr,1,3,1,0.4611351661482701,0.5314273851898118,0.48222283186073256
+2025-04-04,Ad. Demirspor,Kayserispor,0,2,0,0.6092956593640049,0.5154297742722245,0.5811358938364708
+2025-04-05,Rizespor,Sivasspor,1,1,0,0.5278373002646706,0.7201267111470944,0.5855241235293978
+2025-04-05,Buyuksehyr,Konyaspor,1,0,0,0.4731944695076668,0.6109941954286796,0.5145343872839706
+2025-04-05,Antalyaspor,Samsunspor,2,1,1,0.45018679811770784,0.28752163300808403,0.4013872485848207
+2025-04-06,Alanyaspor,Bodrumspor,0,1,0,0.24607815639204955,0.32437493410642043,0.2695671897063608
+2025-04-06,Hatayspor,Eyupspor,0,1,0,0.4491783421182199,0.44019845605199204,0.4464843762983515
+2025-04-06,Fenerbahce,Trabzonspor,4,1,1,0.6779703621315257,0.6972286879320372,0.6837478598716792
+2025-04-07,Goztep,Gaziantep,1,1,0,0.5921238460420463,0.6936980200994642,0.6225960982592716
+2025-04-07,Kasimpasa,Besiktas,1,1,0,0.6120405000149731,0.718015239780683,0.6438329219446861
+2025-04-11,Samsunspor,Galatasaray,0,2,0,0.521537071992728,0.8374454184373041,0.6163095759261008
+2025-04-12,Konyaspor,Goztep,1,0,0,0.5275477207613898,0.7550086336266916,0.5957859946209803
+2025-04-12,Besiktas,Buyuksehyr,0,2,0,0.464199927147808,0.7710519448999893,0.5562555324734624
+2025-04-12,Bodrumspor,Antalyaspor,0,0,0,0.20442485175203562,0.2250445208785618,0.21061075248999347
+2025-04-13,Kayserispor,Kasimpasa,1,0,0,0.6653597517923049,0.3470346952420361,0.5698622348272242
+2025-04-13,Gaziantep,Hatayspor,2,1,1,0.4974568915926218,0.5029033372634376,0.49909082529386656
+2025-04-13,Trabzonspor,Rizespor,2,0,0,0.6357649016243363,0.5711666998337845,0.6163854410871707
+2025-04-13,Sivasspor,Fenerbahce,1,3,1,0.6035714703210854,0.5732468559637961,0.5944740860138986
+2025-04-14,Eyupspor,Ad. Demirspor,6,0,1,0.6077139922120564,0.6044909992683891,0.6067470943289561
+2025-04-18,Galatasaray,Bodrumspor,2,0,0,0.39252824988496554,0.539004317974736,0.4364710703118967
+2025-04-18,Hatayspor,Konyaspor,2,3,1,0.42967716431333136,0.4394829550993432,0.4326189015491349
+2025-04-19,Kasimpasa,Sivasspor,3,1,1,0.6560619567743561,0.787653632243205,0.6955394594150107
+2025-04-19,Ad. Demirspor,Trabzonspor,0,1,0,0.653336540267741,0.3264044456808433,0.5552569118916717
+2025-04-19,Goztep,Besiktas,1,1,0,0.5279581220364065,0.7226431459485175,0.5863636292100398
+2025-04-20,Buyuksehyr,Gaziantep,2,1,1,0.5233769693164958,0.40786791525927746,0.4887242530993303
+2025-04-20,Rizespor,Eyupspor,1,0,0,0.4910248182976964,0.5384080814566126,0.5052397972453713
+2025-04-20,Fenerbahce,Kayserispor,3,3,1,0.7428150523821329,0.83130023180078,0.769360606207727
+2025-04-21,Alanyaspor,Samsunspor,1,0,0,0.48273822341440453,0.45473549296800075,0.47433740428048343
+2025-04-25,Besiktas,Hatayspor,5,1,1,0.521480183476831,0.5694796301603144,0.5358800174818761
+2025-04-26,Sivasspor,Antalyaspor,2,0,0,0.478455250346674,0.5082014366883303,0.4873791062491709
+2025-04-26,Bodrumspor,Samsunspor,1,2,1,0.2026419265792953,0.4278533836864298,0.27020536371143566
+2025-04-26,Gaziantep,Fenerbahce,1,3,1,0.6093158222153926,0.43095907395618466,0.5558087977376303
+2025-04-27,Konyaspor,Ad. Demirspor,3,1,1,0.5652324311607497,0.8361623202664273,0.646511397892453
+2025-04-27,Trabzonspor,Alanyaspor,4,3,1,0.6035754108073579,0.7541752796808575,0.6487553714694078
+2025-04-27,Eyupspor,Galatasaray,1,5,1,0.49139696762222695,0.6247369944329257,0.5313989756654366
+2025-04-27,Kayserispor,Rizespor,1,0,0,0.5457863694662882,0.3100042531681108,0.475051734576835
+2025-04-28,Goztep,Buyuksehyr,4,1,1,0.5647322241161307,0.7299432045309668,0.6142955182405816
+2025-05-02,Antalyaspor,Konyaspor,1,0,0,0.43707140843572406,0.2635858167049116,0.3850257309164803
+2025-05-03,Alanyaspor,Kayserispor,1,1,0,0.5413554115397973,0.6508784253809432,0.574212315692141
+2025-05-03,Rizespor,Gaziantep,2,0,0,0.49172120832814986,0.6069734115119676,0.5262968692832952
+2025-05-03,Galatasaray,Sivasspor,4,1,1,0.6944890825080974,0.7362115128697889,0.7070058116166048
+2025-05-03,Hatayspor,Buyuksehyr,2,4,1,0.5235456472634245,0.2822737271738803,0.45116407123656116
+2025-05-04,Samsunspor,Eyupspor,3,0,1,0.43693244052873614,0.5393695391815984,0.4676635701245948
+2025-05-04,Ad. Demirspor,Goztep,1,2,1,0.6363416345084546,0.532299485521834,0.6051289898124684
+2025-05-04,Fenerbahce,Besiktas,0,1,0,0.604133415262592,0.4118092514763391,0.5464361661267161
+2025-05-05,Kasimpasa,Trabzonspor,1,1,0,0.6892095592925948,0.5872310828313771,0.6586160163542294
+2025-05-09,Buyuksehyr,Fenerbahce,1,4,1,0.596580877013788,0.3910278822767228,0.5349149785926685
+2025-05-09,Gaziantep,Alanyaspor,0,1,0,0.5127997849458049,0.41030437638731976,0.4820511623782594
+2025-05-10,Eyupspor,Kasimpasa,0,3,1,0.6521480779416154,0.5419336037023549,0.6190837356698373
+2025-05-10,Konyaspor,Rizespor,2,1,1,0.4585272519682475,0.37567297212906425,0.4336709680164925
+2025-05-10,Trabzonspor,Galatasaray,0,2,0,0.6005978410011906,0.392170340389458,0.5380695908176708
+2025-05-11,Sivasspor,Bodrumspor,0,0,0,0.27413058417544117,0.22260978507196405,0.2586743444443981
+2025-05-11,Besiktas,Ad. Demirspor,4,1,1,0.6405659148560706,0.9078771722903625,0.7207592920863581
+2025-05-11,Goztep,Hatayspor,1,1,0,0.6201004939872597,0.6664940835617706,0.634018570859613
+2025-05-12,Kayserispor,Antalyaspor,3,1,1,0.48402980418300123,0.2126089519828039,0.402603548522942
+2025-05-17,Ad. Demirspor,Hatayspor,0,5,1,0.6106988167515596,0.6234503479404383,0.6145242761082232
+2025-05-18,Antalyaspor,Gaziantep,0,0,0,0.4573223579241226,0.657795535983518,0.5174643113419413
+2025-05-18,Samsunspor,Sivasspor,1,0,0,0.4752147017126284,0.4686449356029575,0.47324377187972716
+2025-05-18,Galatasaray,Kayserispor,3,0,1,0.6976761594519376,0.8598741455729942,0.7463355552882546
+2025-05-18,Fenerbahce,Eyupspor,2,1,1,0.6498515100292421,0.6813511747054545,0.6593014094321059
+2025-05-18,Rizespor,Goztep,6,3,1,0.5363049760854353,0.5340216129169952,0.5356199671349032
+2025-05-18,Kasimpasa,Buyuksehyr,2,3,1,0.6320048902151254,0.6088741263899653,0.6250656610675773
+2025-05-18,Bodrumspor,Trabzonspor,1,1,0,0.2998371689930334,0.46627365784782415,0.34976811564947063
+2025-05-18,Alanyaspor,Besiktas,1,1,0,0.48277025965970183,0.6198115820074787,0.5238826563640349
+2025-05-24,Eyupspor,Antalyaspor,2,1,1,0.5048243173165201,0.635921495312661,0.5441534707153624
+2025-05-24,Gaziantep,Kasimpasa,2,2,1,0.6255844748353006,0.4830586563621115,0.5828267292933438
+2025-05-24,Goztep,Galatasaray,0,2,0,0.5932564880724107,0.6440535459247185,0.6084956054281031
+2025-05-25,Besiktas,Rizespor,1,2,1,0.5192328026168709,0.6510824069205366,0.5587876839079706
+2025-05-25,Buyuksehyr,Ad. Demirspor,2,3,1,0.6598328396295836,0.8374721216023309,0.7131246242214078
+2025-05-25,Kayserispor,Bodrumspor,1,1,0,0.2701908862710687,0.3329083146963588,0.28900611479865573
+2025-05-25,Konyaspor,Alanyaspor,1,2,1,0.4702042287933381,0.7547314833347258,0.5555624051557544
+2025-05-25,Trabzonspor,Samsunspor,2,2,1,0.5197835821482447,0.24051109886201602,0.4360018371623761
+2025-05-26,Hatayspor,Fenerbahce,4,2,1,0.6974864714780727,0.5236220733134286,0.6453271520286795
+2025-05-30,Galatasaray,Buyuksehyr,2,0,0,0.6117254362057242,0.7208512243164463,0.6444631726389408
+2025-05-30,Kasimpasa,Goztep,1,2,1,0.6722953576405255,0.3367831650859953,0.5716416998741665
+2025-05-30,Antalyaspor,Trabzonspor,0,2,0,0.5245020267213458,0.3164684458189512,0.46209195245062745
+2025-05-31,Fenerbahce,Konyaspor,2,1,1,0.6448801800902351,0.6527146915716607,0.6472305335346628
+2025-05-31,Rizespor,Hatayspor,5,2,1,0.5315190754904542,0.47274333055259443,0.5138863520090963
+2025-05-31,Ad. Demirspor,Gaziantep,2,2,1,0.5818257912898255,0.5758516950829968,0.5800335624277768
+2025-05-31,Alanyaspor,Sivasspor,2,0,0,0.5425661137906016,0.44547210651246244,0.5134379116071599
+2025-06-01,Bodrumspor,Besiktas,0,4,1,0.23414295348763994,0.386169565651927,0.27975093713692606
+2025-06-01,Samsunspor,Kayserispor,2,1,1,0.4747665286297034,0.5919944268207474,0.5099348980870166
+2025-08-08,Gaziantep,Galatasaray,0,3,1,0.5796896052156542,0.7360304140749713,0.6265918478734493
+2025-08-09,Samsunspor,Genclerbirligi,2,1,1,,,
+2025-08-09,Antalyaspor,Kasimpasa,2,1,1,0.5965431116038726,0.524558446226383,0.5749477119906258
+2025-08-10,Rizespor,Goztep,0,3,1,0.5363049760854353,0.44532597935162255,0.5090112770652915
+2025-08-10,Eyupspor,Konyaspor,1,4,1,0.4617501147711084,0.45325072077972284,0.45920029657369277
+2025-08-11,Trabzonspor,Kocaelispor,1,0,0,,,
+2025-08-15,Galatasaray,Karagumruk,3,0,1,0.6802629901864409,0.8520529564705764,0.7317999800716816
+2025-08-16,Kocaelispor,Samsunspor,0,1,0,0.03062253174762178,0.5514207170173463,0.18686198732853915
+2025-08-16,Alanyaspor,Rizespor,0,0,0,0.5609066886591372,0.8063309432765138,0.6345339650443502
+2025-08-16,Goztep,Fenerbahce,0,0,0,0.6701516053172598,0.5621628832329327,0.6377549886919617
+2025-08-17,Genclerbirligi,Antalyaspor,0,1,0,0.5507349150564352,0.6342762947577728,0.5757973289668366
+2025-08-17,Konyaspor,Gaziantep,3,0,1,0.4472192915094012,0.7498940432148891,0.5380217170210476
+2025-08-17,Besiktas,Eyupspor,2,1,1,0.5127331335760931,0.6940986592342984,0.5671427912735547
+2025-08-17,Buyuksehyr,Kayserispor,1,1,0,0.5698771733981972,0.7836764139668777,0.6340169455688014
+2025-08-18,Kasimpasa,Trabzonspor,0,1,0,0.6757458900951211,0.6955206916163977,0.6816783305515042
+2025-08-22,Karagumruk,Goztep,0,2,0,0.6027943128502189,0.6312592554502275,0.6113337956302215
+2025-08-23,Fenerbahce,Kocaelispor,3,1,1,0.18080472582889096,0.6773522554506562,0.3297689847154206
+2025-08-23,Gaziantep,Genclerbirligi,2,1,1,0.576273671472277,0.5071083421559494,0.5555240726773787
+2025-08-24,Trabzonspor,Antalyaspor,1,0,0,0.5500204175215871,0.8738533272281938,0.6471702904335691
+2025-08-24,Kayserispor,Galatasaray,0,4,1,0.5903849054092717,0.6676541574812485,0.6135656810308647
+2025-08-25,Eyupspor,Alanyaspor,2,1,1,0.5241847087376523,0.678901980495441,0.5705998902649889
+2025-08-29,Goztep,Konyaspor,1,1,0,0.5206686658404758,0.5378684129499096,0.525828589973306
+2025-08-30,Kasimpasa,Gaziantep,2,3,1,0.6195042585470881,0.821219620348832,0.6800188670876113
+2025-08-30,Kocaelispor,Kayserispor,1,1,0,0.029366321828381857,0.7569968701363786,0.24765548632078094
+2025-08-30,Antalyaspor,Karagumruk,1,2,1,0.49782344776172405,0.5947181836681872,0.526891868533663
+2025-08-30,Galatasaray,Rizespor,3,1,1,0.7122580668278914,0.9006352377559068,0.768771218106296
+2025-08-31,Buyuksehyr,Eyupspor,0,0,0,0.5607523778552265,0.5893628692751955,0.5693355252812172
+2025-08-31,Genclerbirligi,Fenerbahce,1,3,1,0.7548483675858908,0.7782513246865426,0.7618692547160864
+2025-08-31,Alanyaspor,Besiktas,2,0,0,0.46555612209318004,0.7046005666295826,0.5372694554541009
+2025-08-31,Trabzonspor,Samsunspor,1,1,0,0.49916225542977993,0.5300503319942425,0.5084286783991188
+2025-09-13,Samsunspor,Antalyaspor,1,2,1,0.42961536488305885,0.7857113651837506,0.5364441649732663
+2025-09-13,Karagumruk,Kasimpasa,0,1,0,0.6832626565956214,0.797329698999596,0.7174827693168138
+2025-09-13,Konyaspor,Alanyaspor,1,2,1,0.46417704888889494,0.7367519291974076,0.5459495129814488
+2025-09-13,Besiktas,Buyuksehyr,2,1,1,0.5077674325398271,0.703495713629621,0.5664859168667653
+2025-09-13,Eyupspor,Galatasaray,0,2,0,0.5712598901023456,0.8711627111647134,0.6612307364210559
+2025-09-14,Kayserispor,Goztep,1,1,0,0.5659533843964704,0.5512679063118776,0.5615477409710925
+2025-09-14,Fenerbahce,Trabzonspor,1,0,0,0.6926673773096345,0.6254060707353568,0.6724889853373511
+2025-09-14,Gaziantep,Kocaelispor,2,0,0,0.039510830234190275,0.5989016605706283,0.2073280793351217
+2025-09-15,Rizespor,Genclerbirligi,1,0,0,0.6612900605350056,0.4618433345805994,0.6014560427486837
+2025-09-17,Fenerbahce,Alanyaspor,2,2,1,0.6977473130274985,0.7559631744496563,0.7152120714541459
+2025-09-17,Karagumruk,Buyuksehyr,0,2,0,0.5755861193206748,0.7732783556076113,0.6348937902067557
+2025-09-17,Samsunspor,Kasimpasa,0,0,0,0.584935074948274,0.7037330347855926,0.6205744628994696
+2025-09-19,Goztep,Besiktas,3,0,1,0.5153005304852529,0.5879449576256485,0.5370938586273716
+2025-09-20,Trabzonspor,Gaziantep,1,1,0,0.5633386473544884,0.8970403583705241,0.6634491606592992
+2025-09-20,Genclerbirligi,Eyupspor,1,0,0,0.6134989305718388,0.5084446736090562,0.5819826534830039
+2025-09-20,Antalyaspor,Kayserispor,1,1,0,0.46454276971659614,0.5641276603948787,0.4944182369200809
+2025-09-21,Kasimpasa,Fenerbahce,1,1,0,0.7538098436934607,0.7540129631214325,0.7538707795218522
+2025-09-21,Samsunspor,Karagumruk,3,2,1,0.4985463270756218,0.6597973469956714,0.5469216330516367
+2025-09-21,Buyuksehyr,Alanyaspor,1,1,0,0.5479703369168132,0.7489784532105526,0.608272771804935
+2025-09-21,Kocaelispor,Rizespor,1,1,0,0.035010352633055616,0.6831466060706003,0.22945122866431905
+2025-09-22,Galatasaray,Konyaspor,3,1,1,0.5881172251744312,0.8454166409801632,0.6653070499161509
+2025-09-24,Kayserispor,Besiktas,0,4,1,0.48134651478611623,0.53965612396208,0.4988393975389054
+2025-09-26,Alanyaspor,Galatasaray,0,1,0,0.5610573955235121,0.75118122717633,0.6180945450193575
+2025-09-27,Eyupspor,Goztep,0,0,0,0.5726828390557752,0.7813704874309688,0.6352891335683333
+2025-09-27,Gaziantep,Samsunspor,2,2,1,0.4158323789482527,0.4233686294105262,0.41809325408693476
+2025-09-27,Karagumruk,Trabzonspor,3,4,1,0.591356579072658,0.5437138978949397,0.5770637747193426
+2025-09-28,Rizespor,Kasimpasa,1,2,1,0.640419525785517,0.42114283217693954,0.5746365177029438
+2025-09-28,Konyaspor,Buyuksehyr,2,1,1,0.47717054870829306,0.4667624603391084,0.47404812219753767
+2025-09-28,Kayserispor,Genclerbirligi,1,1,0,0.3452341354627582,0.360070357423694,0.349685002051039
+2025-09-28,Fenerbahce,Antalyaspor,2,0,0,0.6677409525124202,0.7443680683760523,0.6907290872715098
+2025-09-29,Besiktas,Kocaelispor,3,1,1,0.34814176569634725,0.48748651033862406,0.3899451890890303
+2025-10-03,Antalyaspor,Rizespor,2,5,1,0.48474643298628234,0.5462958430213084,0.5032112559967902
+2025-10-03,Trabzonspor,Kayserispor,4,0,1,0.5847216931610209,0.7934490378912628,0.6473398965800934
+2025-10-04,Genclerbirligi,Alanyaspor,2,2,1,0.30211270131145135,0.43371022703798695,0.3415919590294121
+2025-10-04,Kocaelispor,Eyupspor,1,0,0,0.22226130670355734,0.5111008193376173,0.3089131604937754
+2025-10-04,Galatasaray,Besiktas,1,1,0,0.5416070404340508,0.5119056572337071,0.5326966254739477
+2025-10-05,Karagumruk,Gaziantep,0,2,0,0.5662290997482323,0.4383978648174418,0.5278797292689952
+2025-10-05,Goztep,Buyuksehyr,1,0,0,0.5142178163865085,0.49386562216223723,0.5081121581192272
+2025-10-05,Kasimpasa,Konyaspor,1,1,0,0.5712880204631897,0.4751780814650453,0.5424550387637463
+2025-10-05,Samsunspor,Fenerbahce,0,0,0,0.5647194684292977,0.4765001606001113,0.5382536760805418
+2025-10-18,Besiktas,Genclerbirligi,1,2,1,0.4045341828901949,0.45454348949738177,0.419536974872351
+2025-10-18,Konyaspor,Kocaelispor,2,3,1,0.2803210844663579,0.2858910030070038,0.2819920600285517
+2025-10-18,Buyuksehyr,Galatasaray,1,2,1,0.5367959882764674,0.6382589538675165,0.5672348779537821
+2025-10-18,Rizespor,Trabzonspor,1,2,1,0.5629558447048767,0.4868837655925744,0.540134220971186
+2025-10-19,Gaziantep,Antalyaspor,3,2,1,0.453283581172422,0.5885703012209181,0.4938695971869709
+2025-10-19,Fenerbahce,Karagumruk,2,1,1,0.7578663256772067,0.8689088829914181,0.7911790928714701
+2025-10-19,Kayserispor,Samsunspor,1,3,1,0.4735798879156802,0.5477307124641272,0.49582513528021427
+2025-10-19,Alanyaspor,Goztep,1,0,0,0.4811404339649539,0.4915984003876705,0.4842778238917689
+2025-10-20,Eyupspor,Kasimpasa,2,0,0,0.5685470723095696,0.6115905369792417,0.5814601117104712
+2025-10-22,Konyaspor,Besiktas,0,2,0,0.44965922483258985,0.3722269922823262,0.42642955506751073
+2025-10-22,Rizespor,Buyuksehyr,0,0,0,0.5473614634039038,0.3723307661774615,0.4948522542359711
+2025-10-24,Karagumruk,Kayserispor,2,2,1,0.5843277645417226,0.6106017239862578,0.5922099523750832
+2025-10-25,Kocaelispor,Alanyaspor,2,0,0,0.23832462090779452,0.4481840172531263,0.301282439811394
+2025-10-25,Trabzonspor,Eyupspor,2,0,0,0.5105589881239153,0.7740424027049426,0.5896040124982236
+2025-10-26,Galatasaray,Goztep,3,1,1,0.5858317344418456,0.879558891632996,0.6739498815991907
+2025-10-26,Antalyaspor,Buyuksehyr,0,4,1,0.4588290604034848,0.46555013664030787,0.46084538327453173
+2025-10-26,Kasimpasa,Besiktas,1,1,0,0.5827480102558681,0.3740279273695053,0.5201319853899593
+2025-10-26,Genclerbirligi,Konyaspor,1,2,1,0.29180845009988227,0.38490708010832553,0.3197380391024153
+2025-10-27,Gaziantep,Fenerbahce,0,4,1,0.636920593771215,0.5490518295894219,0.610559964516677
+2025-10-27,Samsunspor,Rizespor,1,1,0,0.5138965101153108,0.6085534699701979,0.5422935980717769
+2025-10-31,Buyuksehyr,Kocaelispor,1,0,0,0.3353769148888595,0.6197533905306872,0.42068985758140787
+2025-11-01,Goztep,Genclerbirligi,1,0,0,0.3963431472164335,0.5833559941372983,0.45244700129269294
+2025-11-01,Galatasaray,Trabzonspor,0,0,0,0.598699959323819,0.4198328971989164,0.5450398406863483
+2025-11-02,Konyaspor,Samsunspor,1,3,1,0.429625490832886,0.47626133037388085,0.44361624269518446
+2025-11-02,Kayserispor,Kasimpasa,3,2,1,0.6158118729500284,0.7406449150911254,0.6532617855923575
+2025-11-02,Besiktas,Fenerbahce,2,3,1,0.5709225028486246,0.54450552287914,0.5629974088577792
+2025-11-03,Alanyaspor,Gaziantep,0,0,0,0.4978404746989275,0.5881342598582566,0.5249286102467263
+2025-11-03,Eyupspor,Antalyaspor,0,1,0,0.4297457439829342,0.6467503924446224,0.4948471385214407
+2025-11-03,Rizespor,Karagumruk,1,0,0,0.6053614887769242,0.6632741289451134,0.6227352808273809
+2025-11-07,Genclerbirligi,Buyuksehyr,2,1,1,0.3365939894533372,0.4798178786740429,0.3795611562195489
+2025-11-08,Gaziantep,Rizespor,2,2,1,0.5397729152667405,0.44163000827329557,0.510330043168707
+2025-11-08,Trabzonspor,Alanyaspor,1,1,0,0.5239680212430782,0.7421309893560928,0.5894169116769825
+2025-11-08,Antalyaspor,Besiktas,1,3,1,0.44152810522431457,0.5437625463288618,0.47219843755567875
+2025-11-08,Kasimpasa,Goztep,0,2,0,0.5999936264179148,0.4956563893185018,0.5686924552880909
+2025-11-09,Karagumruk,Konyaspor,2,0,0,0.5290609561283741,0.39163047093417086,0.48783181057011316
+2025-11-09,Kocaelispor,Galatasaray,1,0,0,0.4139593586463179,0.6745138409449196,0.49212570333589845
+2025-11-09,Fenerbahce,Kayserispor,4,2,1,0.7468905411183023,0.7629278412612008,0.7517017311611719
+2025-11-09,Samsunspor,Eyupspor,1,0,0,0.40066630446901813,0.5140927129421634,0.4346942270109617
+2025-11-22,Kayserispor,Gaziantep,0,3,1,0.5432319200394858,0.5086190216530171,0.5328480505235452
+2025-11-22,Eyupspor,Karagumruk,1,1,0,0.4643589069162096,0.4516723101063668,0.4605529278732568
+2025-11-22,Galatasaray,Genclerbirligi,3,2,1,0.5730304216501914,0.7711902278295236,0.632478363503991
+2025-11-23,Alanyaspor,Kasimpasa,1,2,1,0.5662181828095993,0.44505238663274366,0.5298684439565426
+2025-11-23,Goztep,Kocaelispor,0,0,0,0.32584901835916363,0.48327489856468225,0.3730767824208192
+2025-11-23,Rizespor,Fenerbahce,2,5,1,0.6557567250173372,0.7794776627741017,0.6928730063443665
+2025-11-23,Besiktas,Samsunspor,1,1,0,0.4660052257928673,0.5071953851549945,0.4783622736015054
+2025-11-24,Buyuksehyr,Trabzonspor,3,4,1,0.499212660737962,0.481182141197748,0.49380350487589775
+2025-11-24,Konyaspor,Antalyaspor,0,0,0,0.4876741469247377,0.74616980912686,0.5652228455853745
+2025-11-28,Kocaelispor,Genclerbirligi,1,0,0,0.27485201794375924,0.367874977901335,0.30275890593103194
+2025-11-29,Rizespor,Kayserispor,0,1,0,0.5883723719525463,0.6163331932018535,0.5967606183273385
+2025-11-29,Gaziantep,Eyupspor,1,2,1,0.43281057711300136,0.48338231280289007,0.447982097819968
+2025-11-29,Kasimpasa,Buyuksehyr,1,3,1,0.5884304092751493,0.4228449957568833,0.5387547852196695
+2025-11-29,Trabzonspor,Konyaspor,3,1,1,0.5254542932378051,0.5444764939820255,0.5311609534610713
+2025-11-30,Antalyaspor,Goztep,1,2,1,0.45419505639958896,0.6562214884785549,0.5148029860232788
+2025-11-30,Karagumruk,Besiktas,0,2,0,0.5413908818764455,0.3970123488409597,0.49807732196579974
+2025-12-01,Fenerbahce,Galatasaray,1,1,0,0.5532767226534366,0.43882613928551356,0.5189415476430597
+2025-12-01,Samsunspor,Alanyaspor,1,1,0,0.43442215590736116,0.4345509912291993,0.4344608065039126
+2025-12-05,Galatasaray,Samsunspor,3,2,1,0.5299724481763407,0.5514620668032484,0.536419333764413
+2025-12-06,Eyupspor,Kayserispor,1,1,0,0.4748109200751349,0.45990926669245247,0.4703404240603302
+2025-12-06,Konyaspor,Rizespor,1,1,0,0.5319795382162839,0.4652472132912034,0.5119598407387597
+2025-12-06,Buyuksehyr,Fenerbahce,1,1,0,0.5880291694996456,0.2081046373817994,0.4740518098642917
+2025-12-07,Genclerbirligi,Karagumruk,3,0,1,0.4416751587949866,0.5267379098775204,0.4671939841197468
+2025-12-07,Kocaelispor,Kasimpasa,0,0,0,0.4211290228886541,0.343120069525445,0.3977263368796914
+2025-12-07,Goztep,Trabzonspor,1,2,1,0.4673988716651842,0.24129676747650677,0.39956824040858097
+2025-12-08,Alanyaspor,Antalyaspor,0,0,0,0.4712131938946136,0.610839414575777,0.5131010600989626
+2025-12-08,Besiktas,Gaziantep,2,2,1,0.5549661179878792,0.49987158084900407,0.5384377568462166
+2025-12-12,Kasimpasa,Genclerbirligi,0,0,0,0.5123543770190522,0.49152005146266814,0.506104079352137
+2025-12-13,Rizespor,Eyupspor,3,0,1,0.46652984783617996,0.4396533506854277,0.4584668986909543
+2025-12-13,Kayserispor,Alanyaspor,0,0,0,0.50519108923264,0.7338061371160348,0.5737756035976584
+2025-12-13,Antalyaspor,Galatasaray,1,4,1,0.5749052368251802,0.8033472919654242,0.6434378533672535
+2025-12-14,Karagumruk,Kocaelispor,1,1,0,0.36390057195247905,0.3003593845051626,0.3448382157182841
+2025-12-14,Gaziantep,Goztep,0,1,0,0.47333341325884704,0.45474253579195834,0.4677561500187804
+2025-12-14,Trabzonspor,Besiktas,3,3,1,0.5033662239170403,0.28260951821923624,0.43713921220769913
+2025-12-14,Samsunspor,Buyuksehyr,0,2,0,0.4529019869222421,0.36471439965488206,0.4264457107420341
+2025-12-15,Fenerbahce,Konyaspor,4,0,1,0.6624138703856117,0.7269212469188207,0.6817660833455744
+2025-12-19,Kocaelispor,Antalyaspor,2,1,1,0.33414331714204554,0.6283608392126055,0.42240857376321356
+2025-12-20,Konyaspor,Kayserispor,1,1,0,0.5423575058916219,0.8508570056069745,0.6349073558062277
+2025-12-20,Eyupspor,Fenerbahce,0,3,1,0.542862656480234,0.633141687148712,0.5699463656807774
+2025-12-20,Besiktas,Rizespor,1,0,0,0.5761000638037737,0.7696957135457602,0.6341787587263696
+2025-12-21,Alanyaspor,Karagumruk,2,0,0,0.5126916330764334,0.8109102064620021,0.602157205092104
+2025-12-21,Galatasaray,Kasimpasa,3,0,1,0.7145184225612562,0.6428710944439942,0.6930242241260776
+2025-12-21,Goztep,Samsunspor,2,0,0,0.4248751228394183,0.5454450266299521,0.4610460939765785
+2025-12-22,Buyuksehyr,Gaziantep,5,1,1,0.5294495434695676,0.5645066996478822,0.539966690323062
+2025-12-22,Genclerbirligi,Trabzonspor,4,3,1,0.4277480137771427,0.46722340467257906,0.4395906310457736
+2026-01-17,Buyuksehyr,Karagumruk,2,1,1,0.5564761291555528,0.7625188068184969,0.6182889324544361
+2026-01-17,Galatasaray,Gaziantep,1,1,0,0.6535421786037785,0.64798542665784,0.651875153019997
+2026-01-18,Kasimpasa,Antalyaspor,0,0,0,0.5885025355803939,0.8308666309343009,0.661211764186566
+2026-01-18,Genclerbirligi,Samsunspor,1,1,0,0.4382809477106547,0.4159144943687694,0.4315710117080891
+2026-01-18,Kocaelispor,Trabzonspor,1,2,1,0.3180502836164997,0.593056204788987,0.4005520599682459
+2026-01-18,Alanyaspor,Fenerbahce,2,3,1,0.5633138935803482,0.6757955704858416,0.5970583966519962
+2026-01-19,Konyaspor,Eyupspor,1,1,0,0.3968965274753956,0.2730581163709175,0.3597450041440522
+2026-01-19,Besiktas,Kayserispor,1,0,0,0.5846086553062274,0.4447311323563213,0.5426453984212556
+2026-01-19,Goztep,Rizespor,3,1,1,0.4986220365310123,0.4514042076976857,0.4844566878810143
+2026-01-23,Trabzonspor,Kasimpasa,2,1,1,0.6644784380697107,0.7503878084618714,0.6902512491873589
+2026-01-24,Kayserispor,Buyuksehyr,0,3,1,0.554866681184609,0.4204666339786345,0.5145466670228167
+2026-01-24,Samsunspor,Kocaelispor,0,0,0,0.23556993448436997,0.3233116544191153,0.2618924504647936
+2026-01-24,Karagumruk,Galatasaray,1,3,1,0.6191085711760995,0.7636490525330436,0.6624707155831827
+2026-01-25,Rizespor,Alanyaspor,1,1,0,0.4690486285383476,0.624089191505474,0.5155607974284855
+2026-01-25,Antalyaspor,Genclerbirligi,2,1,1,0.44935349875304526,0.3916124336130889,0.4320311792110584
+2026-01-25,Fenerbahce,Goztep,1,1,0,0.5760669661590418,0.585795694263506,0.5789855845903811
+2026-01-25,Gaziantep,Konyaspor,1,1,0,0.492800293290106,0.27081384922257795,0.4262043600698476
+2026-01-26,Eyupspor,Besiktas,2,2,1,0.42818789623824527,0.6843063238352894,0.5050234245173585
+2026-01-30,Antalyaspor,Trabzonspor,1,1,0,0.5481706645481753,0.6509642435283637,0.5790087382422318
+2026-01-30,Kasimpasa,Samsunspor,0,1,0,0.5099174976923685,0.5104877209811243,0.5100885646789952
+2026-01-31,Alanyaspor,Eyupspor,1,3,1,0.36824785382648956,0.31447643711290013,0.35211642881241273
+2026-01-31,Buyuksehyr,Rizespor,2,2,1,0.5819049614011192,0.7046565517196484,0.618730438496678
+2026-01-31,Besiktas,Konyaspor,2,1,1,0.5203104801603394,0.537199593642392,0.5253772142049552
+2026-01-31,Goztep,Karagumruk,2,1,1,0.5039137666392736,0.6525336549537356,0.5484997331336122
+2026-02-01,Genclerbirligi,Gaziantep,2,1,1,0.5137017757629816,0.3060342308411597,0.451401512286435
+2026-02-01,Galatasaray,Kayserispor,4,0,1,0.6957508234802897,0.7686762278659045,0.7176284447959742
+2026-02-02,Kocaelispor,Fenerbahce,0,2,0,0.3633038212037215,0.5191716311858171,0.41006416419835023
+2026-02-07,Karagumruk,Antalyaspor,1,0,0,0.4764456518212775,0.4361748847376979,0.4643644216962036
+2026-02-07,Samsunspor,Trabzonspor,0,3,1,0.5149412846597556,0.7102440177382462,0.5735321045833028
+2026-02-08,Eyupspor,Buyuksehyr,1,2,1,0.4424858002422123,0.41272891477606477,0.43355873460236805
+2026-02-08,Konyaspor,Goztep,0,0,0,0.4224891652707555,0.26140654951897335,0.37416438054522083
+2026-02-08,Rizespor,Galatasaray,0,3,1,0.6035994813189675,0.7685212348261421,0.6530760073711199
+2026-02-08,Besiktas,Alanyaspor,2,2,1,0.4699162565157134,0.6768948159229184,0.5320098243378749
+2026-02-09,Kayserispor,Kocaelispor,1,2,1,0.2807841283081434,0.37245678294946344,0.3082859247005394
+2026-02-09,Fenerbahce,Genclerbirligi,3,1,1,0.6668668997709944,0.7841971710514819,0.7020659811551406
+2026-02-09,Gaziantep,Kasimpasa,2,1,1,0.5780050176225306,0.36798537061643266,0.5149991235207012
+2026-02-13,Antalyaspor,Samsunspor,3,1,1,0.4170741924339043,0.5096282125878024,0.44484039848007373
+2026-02-13,Galatasaray,Eyupspor,5,1,1,0.5709182787511058,0.8384966175860888,0.6511917804016008
+2026-02-14,Genclerbirligi,Rizespor,2,2,1,0.5254131165519486,0.2764373082828483,0.45072037407121845
+2026-02-14,Alanyaspor,Konyaspor,2,1,1,0.4243064987042451,0.29315953206302475,0.384962408711879
+2026-02-14,Trabzonspor,Fenerbahce,2,3,1,0.6621198502714001,0.3357868482483275,0.5642199496644783
+2026-02-15,Kocaelispor,Gaziantep,3,0,1,0.286397258128131,0.38268622971252014,0.31528394960344774
+2026-02-15,Goztep,Kayserispor,0,0,0,0.5074420909414096,0.5456171005607211,0.518894593827203
+2026-02-15,Buyuksehyr,Besiktas,2,3,1,0.5277246766071344,0.4739774647932998,0.5116005130629839
+2026-02-16,Kasimpasa,Karagumruk,3,2,1,0.5875458937297076,0.260252232362521,0.48935779531955154
+2026-02-20,Rizespor,Kocaelispor,2,0,0,0.2886562423503748,0.37429805475955524,0.31434878607312894
+2026-02-21,Eyupspor,Genclerbirligi,1,0,0,0.4012829249564864,0.31956429299282224,0.37676733536738716
+2026-02-21,Alanyaspor,Buyuksehyr,1,2,1,0.46394589949081827,0.312057576392119,0.4183794025612085
+2026-02-21,Konyaspor,Galatasaray,2,0,0,0.5516415825102009,0.7222477878123412,0.602823444100843
+2026-02-22,Kayserispor,Antalyaspor,1,0,0,0.48325829609888826,0.30223630971179877,0.4289517001827614
+2026-02-22,Gaziantep,Trabzonspor,1,2,1,0.5912303721723676,0.6091063605337711,0.5965931686807886
+2026-02-22,Besiktas,Goztep,4,0,1,0.45048843997226634,0.5496087104494541,0.4802245211154227
+2026-02-22,Karagumruk,Samsunspor,0,0,0,0.46678310045444177,0.42840535688493214,0.45526977738358887
+2026-02-23,Fenerbahce,Kasimpasa,1,1,0,0.7630179296671064,0.9231885854393272,0.8110691263987726
+2026-02-27,Buyuksehyr,Konyaspor,2,0,0,0.5265124913196905,0.8829576224819908,0.6334460306683806
+2026-02-27,Trabzonspor,Karagumruk,3,1,1,0.6403215421914135,0.9494215552780696,0.7330515461174103
+2026-02-28,Kasimpasa,Rizespor,0,3,1,0.6031860963212293,0.6348334376928093,0.6126802987327034
+2026-02-28,Kocaelispor,Besiktas,0,1,0,0.3079766453702183,0.7168674380121068,0.4306438831627849
+2026-02-28,Galatasaray,Alanyaspor,3,1,1,0.6030574681516441,0.9031133074178286,0.6930742199314994
+2026-02-28,Goztep,Eyupspor,0,0,0,0.4043914939092612,0.663196795326144,0.482033084334326
+2026-03-01,Genclerbirligi,Kayserispor,0,0,0,0.49552478896300506,0.49143143239790416,0.4942967819934748
+2026-03-01,Antalyaspor,Fenerbahce,2,2,1,0.6279336732851488,0.896969962476173,0.708644560042456
+2026-03-01,Samsunspor,Gaziantep,0,0,0,0.4548458579899191,0.5120979201442766,0.4720214766362264
+2026-03-07,Buyuksehyr,Goztep,2,1,1,0.46959724194698416,0.7745328971661272,0.5610779385127271
+2026-03-07,Besiktas,Galatasaray,0,1,0,0.544526007083364,0.729297749564205,0.5999575298276163
+2026-03-08,Rizespor,Antalyaspor,1,0,0,0.5056509739377771,0.4441559431015758,0.48720246468691675
+2026-03-08,Gaziantep,Karagumruk,1,1,0,0.5266528110270023,0.6395829673496838,0.5605318579238068
+2026-03-08,Fenerbahce,Samsunspor,3,2,1,0.6028125112379419,0.8709949094477052,0.6832672307008709
+2026-03-08,Konyaspor,Kasimpasa,1,1,0,0.5215993403134067,0.6842753453736556,0.5704021418314814
+2026-03-09,Eyupspor,Kocaelispor,0,1,0,0.2501715234986959,0.44913462433901,0.3098604537507902
+2026-03-09,Alanyaspor,Genclerbirligi,0,0,0,0.46135239235593983,0.5165664192968186,0.4779166004382035
+2026-03-09,Kayserispor,Trabzonspor,1,3,1,0.5828704838990291,0.8564147130350501,0.6649337526398353
+2026-03-13,Antalyaspor,Gaziantep,1,4,1,0.46253370294695934,0.7413213310553822,0.5461699913794862
+2026-03-13,Karagumruk,Fenerbahce,2,0,0,0.6792557722442876,0.7106994912355696,0.6886888879416722
+2026-03-14,Kocaelispor,Konyaspor,1,2,1,0.2636116932502341,0.5695696817349528,0.3553990897956497
+2026-03-14,Galatasaray,Buyuksehyr,3,0,1,0.627392843857835,0.5135381730656682,0.5932364426201849
+2026-03-14,Goztep,Alanyaspor,2,2,1,0.4098860991051827,0.5611561176164409,0.45526710465856013
+2026-03-14,Trabzonspor,Rizespor,1,0,0,0.650947925773636,0.8818002402413413,0.7202036201139477
+2026-03-15,Kasimpasa,Eyupspor,1,0,0,0.5093811949148235,0.624661017772721,0.5439651417721927
+2026-03-15,Genclerbirligi,Besiktas,0,2,0,0.5191090215037366,0.6974575299548134,0.5726135740390597
+2026-03-15,Samsunspor,Kayserispor,2,1,1,0.4425770543170817,0.40111936724356695,0.43013974819502726
+2026-03-17,Fenerbahce,Gaziantep,4,1,1,0.7371140812578122,0.9412238416495964,0.7983470093753475
+2026-03-18,Alanyaspor,Kocaelispor,5,0,1,0.2646085518937404,0.6238745707533301,0.3723883575516173
+2026-03-18,Buyuksehyr,Antalyaspor,0,0,0,0.5443683936558747,0.9355878151023276,0.6617342200898106
+2026-03-18,Eyupspor,Trabzonspor,0,1,0,0.5261568169332282,0.7587827997319411,0.5959446117728421
+2026-03-19,Kayserispor,Karagumruk,1,0,0,0.49792275097248967,0.7200453435242259,0.5645595287380105
+2026-03-19,Besiktas,Kasimpasa,2,1,1,0.6266356328300605,0.9144585524455846,0.7129825087147177
+2026-03-19,Konyaspor,Genclerbirligi,1,0,0,0.45303979979304987,0.73446007323446,0.537465881825473
+2026-04-04,Genclerbirligi,Goztep,0,2,0,0.4173491934611719,0.3564103175969627,0.39906753070190915
+2026-04-04,Kasimpasa,Kayserispor,2,0,0,0.5626080803357947,0.7550296897451797,0.6203345631586102
+2026-04-04,Gaziantep,Alanyaspor,1,1,0,0.47914440906334826,0.7696823353754411,0.5663057869569761
+2026-04-04,Trabzonspor,Galatasaray,2,1,1,0.5969264320087245,0.7523871657659604,0.6435646521358953
+2026-04-05,Samsunspor,Konyaspor,2,2,1,0.3951537201249092,0.4118755798977086,0.400170278056749
+2026-04-05,Karagumruk,Rizespor,2,1,1,0.5473186718124601,0.4476241663304822,0.5174103201678667
+2026-04-05,Fenerbahce,Besiktas,1,0,0,0.6512505168644387,0.5366420279756237,0.6168679701977942
+2026-04-05,Antalyaspor,Eyupspor,3,0,1,0.3985916281248138,0.5819904722797752,0.45361128137130224
+2026-04-06,Kocaelispor,Buyuksehyr,0,0,0,0.32171617954687404,0.5957707972833355,0.4039325648678125
+2026-04-08,Goztep,Galatasaray,1,3,1,0.46357442692921186,0.5760197177071346,0.4973080141625887
+2026-04-09,Rizespor,Samsunspor,4,1,1,0.4646801428827395,0.3840205567672855,0.4404822670481033
+2026-04-10,Besiktas,Antalyaspor,4,2,1,0.5448192867322458,0.8856199849029553,0.6470594961834587
+2026-04-11,Buyuksehyr,Genclerbirligi,3,0,1,0.5591237886209226,0.8914383652836438,0.658818161619739
+2026-04-11,Alanyaspor,Trabzonspor,1,1,0,0.5378568004193658,0.8217307410153402,0.6230189825981581
+2026-04-11,Kayserispor,Fenerbahce,0,4,1,0.66942294046972,0.8409950095564956,0.7208945611957527
+2026-04-12,Konyaspor,Karagumruk,3,0,1,0.46505513490669015,0.6718372518344651,0.5270897699850227
+2026-04-12,Goztep,Kasimpasa,3,3,1,0.4984159025992538,0.5954668489394063,0.5275311865012995
+2026-04-12,Galatasaray,Kocaelispor,1,1,0,0.46139991935237445,0.8541592240118158,0.5792277107502068
+2026-04-13,Eyupspor,Samsunspor,1,2,1,0.36515441516724795,0.4325491666605657,0.3853728406152433
+2026-04-13,Rizespor,Gaziantep,2,1,1,0.5689280338365483,0.3515314809857591,0.5037090679813115
+2026-04-17,Antalyaspor,Konyaspor,0,2,0,0.43320926464206805,0.6312388113767821,0.4926181286624823
+2026-04-17,Fenerbahce,Rizespor,2,2,1,0.728018806314317,0.6664523939712133,0.7095488826113859
+2026-04-18,Karagumruk,Eyupspor,1,2,1,0.401688667006077,0.5719158783795634,0.452756830418123
+2026-04-18,Kocaelispor,Goztep,1,1,0,0.2541065030085023,0.41488264792657714,0.30233934648392474
+2026-04-18,Genclerbirligi,Galatasaray,1,2,1,0.5298305054919049,0.5260446734749806,0.5286947558868276
+2026-04-19,Kasimpasa,Alanyaspor,1,0,0,0.5157626123675473,0.37653469287091484,0.47399423651855754
+2026-04-19,Samsunspor,Besiktas,2,1,1,0.46685179504332563,0.5665812958460626,0.4967706452841467
+2026-04-19,Trabzonspor,Buyuksehyr,1,1,0,0.5865352444370808,0.5982224275636969,0.5900413993750657
+2026-04-20,Gaziantep,Kayserispor,3,0,1,0.5098268624520848,0.36411763341191744,0.46611409374003454
+2026-04-24,Buyuksehyr,Kasimpasa,4,0,1,0.5917908459758331,0.43007933320601355,0.5432773921448872
+2026-04-25,Eyupspor,Gaziantep,3,0,1,0.4247294485448702,0.37340608820465865,0.4093324404428067
+2026-04-25,Kayserispor,Rizespor,2,0,0,0.5153502880482329,0.6582165591392647,0.5582101693755425
+2026-04-25,Goztep,Antalyaspor,2,0,0,0.454299059134283,0.3742701345486773,0.43029038175860124
+2026-04-26,Genclerbirligi,Kocaelispor,1,0,0,0.22580498896953702,0.24575878249585112,0.23179112702743127
+2026-04-26,Galatasaray,Fenerbahce,3,0,1,0.6260013887215468,0.6862263328336013,0.6440688719551632
+2026-04-27,Alanyaspor,Samsunspor,2,3,1,0.44060165004527807,0.5453946147123104,0.4720395394453878
+2026-04-27,Besiktas,Karagumruk,0,0,0,0.5665192542105331,0.8707074640085976,0.6577757171499524
+2026-04-27,Konyaspor,Trabzonspor,2,1,1,0.5224015350230418,0.5993854269401243,0.5454967025981665
+2026-05-01,Rizespor,Konyaspor,3,2,1,0.5057679306275747,0.25414658281207964,0.4302815262829262
+2026-05-01,Gaziantep,Besiktas,0,2,0,0.5421273357748297,0.40862690672539204,0.5020772070599985
+2026-05-02,Fenerbahce,Buyuksehyr,3,1,1,0.6683173697068371,0.6029053086270346,0.6486937513828963
+2026-05-02,Samsunspor,Galatasaray,4,1,1,0.5240517480121034,0.512814697105485,0.5206806327401179
+2026-05-02,Trabzonspor,Goztep,1,1,0,0.5075970846626578,0.8513560506596378,0.6107247744617519
+2026-05-03,Antalyaspor,Alanyaspor,0,0,0,0.4518232952041781,0.5520526378478338,0.4818920979972747
+2026-05-03,Karagumruk,Genclerbirligi,1,0,0,0.4039783008531256,0.5327508558663068,0.44261006735708
+2026-05-03,Kasimpasa,Kocaelispor,1,1,0,0.33151910487426645,0.42303922455412707,0.3589751407782246
+2026-05-03,Kayserispor,Eyupspor,1,1,0,0.3840373328862412,0.692446163082857,0.476559981945226
+2026-05-09,Besiktas,Trabzonspor,1,2,1,0.5638590462788928,0.7576982908178278,0.6220108196405734
+2026-05-09,Alanyaspor,Kayserispor,3,1,1,0.48967793352465655,0.22858191222298613,0.4113491271341554
+2026-05-09,Buyuksehyr,Samsunspor,3,0,1,0.4992442309422228,0.4664865983613688,0.48941694116796663
+2026-05-09,Eyupspor,Rizespor,4,0,1,0.44200002922072085,0.4612687251002472,0.4477806379845788
+2026-05-09,Galatasaray,Antalyaspor,4,2,1,0.6749950085341782,0.736185684375727,0.6933522112866428
+2026-05-09,Goztep,Gaziantep,2,1,1,0.4887863957824987,0.39140199006134113,0.45957107406615144
+2026-05-09,Genclerbirligi,Kasimpasa,3,2,1,0.4387200132835535,0.2224460009852683,0.3738378095940679
+2026-05-09,Kocaelispor,Karagumruk,0,1,0,0.29042789439448685,0.4320360456840754,0.3329103397813634
+2026-05-09,Konyaspor,Fenerbahce,0,3,1,0.6023559101472197,0.5749879970420181,0.5941455362156591
+2026-05-15,Rizespor,Besiktas,2,2,1,0.5520480603328672,0.28579710533004626,0.47217277383202094
+2026-05-16,Samsunspor,Goztep,3,0,1,0.39769711456752027,0.5008675222920976,0.4286482368848935
+2026-05-16,Karagumruk,Alanyaspor,2,1,1,0.47082661098917966,0.5457794711994447,0.4933124690522592
+2026-05-16,Gaziantep,Buyuksehyr,1,2,1,0.5492118595816775,0.3993163395089336,0.5042432035598543
+2026-05-17,Kayserispor,Konyaspor,2,1,1,0.4397489244307358,0.5074570300833298,0.460061356126514
+2026-05-17,Antalyaspor,Kocaelispor,1,0,0,0.27304274449636873,0.5980517502178915,0.3705454462128256
+2026-05-17,Fenerbahce,Eyupspor,3,3,1,0.642484951041515,0.4586107394586842,0.5873226875666657
+2026-05-17,Kasimpasa,Galatasaray,1,0,0,0.6226509771020363,0.45116753620723843,0.5712059448335969
+2026-05-17,Trabzonspor,Genclerbirligi,0,3,1,0.5370268645295669,0.8938073200880043,0.6440610011970982

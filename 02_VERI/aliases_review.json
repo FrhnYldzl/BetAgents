@@ -1,0 +1,80 @@
+[
+  {
+    "xg_team": "Newcastle United",
+    "best_fd_match": "Newcastle",
+    "similarity": 0.825,
+    "league": "E0"
+  },
+  {
+    "xg_team": "Nottingham Forest",
+    "best_fd_match": "Nott'm Forest",
+    "similarity": 0.706,
+    "league": "E0"
+  },
+  {
+    "xg_team": "West Bromwich Albion",
+    "best_fd_match": "West Brom",
+    "similarity": 0.78,
+    "league": "E0"
+  },
+  {
+    "xg_team": "Wolverhampton Wanderers",
+    "best_fd_match": "Wolves",
+    "similarity": 0.826,
+    "league": "E0"
+  },
+  {
+    "xg_team": "Arminia Bielefeld",
+    "best_fd_match": "Bielefeld",
+    "similarity": 0.812,
+    "league": "D1"
+  },
+  {
+    "xg_team": "Borussia Dortmund",
+    "best_fd_match": "Dortmund",
+    "similarity": 0.788,
+    "league": "D1"
+  },
+  {
+    "xg_team": "Hertha Berlin",
+    "best_fd_match": "Hertha",
+    "similarity": 0.785,
+    "league": "D1"
+  },
+  {
+    "xg_team": "Celta Vigo",
+    "best_fd_match": "Celta",
+    "similarity": 0.8,
+    "league": "SP1"
+  },
+  {
+    "xg_team": "Real Betis",
+    "best_fd_match": "Betis",
+    "similarity": 0.8,
+    "league": "SP1"
+  },
+  {
+    "xg_team": "Real Sociedad",
+    "best_fd_match": "Sociedad",
+    "similarity": 0.846,
+    "league": "SP1"
+  },
+  {
+    "xg_team": "Parma Calcio 1913",
+    "best_fd_match": "Parma",
+    "similarity": 0.718,
+    "league": "I1"
+  },
+  {
+    "xg_team": "Clermont Foot",
+    "best_fd_match": "Clermont",
+    "similarity": 0.846,
+    "league": "F1"
+  },
+  {
+    "xg_team": "Paris Saint Germain",
+    "best_fd_match": "Paris FC",
+    "similarity": 0.705,
+    "league": "F1"
+  }
+]

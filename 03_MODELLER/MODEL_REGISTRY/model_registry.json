@@ -1,0 +1,384 @@
+{
+  "schema_version": "1.1",
+  "last_updated": "2026-05-29T22:30:00Z",
+  "enriched_test_date": "2026-05-29",
+  "enriched_test_note": "19.275 mac H2H+Standings+Form enriched. backtest_13_models.py ile test edildi.",
+  "registry_purpose": "BAHIS AGENT model katalogu — her uretilen modelin amaci, performansi, lifecycle'i kaydi",
+  "lifecycle_stages": [
+    "PROTOTYPE",
+    "VALIDATED",
+    "PRODUCTION",
+    "DEPRECATED",
+    "ARCHIVED"
+  ],
+  "models": [
+    {
+      "id": "TRIVOX-v1.2",
+      "name": "TRIVOX",
+      "version": "v1.2",
+      "status": "VALIDATED",
+      "created": "2026-04-15",
+      "last_updated": "2026-05-28",
+      "purpose": "Turk Super Lig (T1) icin selective sniper bahis modeli",
+      "why": "T1 xG verisi yok ama anomaly+DC+form sinyalleri ortogonal ve guclu. Selective sniper paradigmasi yuksek hit rate getiriyor.",
+      "how": "FAV_CONFIRMED filter (favori taraf + >=1 sinyal teyit) + Q5 score quintile + agree_count>=2 alt-filtre",
+      "market": "1X2 (Mac Sonucu)",
+      "leagues": ["T1"],
+      "K": 1,
+      "input": "signal_snapshots (4 sinyal: anomaly, model, xG, form)",
+      "sample": 905,
+      "sample_q5_a2": 22,
+      "performance": {
+        "hit_rate_all": 0.58,
+        "hit_rate_q5_a2": 0.82,
+        "edge_pp_q5_a2": 16.69,
+        "roi_net_q5_a2": 16.69,
+        "bonferroni_p": 0.0071,
+        "bonferroni_pass": false,
+        "significance_level": "1%"
+      },
+      "enriched_overlay": {
+        "test_date": "2026-05-29",
+        "method": "H2H (n>=3, ev_win_rate>=45%) + Standings (relgap>4pt)",
+        "baseline": {"pick": 37, "hit": 0.784, "roi": 0.244},
+        "enriched": {"pick": 6,  "hit": 0.833, "roi": 0.345},
+        "delta_roi": 0.101,
+        "delta_hit": 0.050,
+        "verdict": "AKTIF — +10.1pp ROI iyilestirme. Sample cok kucuk (6), varyans riski var.",
+        "recommendation": "Uret. pipeline'da H2H+Standings uygula, haftalik pick sayisi izle"
+      },
+      "caveats": [
+        "T1 xG verisi yok (FotMob/Sofascore scraper bekleniyor)",
+        "Q5+a2 sample 22 kucuk — buyutmek icin FotMob T1 xG sart",
+        "Sezon basi 4-5 hafta volatil",
+        "Enriched sonrasi 6 pick — cok kucuk haftalik hacim"
+      ],
+      "documentation": "model_card_TRIVOX.md"
+    },
+    {
+      "id": "MONOVOX-E0-v1.0",
+      "name": "MONOVOX-E0",
+      "version": "v1.0",
+      "status": "VALIDATED",
+      "created": "2026-05-26",
+      "last_updated": "2026-05-28",
+      "purpose": "Premier League (E0) tek-lig selective sniper",
+      "why": "E0 sample 480-881 (en zengin tek lig). xG %100 coverage. Mikro-edge ortogonal sinyallerle birikiyor.",
+      "how": "FAV_CONFIRMED + Q5 + agree_count>=2 (TRIVOX ile ayni filtre, sadece lig=E0)",
+      "market": "1X2",
+      "leagues": ["E0"],
+      "K": 1,
+      "input": "signal_snapshots (4 sinyal)",
+      "sample": 881,
+      "sample_q5_a2": 34,
+      "performance": {
+        "hit_rate_all": 0.61,
+        "hit_rate_q5_a2": 0.65,
+        "edge_pp_q5_a2": 1.31,
+        "bonferroni_p": 0.0017,
+        "bonferroni_pass": true,
+        "significance_level": "BONFERRONI"
+      },
+      "enriched_overlay": {
+        "test_date": "2026-05-29",
+        "baseline": {"pick": 104, "hit": 0.663, "roi": 0.077},
+        "enriched": {"pick": 20,  "hit": 0.700, "roi": 0.258},
+        "delta_roi": 0.181,
+        "delta_hit": 0.037,
+        "verdict": "AKTIF — +18.1pp ROI iyilestirme. En buyuk iyilestirme MONOVOX ailesinde.",
+        "recommendation": "E0 icin H2H+Standings ZORUNLU uygula. Sample kuculuyor (20), izle."
+      },
+      "caveats": ["Sample buyuk ama Q5+a2 hit ortalama", "Enriched sonrasi 20 pick — izlenmeli"]
+    },
+    {
+      "id": "DUOVOX-v1.0",
+      "name": "DUOVOX",
+      "version": "v1.0",
+      "status": "VALIDATED",
+      "created": "2026-05-27",
+      "last_updated": "2026-05-28",
+      "purpose": "E0+SP1 cift-lig selective sniper — operasyonel ana urun adayi",
+      "why": "T1 xG eksik + I1/F1 zayif. E0+SP1 hem sample buyuk hem xG'li hem performans en dengeli. std=3pp en stabil. Bonferroni p=0.0000.",
+      "how": "FAV_CONFIRMED + Q5 + agree_count>=2 (cift-lig portfoyu)",
+      "market": "1X2",
+      "leagues": ["E0", "SP1"],
+      "K": 1,
+      "input": "signal_snapshots",
+      "sample": 1807,
+      "sample_q5_a2": 56,
+      "performance": {
+        "hit_rate_all": 0.60,
+        "hit_rate_q5_a2": 0.62,
+        "bonferroni_p": 0.0000,
+        "bonferroni_pass": true,
+        "significance_level": "BONFERRONI",
+        "seasonal_std": 3.5
+      },
+      "enriched_overlay": {
+        "test_date": "2026-05-29",
+        "baseline": {"pick": 181, "hit": 0.657, "roi": 0.065},
+        "enriched": {"pick": 31,  "hit": 0.613, "roi": 0.093},
+        "delta_roi": 0.028,
+        "delta_hit": -0.045,
+        "verdict": "OPSIYONEL — ROI +2.8pp artiyor ama Hit -4.5pp. Yuksek oranli pick secimi.",
+        "recommendation": "Dusuk pick hacmi riski. Deneme olarak uygulanabilir. Izle."
+      },
+      "caveats": ["Enriched Hit duser ama ROI artar — paradoks (daha yuksek oranli pick secimi)"],
+      "production_recommended": true
+    },
+    {
+      "id": "TRIOVOX-v1.0",
+      "name": "TRIOVOX",
+      "version": "v1.0",
+      "status": "VALIDATED",
+      "created": "2026-05-27",
+      "last_updated": "2026-05-28",
+      "purpose": "E0+SP1+D1 uc-lig portfoy modeli",
+      "why": "Daha buyuk sample (2529) + en stabil sezonsal (std=3.3pp). Bonferroni p=0.0001.",
+      "how": "FAV_CONFIRMED + Q5 + agree_count>=2 (uc-lig)",
+      "market": "1X2",
+      "leagues": ["E0", "SP1", "D1"],
+      "K": 1,
+      "input": "signal_snapshots",
+      "sample": 2529,
+      "sample_q5_a2": 73,
+      "performance": {
+        "hit_rate_all": 0.58,
+        "hit_rate_q5_a2": 0.60,
+        "bonferroni_p": 0.0001,
+        "bonferroni_pass": true,
+        "seasonal_std": 3.3
+      },
+      "enriched_overlay": {
+        "test_date": "2026-05-29",
+        "baseline": {"pick": 221, "hit": 0.656, "roi": 0.066},
+        "enriched": {"pick": 36,  "hit": 0.639, "roi": 0.135},
+        "delta_roi": 0.069,
+        "delta_hit": -0.017,
+        "verdict": "AKTIF — +6.9pp ROI iyilestirme. DUOVOX gibi hit biraz duser, ROI artar.",
+        "recommendation": "H2H+Standings uygula. D1+SP1+E0 uclu — sezon hacmi yeterli."
+      },
+      "caveats": ["D1 ekleyince ortalama edge biraz dustu", "Enriched Hit -1.7pp ama ROI +6.9pp"]
+    },
+    {
+      "id": "MONOVOX-SP1-v1.0",
+      "name": "MONOVOX-SP1",
+      "version": "v1.0",
+      "status": "VALIDATED",
+      "created": "2026-05-27",
+      "last_updated": "2026-05-28",
+      "purpose": "La Liga (SP1) tek-lig",
+      "why": "SP1 sample dengeli, son 2 sezon hit %78",
+      "how": "FAV_CONFIRMED + Q5 + agree_count>=2",
+      "market": "1X2",
+      "leagues": ["SP1"],
+      "K": 1,
+      "input": "signal_snapshots",
+      "sample": 926,
+      "sample_q5_a2": 20,
+      "performance": {
+        "hit_rate_q5_a2": 0.55,
+        "bonferroni_p": 0.0081,
+        "significance_level": "1%"
+      },
+      "enriched_overlay": {
+        "test_date": "2026-05-29",
+        "baseline": {"pick": 64, "hit": 0.656, "roi": 0.023},
+        "enriched": {"pick": 9,  "hit": 0.556, "roi": -0.099},
+        "delta_roi": -0.122,
+        "delta_hit": -0.101,
+        "verdict": "KAPALI — enriched overlay SP1 modelini bozuyor. -12.2pp ROI.",
+        "recommendation": "SP1 icin H2H+Standings KULLANMA. Model kendi basina daha iyi."
+      },
+      "caveats": [
+        "Q5+a2 hit dusuk, ortalama %55 — Q5+a3 daha iyi olabilir",
+        "KRITIK: Enriched overlay SP1 modelini bozuyor — SP1 guclu takimlar zaten standings'te ust"
+      ]
+    },
+    {
+      "id": "OU25-D1-Over-v1.0",
+      "name": "OU25-D1-Over",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "last_updated": "2026-05-28",
+      "purpose": "Bundesliga (D1) icin A/U 2.5 Ust seclim modeli",
+      "why": "DC Poisson'dan A/U 2.5 olasiligi turetildi. D1 Over %61 hit (en yuksek). Bundesliga genelde gol oduyor.",
+      "how": "DC score_matrix -> prob_over_under(2.5). Market p_over ile karsilastir, fark > 5pp ise sinyal.",
+      "market": "A/U 2.5 (Alt/Ust)",
+      "leagues": ["D1"],
+      "direction": "Over",
+      "input": "matches_v2 + DC model_lam_h/a",
+      "sample": 180,
+      "performance": {
+        "hit_rate": 0.61,
+        "edge_pp": 3.09,
+        "avg_odd": 1.72
+      },
+      "caveats": [
+        "Closing odds yarisi PSCH yok (Avg fallback)",
+        ">%20 edge bolgesinde model overconfident (Platt kalibrasyon gerek)"
+      ]
+    },
+    {
+      "id": "OU25-E0-Under-v1.0",
+      "name": "OU25-E0-Under",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "last_updated": "2026-05-28",
+      "purpose": "Premier League A/U 2.5 Alt secimi",
+      "why": "Yuksek odd (2.68) + %5.98 edge — niche pazarda value alani",
+      "how": "DC -> p_over. Market p_over > model_p_over + 5pp ise Under sinyali",
+      "market": "A/U 2.5",
+      "leagues": ["E0"],
+      "direction": "Under",
+      "sample": 150,
+      "performance": {
+        "hit_rate": 0.43,
+        "edge_pp": 5.98,
+        "avg_odd": 2.68
+      },
+      "caveats": ["Sample sinirli, Platt kalibrasyon gerek"]
+    },
+    {
+      "id": "BTTS-D1-Var-v1.0",
+      "name": "BTTS-D1-Var",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "purpose": "Bundesliga Karsilikli Gol Var modeli",
+      "why": "D1 KG Var %61 hit, sample 515 (en buyuk KG sample). Bundesliga goluyor.",
+      "how": "DC -> prob_btts (home>=1 AND away>=1)",
+      "market": "KG (Karsilikli Gol)",
+      "leagues": ["D1"],
+      "direction": "Var",
+      "sample": 515,
+      "performance": {
+        "hit_rate": 0.61,
+        "edge_pp_vs_baseline": 3.58
+      },
+      "caveats": [
+        "KG closing odds yok (FD vermiyor) — iddaa scraper bekleniyor",
+        "Model U-shape kalibrasyon sorunu (>+%14 underestimate dusuk bantta)"
+      ]
+    },
+    {
+      "id": "BTTS-SP1-Var-v1.0",
+      "name": "BTTS-SP1-Var",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "purpose": "La Liga KG Var",
+      "why": "SP1 KG Var %58 hit, +%6.25 edge — niche pazarda kazancli",
+      "how": "DC -> prob_btts",
+      "market": "KG",
+      "leagues": ["SP1"],
+      "direction": "Var",
+      "sample": 112,
+      "performance": {"hit_rate": 0.58, "edge_pp_vs_baseline": 6.25}
+    },
+    {
+      "id": "BTTS-SP1-Yok-v1.0",
+      "name": "BTTS-SP1-Yok",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "purpose": "La Liga KG Yok — cift-yon SP1 modeli (Var ile birlikte)",
+      "why": "SP1 KG Yok %55 hit, +%6.73 edge (en yuksek!) — kontrarian seçim",
+      "how": "DC -> prob_btts < 0.5",
+      "market": "KG",
+      "leagues": ["SP1"],
+      "direction": "Yok",
+      "sample": 202,
+      "performance": {"hit_rate": 0.55, "edge_pp_vs_baseline": 6.73}
+    },
+    {
+      "id": "BTTS-I1-Yok-v1.0",
+      "name": "BTTS-I1-Yok",
+      "version": "v1.0",
+      "status": "PROTOTYPE",
+      "created": "2026-05-28",
+      "purpose": "Serie A KG Yok modeli",
+      "why": "I1 defansif futbol — KG Yok %47 hit ama baseline %42.4 -> +%4.64 edge",
+      "how": "DC -> prob_btts (Yok)",
+      "market": "KG",
+      "leagues": ["I1"],
+      "direction": "Yok",
+      "sample": 168,
+      "performance": {"hit_rate": 0.47, "edge_pp_vs_baseline": 4.64}
+    },
+    {
+      "id": "EUVOX-v1.1",
+      "name": "EUVOX",
+      "version": "v1.1",
+      "status": "DEPRECATED",
+      "created": "2026-04-20",
+      "deprecated": "2026-05-27",
+      "deprecated_reason": "K=1 baseline negatif (-%0.8 ROI net). Edge yok mevcut formatta. Yerine DUOVOX/TRIOVOX K=1 secildi.",
+      "purpose": "6-lig EUVOX hibrit K=3 kombin",
+      "why": "Cok lig + kombin varyans buyutme",
+      "how": "FAV_CONFIRMED + Q5 + K=3 kombin",
+      "market": "1X2 K=3",
+      "leagues": ["T1","E0","D1","SP1","I1","F1"],
+      "K": 3,
+      "sample": 1046,
+      "performance": {
+        "hit_rate": 0.18,
+        "roi_net_K3": -0.022,
+        "roi_net_K1": -0.008
+      },
+      "caveats": [
+        "Komite madde 32: K=3 lottery riski dogrulandi",
+        "D1/I1/F1 zayif liglerle dilution"
+      ]
+    },
+    {
+      "id": "TRIVOX-v1.0-K3",
+      "name": "TRIVOX K=3 (lottery)",
+      "version": "v1.0",
+      "status": "DEPRECATED",
+      "created": "2026-03-15",
+      "deprecated": "2026-05-26",
+      "deprecated_reason": "+%38.65 ROI net ama n=109, hit %23 — komite lottery hipotezi dogrulandi. K=1 versiyonu (TRIVOX-v1.2) yerine kullanilir.",
+      "purpose": "T1 K=3 kombin sniper",
+      "how": "FAV_CONFIRMED + Top-3 score_v13",
+      "market": "1X2 K=3",
+      "leagues": ["T1"],
+      "sample": 109,
+      "performance": {
+        "hit_rate": 0.23,
+        "roi_net": 0.3865,
+        "warning": "outlier-dependent (4 mac toplam ROI'nin %80'i)"
+      }
+    }
+  ],
+  "model_families": {
+    "VOX_FAMILY": {
+      "description": "FAV_CONFIRMED + Q5 + agree>=2 selective sniper paradigmasi",
+      "members": ["TRIVOX", "MONOVOX-E0", "MONOVOX-SP1", "DUOVOX", "TRIOVOX"],
+      "common_filter": "fav_confirmed(min_conf=1) + Q5 score quintile + agree_count>=2",
+      "core_signals": ["anomaly","model","xG","form","shots","referee","cards"]
+    },
+    "MARKET_FAMILY": {
+      "description": "DC Poisson'dan turetilen multi-market modeller",
+      "members": ["OU25-*","BTTS-*"],
+      "common_filter": "DC score_matrix + market_p karsilastirma + edge threshold"
+    }
+  },
+  "next_versions": {
+    "v2_planned": {
+      "name": "VALUE_CONFIRMED v2",
+      "purpose": "CLV-positive filtre (FAV yerine VALUE secimi)",
+      "expected_release": "Sprint Kapi 1 sonrasi"
+    },
+    "Platt_calibration": {
+      "purpose": "OU25 ve BTTS modelleri icin Platt scaling kalibrasyonu",
+      "status": "PENDING"
+    },
+    "FotMob_T1_xG": {
+      "purpose": "TRIVOX'un xG eksik alanini kapatma",
+      "status": "PENDING"
+    }
+  }
+}

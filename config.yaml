@@ -1,0 +1,73 @@
+# BAHIS AGENT — Kullanıcı Konfigürasyonu
+# Tarih: 2026-05-26
+
+# ============================================
+# BANKROLL & RİSK
+# ============================================
+bankroll:
+  initial_try: 10000        # Başlangıç bankroll (₺). 5K-25K aralığından orta nokta.
+  currency: "TRY"
+
+risk:
+  kelly_fraction: 0.25      # Quarter Kelly — drawdown'ı yarıya indirir
+  min_edge_pct: 3.0         # Edge %3'ün altında bet etme
+  max_stake_pct: 5.0        # Tek bahis bankroll'un %5'ini geçemez
+  max_daily_risk_pct: 10.0  # Günlük toplam açık pozisyon limiti
+
+  drawdown_stops:
+    warning: -10.0          # %10 düşüş → uyarı + log review
+    halve_stakes: -15.0     # %15 düşüş → Kelly carpani 0.125'e in
+    full_stop: -20.0        # %20 düşüş → SİSTEM DURUR, model review
+
+# ============================================
+# PAZAR ODAĞI
+# ============================================
+markets:
+  phase1:                   # MVP'de bunlara odaklanıyoruz
+    - "futbol_alt_ust_2.5"  # Toplam Gol 2.5 Alt/Üst (Madde 14/22)
+    - "futbol_kg"           # Karşılıklı Gol Var/Yok (Madde 14/21)
+    - "futbol_alt_ust_1.5"  # Daha düşük varyans alternatifi
+    - "futbol_alt_ust_3.5"  # Daha yüksek varyans alternatifi
+
+  phase2:                   # Faz 2'de eklenecek (veri altyapısı sonrası)
+    - "oyuncu_sut_au"       # Oyuncu şut alt/üst (Madde 14/55)
+    - "oyuncu_kart_var"     # Oyuncu kart alma (Madde 14/55)
+    - "oyuncu_gol_var"      # Oyuncu gol atar
+    - "korner_alt_ust"      # Toplam korner (Madde 14/37)
+
+# ============================================
+# LİG ODAĞI (BAŞLANGIÇ)
+# ============================================
+leagues:
+  primary:
+    - code: "T1"            # Football-Data.co.uk kodu
+      name: "Süper Lig"
+      country: "Türkiye"
+      seasons: ["2122", "2223", "2324", "2425", "2526"]
+
+  secondary:                # Karşılaştırma ve veri zenginliği
+    - code: "E0"
+      name: "Premier League"
+      country: "İngiltere"
+      seasons: ["2122", "2223", "2324", "2425", "2526"]
+    - code: "D1"
+      name: "Bundesliga"
+      country: "Almanya"
+      seasons: ["2122", "2223", "2324", "2425", "2526"]
+
+# ============================================
+# OPERASYONEL TERCİHLER
+# ============================================
+operations:
+  daily_time_budget_min: 30
+  mode: "semi_auto"         # Agent öneri üretir, kullanıcı onaylar
+  notification_channel: "console"  # ileride: telegram, email
+
+# ============================================
+# MODEL PARAMETRELERİ
+# ============================================
+model:
+  primary: "dixon_coles"
+  time_decay_xi: 0.0019     # Dixon-Coles zaman bozulma faktörü (haftalık)
+  max_goals: 10             # Skor matrisi boyutu (P[0..10, 0..10])
+  rolling_window_days: 730  # Son 2 yılın verisi training için

@@ -1,0 +1,1270 @@
+{
+  "generated_at": "2026-05-28T06:26:07.010231",
+  "n_total": 19198,
+  "duplicates": [],
+  "extreme_odds": [
+    {
+      "match_id": 36926,
+      "leg": "closing_2",
+      "value": 51.0,
+      "league": "D1",
+      "season": "2024-25",
+      "match": "Bayern Munich vs Holstein Kiel"
+    },
+    {
+      "match_id": 44354,
+      "leg": "closing_2",
+      "value": 50.86,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Troyes"
+    },
+    {
+      "match_id": 44460,
+      "leg": "closing_2",
+      "value": 52.77,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Strasbourg"
+    }
+  ],
+  "overround_outliers": [],
+  "score_outliers": [
+    {
+      "match_id": 28481,
+      "score": "4-4",
+      "total": 8,
+      "league": "T1",
+      "season": "2018-19",
+      "match": "Yeni Malatyaspor vs Sivasspor",
+      "date": "2018-10-07"
+    },
+    {
+      "match_id": 28587,
+      "score": "2-6",
+      "total": 8,
+      "league": "T1",
+      "season": "2018-19",
+      "match": "Antalyaspor vs Besiktas",
+      "date": "2019-02-03"
+    },
+    {
+      "match_id": 28652,
+      "score": "2-7",
+      "total": 9,
+      "league": "T1",
+      "season": "2018-19",
+      "match": "Rizespor vs Besiktas",
+      "date": "2019-04-08"
+    },
+    {
+      "match_id": 28863,
+      "score": "6-2",
+      "total": 8,
+      "league": "T1",
+      "season": "2019-20",
+      "match": "Trabzonspor vs Kayserispor",
+      "date": "2019-12-28"
+    },
+    {
+      "match_id": 29062,
+      "score": "5-3",
+      "total": 8,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Rizespor vs Ankaragucu",
+      "date": "2020-10-17"
+    },
+    {
+      "match_id": 29325,
+      "score": "3-5",
+      "total": 8,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Goztep vs Sivasspor",
+      "date": "2021-03-20"
+    },
+    {
+      "match_id": 29374,
+      "score": "5-3",
+      "total": 8,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Rizespor vs Konyaspor",
+      "date": "2021-04-20"
+    },
+    {
+      "match_id": 29395,
+      "score": "6-3",
+      "total": 9,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Kayserispor vs Denizlispor",
+      "date": "2021-04-28"
+    },
+    {
+      "match_id": 29428,
+      "score": "4-5",
+      "total": 9,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Gaziantep vs Rizespor",
+      "date": "2021-05-11"
+    },
+    {
+      "match_id": 29429,
+      "score": "5-3",
+      "total": 8,
+      "league": "T1",
+      "season": "2020-21",
+      "match": "Genclerbirligi vs Goztep",
+      "date": "2021-05-11"
+    },
+    {
+      "match_id": 29530,
+      "score": "6-3",
+      "total": 9,
+      "league": "T1",
+      "season": "2021-22",
+      "match": "Alanyaspor vs Kayserispor",
+      "date": "2021-10-18"
+    },
+    {
+      "match_id": 29598,
+      "score": "2-6",
+      "total": 8,
+      "league": "T1",
+      "season": "2021-22",
+      "match": "Yeni Malatyaspor vs Alanyaspor",
+      "date": "2021-12-12"
+    },
+    {
+      "match_id": 29690,
+      "score": "4-4",
+      "total": 8,
+      "league": "T1",
+      "season": "2021-22",
+      "match": "Konyaspor vs Kasimpasa",
+      "date": "2022-02-18"
+    },
+    {
+      "match_id": 29791,
+      "score": "1-7",
+      "total": 8,
+      "league": "T1",
+      "season": "2021-22",
+      "match": "Goztep vs Rizespor",
+      "date": "2022-05-01"
+    },
+    {
+      "match_id": 29900,
+      "score": "5-4",
+      "total": 9,
+      "league": "T1",
+      "season": "2022-23",
+      "match": "Fenerbahce vs Karagumruk",
+      "date": "2022-10-09"
+    },
+    {
+      "match_id": 30094,
+      "score": "5-3",
+      "total": 8,
+      "league": "T1",
+      "season": "2022-23",
+      "match": "Ad. Demirspor vs Kayserispor",
+      "date": "2023-04-23"
+    },
+    {
+      "match_id": 30351,
+      "score": "7-1",
+      "total": 8,
+      "league": "T1",
+      "season": "2023-24",
+      "match": "Fenerbahce vs Konyaspor",
+      "date": "2024-01-10"
+    },
+    {
+      "match_id": 30444,
+      "score": "6-2",
+      "total": 8,
+      "league": "T1",
+      "season": "2023-24",
+      "match": "Galatasaray vs Rizespor",
+      "date": "2024-03-08"
+    },
+    {
+      "match_id": 30537,
+      "score": "2-6",
+      "total": 8,
+      "league": "T1",
+      "season": "2023-24",
+      "match": "Ad. Demirspor vs Buyuksehyr",
+      "date": "2024-05-26"
+    },
+    {
+      "match_id": 30654,
+      "score": "2-6",
+      "total": 8,
+      "league": "T1",
+      "season": "2024-25",
+      "match": "Kayserispor vs Fenerbahce",
+      "date": "2024-11-23"
+    },
+    {
+      "match_id": 30726,
+      "score": "5-4",
+      "total": 9,
+      "league": "T1",
+      "season": "2024-25",
+      "match": "Alanyaspor vs Buyuksehyr",
+      "date": "2025-01-25"
+    },
+    {
+      "match_id": 30732,
+      "score": "5-4",
+      "total": 9,
+      "league": "T1",
+      "season": "2024-25",
+      "match": "Kasimpasa vs Hatayspor",
+      "date": "2025-01-27"
+    },
+    {
+      "match_id": 30738,
+      "score": "3-5",
+      "total": 8,
+      "league": "T1",
+      "season": "2024-25",
+      "match": "Ad. Demirspor vs Kasimpasa",
+      "date": "2025-02-02"
+    },
+    {
+      "match_id": 30866,
+      "score": "6-3",
+      "total": 9,
+      "league": "T1",
+      "season": "2024-25",
+      "match": "Rizespor vs Goztep",
+      "date": "2025-05-18"
+    },
+    {
+      "match_id": 31265,
+      "score": "7-2",
+      "total": 9,
+      "league": "E0",
+      "season": "2017-18",
+      "match": "Man City vs Stoke",
+      "date": "2017-10-14"
+    },
+    {
+      "match_id": 31570,
+      "score": "5-4",
+      "total": 9,
+      "league": "E0",
+      "season": "2017-18",
+      "match": "Tottenham vs Leicester",
+      "date": "2018-05-13"
+    },
+    {
+      "match_id": 31751,
+      "score": "2-6",
+      "total": 8,
+      "league": "E0",
+      "season": "2018-19",
+      "match": "Everton vs Tottenham",
+      "date": "2018-12-23"
+    },
+    {
+      "match_id": 31944,
+      "score": "5-3",
+      "total": 8,
+      "league": "E0",
+      "season": "2018-19",
+      "match": "Crystal Palace vs Bournemouth",
+      "date": "2019-05-12"
+    },
+    {
+      "match_id": 32006,
+      "score": "8-0",
+      "total": 8,
+      "league": "E0",
+      "season": "2019-20",
+      "match": "Man City vs Watford",
+      "date": "2019-09-21"
+    },
+    {
+      "match_id": 32042,
+      "score": "0-9",
+      "total": 9,
+      "league": "E0",
+      "season": "2019-20",
+      "match": "Southampton vs Leicester",
+      "date": "2019-10-25"
+    },
+    {
+      "match_id": 32321,
+      "score": "5-3",
+      "total": 8,
+      "league": "E0",
+      "season": "2019-20",
+      "match": "Liverpool vs Chelsea",
+      "date": "2020-07-22"
+    },
+    {
+      "match_id": 32369,
+      "score": "7-2",
+      "total": 9,
+      "league": "E0",
+      "season": "2020-21",
+      "match": "Aston Villa vs Liverpool",
+      "date": "2020-10-04"
+    },
+    {
+      "match_id": 32465,
+      "score": "6-2",
+      "total": 8,
+      "league": "E0",
+      "season": "2020-21",
+      "match": "Man United vs Leeds",
+      "date": "2020-12-20"
+    },
+    {
+      "match_id": 32539,
+      "score": "9-0",
+      "total": 9,
+      "league": "E0",
+      "season": "2020-21",
+      "match": "Man United vs Southampton",
+      "date": "2021-02-02"
+    },
+    {
+      "match_id": 32881,
+      "score": "6-3",
+      "total": 9,
+      "league": "E0",
+      "season": "2021-22",
+      "match": "Man City vs Leicester",
+      "date": "2021-12-26"
+    },
+    {
+      "match_id": 33126,
+      "score": "9-0",
+      "total": 9,
+      "league": "E0",
+      "season": "2022-23",
+      "match": "Liverpool vs Bournemouth",
+      "date": "2022-08-27"
+    },
+    {
+      "match_id": 33156,
+      "score": "6-2",
+      "total": 8,
+      "league": "E0",
+      "season": "2022-23",
+      "match": "Tottenham vs Leicester",
+      "date": "2022-09-17"
+    },
+    {
+      "match_id": 33166,
+      "score": "6-3",
+      "total": 9,
+      "league": "E0",
+      "season": "2022-23",
+      "match": "Man City vs Man United",
+      "date": "2022-10-02"
+    },
+    {
+      "match_id": 33436,
+      "score": "5-3",
+      "total": 8,
+      "league": "E0",
+      "season": "2022-23",
+      "match": "Fulham vs Leicester",
+      "date": "2023-05-08"
+    },
+    {
+      "match_id": 33471,
+      "score": "4-4",
+      "total": 8,
+      "league": "E0",
+      "season": "2022-23",
+      "match": "Southampton vs Liverpool",
+      "date": "2023-05-28"
+    },
+    {
+      "match_id": 33530,
+      "score": "0-8",
+      "total": 8,
+      "league": "E0",
+      "season": "2023-24",
+      "match": "Sheffield United vs Newcastle",
+      "date": "2023-09-24"
+    },
+    {
+      "match_id": 33591,
+      "score": "4-4",
+      "total": 8,
+      "league": "E0",
+      "season": "2023-24",
+      "match": "Chelsea vs Man City",
+      "date": "2023-11-12"
+    },
+    {
+      "match_id": 33693,
+      "score": "4-4",
+      "total": 8,
+      "league": "E0",
+      "season": "2023-24",
+      "match": "Newcastle vs Luton",
+      "date": "2024-02-03"
+    },
+    {
+      "match_id": 33870,
+      "score": "2-6",
+      "total": 8,
+      "league": "E0",
+      "season": "2024-25",
+      "match": "Wolves vs Chelsea",
+      "date": "2024-08-25"
+    },
+    {
+      "match_id": 33914,
+      "score": "5-3",
+      "total": 8,
+      "league": "E0",
+      "season": "2024-25",
+      "match": "Brentford vs Wolves",
+      "date": "2024-10-05"
+    },
+    {
+      "match_id": 34020,
+      "score": "3-6",
+      "total": 9,
+      "league": "E0",
+      "season": "2024-25",
+      "match": "Tottenham vs Liverpool",
+      "date": "2024-12-22"
+    },
+    {
+      "match_id": 34363,
+      "score": "4-5",
+      "total": 9,
+      "league": "E0",
+      "season": "2025-26",
+      "match": "Fulham vs Man City",
+      "date": "2025-12-02"
+    },
+    {
+      "match_id": 34391,
+      "score": "4-4",
+      "total": 8,
+      "league": "E0",
+      "season": "2025-26",
+      "match": "Man United vs Bournemouth",
+      "date": "2025-12-15"
+    },
+    {
+      "match_id": 34722,
+      "score": "4-4",
+      "total": 8,
+      "league": "D1",
+      "season": "2017-18",
+      "match": "Dortmund vs Schalke 04",
+      "date": "2017-11-25"
+    },
+    {
+      "match_id": 34763,
+      "score": "4-4",
+      "total": 8,
+      "league": "D1",
+      "season": "2017-18",
+      "match": "Hannover vs Leverkusen",
+      "date": "2017-12-17"
+    },
+    {
+      "match_id": 34912,
+      "score": "2-6",
+      "total": 8,
+      "league": "D1",
+      "season": "2017-18",
+      "match": "Hertha vs RB Leipzig",
+      "date": "2018-05-12"
+    },
+    {
+      "match_id": 34981,
+      "score": "7-1",
+      "total": 8,
+      "league": "D1",
+      "season": "2018-19",
+      "match": "Ein Frankfurt vs Fortuna Dusseldorf",
+      "date": "2018-10-19"
+    },
+    {
+      "match_id": 34998,
+      "score": "2-6",
+      "total": 8,
+      "league": "D1",
+      "season": "2018-19",
+      "match": "Werder Bremen vs Leverkusen",
+      "date": "2018-10-28"
+    },
+    {
+      "match_id": 35223,
+      "score": "8-1",
+      "total": 9,
+      "league": "D1",
+      "season": "2018-19",
+      "match": "Wolfsburg vs Augsburg",
+      "date": "2019-05-18"
+    },
+    {
+      "match_id": 35309,
+      "score": "8-0",
+      "total": 8,
+      "league": "D1",
+      "season": "2019-20",
+      "match": "RB Leipzig vs Mainz",
+      "date": "2019-11-02"
+    },
+    {
+      "match_id": 35378,
+      "score": "3-5",
+      "total": 8,
+      "league": "D1",
+      "season": "2019-20",
+      "match": "Augsburg vs Dortmund",
+      "date": "2020-01-18"
+    },
+    {
+      "match_id": 35530,
+      "score": "8-0",
+      "total": 8,
+      "league": "D1",
+      "season": "2020-21",
+      "match": "Bayern Munich vs Schalke 04",
+      "date": "2020-09-18"
+    },
+    {
+      "match_id": 35602,
+      "score": "5-3",
+      "total": 8,
+      "league": "D1",
+      "season": "2020-21",
+      "match": "Wolfsburg vs Werder Bremen",
+      "date": "2020-11-27"
+    },
+    {
+      "match_id": 35947,
+      "score": "3-6",
+      "total": 9,
+      "league": "D1",
+      "season": "2021-22",
+      "match": "Greuther Furth vs Hoffenheim",
+      "date": "2021-11-27"
+    },
+    {
+      "match_id": 35957,
+      "score": "7-1",
+      "total": 8,
+      "league": "D1",
+      "season": "2021-22",
+      "match": "Leverkusen vs Greuther Furth",
+      "date": "2021-12-04"
+    },
+    {
+      "match_id": 36242,
+      "score": "6-2",
+      "total": 8,
+      "league": "D1",
+      "season": "2022-23",
+      "match": "Bayern Munich vs Mainz",
+      "date": "2022-10-29"
+    },
+    {
+      "match_id": 36283,
+      "score": "7-1",
+      "total": 8,
+      "league": "D1",
+      "season": "2022-23",
+      "match": "FC Koln vs Werder Bremen",
+      "date": "2023-01-21"
+    },
+    {
+      "match_id": 36350,
+      "score": "5-3",
+      "total": 8,
+      "league": "D1",
+      "season": "2022-23",
+      "match": "Bayern Munich vs Augsburg",
+      "date": "2023-03-11"
+    },
+    {
+      "match_id": 36449,
+      "score": "4-4",
+      "total": 8,
+      "league": "D1",
+      "season": "2023-24",
+      "match": "Augsburg vs M'gladbach",
+      "date": "2023-08-19"
+    },
+    {
+      "match_id": 36522,
+      "score": "8-0",
+      "total": 8,
+      "league": "D1",
+      "season": "2023-24",
+      "match": "Bayern Munich vs Darmstadt",
+      "date": "2023-10-28"
+    },
+    {
+      "match_id": 36666,
+      "score": "8-1",
+      "total": 9,
+      "league": "D1",
+      "season": "2023-24",
+      "match": "Bayern Munich vs Mainz",
+      "date": "2024-03-09"
+    },
+    {
+      "match_id": 36828,
+      "score": "7-2",
+      "total": 9,
+      "league": "D1",
+      "season": "2024-25",
+      "match": "Ein Frankfurt vs Bochum",
+      "date": "2024-11-02"
+    },
+    {
+      "match_id": 37020,
+      "score": "4-4",
+      "total": 8,
+      "league": "D1",
+      "season": "2024-25",
+      "match": "Union Berlin vs Stuttgart",
+      "date": "2025-04-19"
+    },
+    {
+      "match_id": 37034,
+      "score": "4-4",
+      "total": 8,
+      "league": "D1",
+      "season": "2024-25",
+      "match": "M'gladbach vs Hoffenheim",
+      "date": "2025-05-03"
+    },
+    {
+      "match_id": 37101,
+      "score": "4-6",
+      "total": 10,
+      "league": "D1",
+      "season": "2025-26",
+      "match": "M'gladbach vs Ein Frankfurt",
+      "date": "2025-09-27"
+    },
+    {
+      "match_id": 37152,
+      "score": "6-2",
+      "total": 8,
+      "league": "D1",
+      "season": "2025-26",
+      "match": "Bayern Munich vs Freiburg",
+      "date": "2025-11-22"
+    },
+    {
+      "match_id": 37201,
+      "score": "8-1",
+      "total": 9,
+      "league": "D1",
+      "season": "2025-26",
+      "match": "Bayern Munich vs Wolfsburg",
+      "date": "2026-01-11"
+    },
+    {
+      "match_id": 37306,
+      "score": "6-3",
+      "total": 9,
+      "league": "D1",
+      "season": "2025-26",
+      "match": "Leverkusen vs Wolfsburg",
+      "date": "2026-04-04"
+    },
+    {
+      "match_id": 37433,
+      "score": "4-4",
+      "total": 8,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Sociedad vs Betis",
+      "date": "2017-10-01"
+    },
+    {
+      "match_id": 37441,
+      "score": "3-6",
+      "total": 9,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Betis vs Valencia",
+      "date": "2017-10-15"
+    },
+    {
+      "match_id": 37537,
+      "score": "3-5",
+      "total": 8,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Sevilla vs Betis",
+      "date": "2018-01-06"
+    },
+    {
+      "match_id": 37562,
+      "score": "7-1",
+      "total": 8,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Real Madrid vs La Coruna",
+      "date": "2018-01-21"
+    },
+    {
+      "match_id": 37601,
+      "score": "3-5",
+      "total": 8,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Betis vs Real Madrid",
+      "date": "2018-02-18"
+    },
+    {
+      "match_id": 37654,
+      "score": "6-3",
+      "total": 9,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Real Madrid vs Girona",
+      "date": "2018-03-18"
+    },
+    {
+      "match_id": 37735,
+      "score": "5-4",
+      "total": 9,
+      "league": "SP1",
+      "season": "2017-18",
+      "match": "Levante vs Barcelona",
+      "date": "2018-05-13"
+    },
+    {
+      "match_id": 37772,
+      "score": "8-2",
+      "total": 10,
+      "league": "SP1",
+      "season": "2018-19",
+      "match": "Barcelona vs Huesca",
+      "date": "2018-09-02"
+    },
+    {
+      "match_id": 37793,
+      "score": "2-6",
+      "total": 8,
+      "league": "SP1",
+      "season": "2018-19",
+      "match": "Levante vs Sevilla",
+      "date": "2018-09-23"
+    },
+    {
+      "match_id": 37892,
+      "score": "4-4",
+      "total": 8,
+      "league": "SP1",
+      "season": "2018-19",
+      "match": "Eibar vs Levante",
+      "date": "2018-12-09"
+    },
+    {
+      "match_id": 38038,
+      "score": "4-4",
+      "total": 8,
+      "league": "SP1",
+      "season": "2018-19",
+      "match": "Villarreal vs Barcelona",
+      "date": "2019-04-02"
+    },
+    {
+      "match_id": 38103,
+      "score": "2-6",
+      "total": 8,
+      "league": "SP1",
+      "season": "2018-19",
+      "match": "Huesca vs Valencia",
+      "date": "2019-05-05"
+    },
+    {
+      "match_id": 38131,
+      "score": "4-4",
+      "total": 8,
+      "league": "SP1",
+      "season": "2019-20",
+      "match": "Villarreal vs Granada",
+      "date": "2019-08-17"
+    },
+    {
+      "match_id": 38977,
+      "score": "5-3",
+      "total": 8,
+      "league": "SP1",
+      "season": "2021-22",
+      "match": "Sevilla vs Levante",
+      "date": "2021-10-24"
+    },
+    {
+      "match_id": 39227,
+      "score": "2-6",
+      "total": 8,
+      "league": "SP1",
+      "season": "2021-22",
+      "match": "Mallorca vs Granada",
+      "date": "2022-05-07"
+    },
+    {
+      "match_id": 39333,
+      "score": "3-5",
+      "total": 8,
+      "league": "SP1",
+      "season": "2022-23",
+      "match": "Girona vs Sociedad",
+      "date": "2022-10-02"
+    },
+    {
+      "match_id": 39476,
+      "score": "6-2",
+      "total": 8,
+      "league": "SP1",
+      "season": "2022-23",
+      "match": "Girona vs Almeria",
+      "date": "2023-02-17"
+    },
+    {
+      "match_id": 39678,
+      "score": "5-3",
+      "total": 8,
+      "league": "SP1",
+      "season": "2023-24",
+      "match": "Sociedad vs Granada",
+      "date": "2023-09-02"
+    },
+    {
+      "match_id": 39696,
+      "score": "5-3",
+      "total": 8,
+      "league": "SP1",
+      "season": "2023-24",
+      "match": "Girona vs Mallorca",
+      "date": "2023-09-23"
+    },
+    {
+      "match_id": 39856,
+      "score": "3-5",
+      "total": 8,
+      "league": "SP1",
+      "season": "2023-24",
+      "match": "Barcelona vs Villarreal",
+      "date": "2024-01-27"
+    },
+    {
+      "match_id": 40015,
+      "score": "4-4",
+      "total": 8,
+      "league": "SP1",
+      "season": "2023-24",
+      "match": "Villarreal vs Real Madrid",
+      "date": "2024-05-19"
+    },
+    {
+      "match_id": 40234,
+      "score": "7-1",
+      "total": 8,
+      "league": "SP1",
+      "season": "2024-25",
+      "match": "Barcelona vs Valencia",
+      "date": "2025-01-26"
+    },
+    {
+      "match_id": 40271,
+      "score": "7-1",
+      "total": 8,
+      "league": "SP1",
+      "season": "2024-25",
+      "match": "Ath Bilbao vs Valladolid",
+      "date": "2025-02-23"
+    },
+    {
+      "match_id": 40551,
+      "score": "3-5",
+      "total": 8,
+      "league": "SP1",
+      "season": "2025-26",
+      "match": "Betis vs Barcelona",
+      "date": "2025-12-06"
+    },
+    {
+      "match_id": 40874,
+      "score": "2-6",
+      "total": 8,
+      "league": "I1",
+      "season": "2017-18",
+      "match": "Udinese vs Juventus",
+      "date": "2017-10-22"
+    },
+    {
+      "match_id": 41077,
+      "score": "6-2",
+      "total": 8,
+      "league": "I1",
+      "season": "2017-18",
+      "match": "Lazio vs Benevento",
+      "date": "2018-03-31"
+    },
+    {
+      "match_id": 41192,
+      "score": "5-3",
+      "total": 8,
+      "league": "I1",
+      "season": "2018-19",
+      "match": "Sassuolo vs Genoa",
+      "date": "2018-09-02"
+    },
+    {
+      "match_id": 41354,
+      "score": "2-6",
+      "total": 8,
+      "league": "I1",
+      "season": "2018-19",
+      "match": "Sassuolo vs Atalanta",
+      "date": "2018-12-29"
+    },
+    {
+      "match_id": 41436,
+      "score": "3-5",
+      "total": 8,
+      "league": "I1",
+      "season": "2018-19",
+      "match": "Sassuolo vs Sampdoria",
+      "date": "2019-03-16"
+    },
+    {
+      "match_id": 41630,
+      "score": "7-1",
+      "total": 8,
+      "league": "I1",
+      "season": "2019-20",
+      "match": "Atalanta vs Udinese",
+      "date": "2019-10-27"
+    },
+    {
+      "match_id": 41794,
+      "score": "2-7",
+      "total": 9,
+      "league": "I1",
+      "season": "2019-20",
+      "match": "Lecce vs Atalanta",
+      "date": "2020-03-01"
+    },
+    {
+      "match_id": 41866,
+      "score": "6-2",
+      "total": 8,
+      "league": "I1",
+      "season": "2019-20",
+      "match": "Atalanta vs Brescia",
+      "date": "2020-07-14"
+    },
+    {
+      "match_id": 42064,
+      "score": "6-2",
+      "total": 8,
+      "league": "I1",
+      "season": "2020-21",
+      "match": "Inter vs Crotone",
+      "date": "2021-01-03"
+    },
+    {
+      "match_id": 42232,
+      "score": "5-3",
+      "total": 8,
+      "league": "I1",
+      "season": "2020-21",
+      "match": "Lazio vs Benevento",
+      "date": "2021-04-18"
+    },
+    {
+      "match_id": 42455,
+      "score": "4-4",
+      "total": 8,
+      "league": "I1",
+      "season": "2021-22",
+      "match": "Lazio vs Udinese",
+      "date": "2021-12-02"
+    },
+    {
+      "match_id": 42504,
+      "score": "2-6",
+      "total": 8,
+      "league": "I1",
+      "season": "2021-22",
+      "match": "Udinese vs Atalanta",
+      "date": "2022-01-09"
+    },
+    {
+      "match_id": 42643,
+      "score": "4-4",
+      "total": 8,
+      "league": "I1",
+      "season": "2021-22",
+      "match": "Atalanta vs Torino",
+      "date": "2022-04-27"
+    },
+    {
+      "match_id": 42863,
+      "score": "8-2",
+      "total": 10,
+      "league": "I1",
+      "season": "2022-23",
+      "match": "Atalanta vs Salernitana",
+      "date": "2023-01-15"
+    },
+    {
+      "match_id": 43533,
+      "score": "4-4",
+      "total": 8,
+      "league": "I1",
+      "season": "2024-25",
+      "match": "Inter vs Juventus",
+      "date": "2024-10-27"
+    },
+    {
+      "match_id": 44036,
+      "score": "6-2",
+      "total": 8,
+      "league": "I1",
+      "season": "2025-26",
+      "match": "Inter vs Pisa",
+      "date": "2026-01-23"
+    },
+    {
+      "match_id": 44235,
+      "score": "6-2",
+      "total": 8,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Toulouse",
+      "date": "2017-08-20"
+    },
+    {
+      "match_id": 44280,
+      "score": "6-2",
+      "total": 8,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Bordeaux",
+      "date": "2017-09-30"
+    },
+    {
+      "match_id": 44414,
+      "score": "8-0",
+      "total": 8,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Dijon",
+      "date": "2018-01-17"
+    },
+    {
+      "match_id": 44436,
+      "score": "6-3",
+      "total": 9,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Marseille vs Metz",
+      "date": "2018-02-02"
+    },
+    {
+      "match_id": 44533,
+      "score": "7-1",
+      "total": 8,
+      "league": "F1",
+      "season": "2017-18",
+      "match": "Paris SG vs Monaco",
+      "date": "2018-04-15"
+    },
+    {
+      "match_id": 44785,
+      "score": "9-0",
+      "total": 9,
+      "league": "F1",
+      "season": "2018-19",
+      "match": "Paris SG vs Guingamp",
+      "date": "2019-01-19"
+    },
+    {
+      "match_id": 45207,
+      "score": "4-4",
+      "total": 8,
+      "league": "F1",
+      "season": "2019-20",
+      "match": "Amiens vs Paris SG",
+      "date": "2020-02-15"
+    },
+    {
+      "match_id": 45337,
+      "score": "4-4",
+      "total": 8,
+      "league": "F1",
+      "season": "2020-21",
+      "match": "Lens vs Reims",
+      "date": "2020-11-08"
+    },
+    {
+      "match_id": 45925,
+      "score": "6-2",
+      "total": 8,
+      "league": "F1",
+      "season": "2021-22",
+      "match": "Lorient vs St Etienne",
+      "date": "2022-04-08"
+    },
+    {
+      "match_id": 45961,
+      "score": "5-3",
+      "total": 8,
+      "league": "F1",
+      "season": "2021-22",
+      "match": "Nantes vs Bordeaux",
+      "date": "2022-04-24"
+    },
+    {
+      "match_id": 46033,
+      "score": "1-7",
+      "total": 8,
+      "league": "F1",
+      "season": "2022-23",
+      "match": "Lille vs Paris SG",
+      "date": "2022-08-21"
+    },
+    {
+      "match_id": 46193,
+      "score": "7-1",
+      "total": 8,
+      "league": "F1",
+      "season": "2022-23",
+      "match": "Monaco vs Ajaccio",
+      "date": "2023-01-15"
+    },
+    {
+      "match_id": 46343,
+      "score": "5-4",
+      "total": 9,
+      "league": "F1",
+      "season": "2022-23",
+      "match": "Lyon vs Montpellier",
+      "date": "2023-05-07"
+    },
+    {
+      "match_id": 46431,
+      "score": "5-3",
+      "total": 8,
+      "league": "F1",
+      "season": "2023-24",
+      "match": "Nantes vs Lorient",
+      "date": "2023-09-23"
+    },
+    {
+      "match_id": 46618,
+      "score": "2-6",
+      "total": 8,
+      "league": "F1",
+      "season": "2023-24",
+      "match": "Montpellier vs Paris SG",
+      "date": "2024-03-17"
+    },
+    {
+      "match_id": 46661,
+      "score": "4-5",
+      "total": 9,
+      "league": "F1",
+      "season": "2023-24",
+      "match": "Rennes vs Brest",
+      "date": "2024-04-28"
+    },
+    {
+      "match_id": 46727,
+      "score": "8-0",
+      "total": 8,
+      "league": "F1",
+      "season": "2024-25",
+      "match": "Nice vs St Etienne",
+      "date": "2024-09-20"
+    },
+    {
+      "match_id": 46882,
+      "score": "7-1",
+      "total": 8,
+      "league": "F1",
+      "season": "2024-25",
+      "match": "Monaco vs Nantes",
+      "date": "2025-02-15"
+    },
+    {
+      "match_id": 47016,
+      "score": "1-7",
+      "total": 8,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Lorient vs Lille",
+      "date": "2025-08-30"
+    },
+    {
+      "match_id": 47018,
+      "score": "3-6",
+      "total": 9,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Toulouse vs Paris SG",
+      "date": "2025-08-30"
+    },
+    {
+      "match_id": 47063,
+      "score": "6-2",
+      "total": 8,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Marseille vs Le Havre",
+      "date": "2025-10-18"
+    },
+    {
+      "match_id": 47083,
+      "score": "3-5",
+      "total": 8,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Nantes vs Monaco",
+      "date": "2025-10-29"
+    },
+    {
+      "match_id": 47270,
+      "score": "4-4",
+      "total": 8,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Le Havre vs Metz",
+      "date": "2026-04-26"
+    },
+    {
+      "match_id": 47301,
+      "score": "5-4",
+      "total": 9,
+      "league": "F1",
+      "season": "2025-26",
+      "match": "Strasbourg vs Monaco",
+      "date": "2026-05-17"
+    }
+  ],
+  "bad_dates": [],
+  "bad_team_names": [],
+  "settled_mismatches": []
+}

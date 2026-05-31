@@ -1,0 +1,38 @@
+# ── Sırlar ──
+.env
+.env.local
+*.key
+.streamlit/secrets.toml
+secrets.toml
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+06_PRODUCTION/dashboard/.cache/
+
+# ── Veritabanı / büyük data artefaktları (repo SADECE kod+döküman) ──
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db.gz
+02_VERI/backups/
+02_VERI/exports/
+02_VERI/snapshots/
+02_VERI/api_clients/_cache_api_football/
+**/_cache*/
+**/*cache*/
+02_VERI/scrapers/iddaa_probe_cache/
+
+# ── Loglar ──
+07_LOG_VE_RAPORLAR/*.log
+**/*.log
+
+# ── Geçici ──
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
