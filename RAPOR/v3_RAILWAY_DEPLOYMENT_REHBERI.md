@@ -76,10 +76,19 @@ Railway Volume'ü tek servise bağlanabildiği için SQLite paylaşılamazdı �
 3. Çıktıda her tablo için `src=N dst=N OK` görmelisin → `✅ TAŞIMA BAŞARILI`
 4. (İsteğe bağlı doğrulama) `python migrate_to_postgres.py --verify`
 
-### 5. Worker servisi ekle
+### 5. Otomasyon (worker) — İKİ SEÇENEK
+
+**A) Inline worker (VARSAYILAN — ekstra servis / login GEREKMEZ) ✅**
+Web servisi `start.py` ile streamlit'i ön planda çalıştırırken **worker.py'yi arka
+planda da başlatır** (auto_play 06/15 UTC + auto_settle 90dk). Yani web servisi
+deploy edildiği an sistem 7/24 otonomdur — başka bir şey yapmana gerek yok.
+Kapatmak istersen web servisine `INLINE_WORKER=0` ver.
+
+**B) Adanmış worker servisi (opsiyonel — yük ayrımı istersen)**
 1. Proje → **New** → **GitHub Repo** → tekrar `FrhnYldzl/BetAgents`
-2. Bu yeni servis → **Settings** → **Start Command**:  `python worker.py`
-3. Bu servis → **Variables** → `DATABASE_URL` = `${{ Postgres.DATABASE_URL }}`
+2. Bu servis → **Variables** → `ROLE=worker` + `DATABASE_URL` = `${{ Postgres.DATABASE_URL }}`
+   (`start.py`, `ROLE=worker` görünce otomatik `worker.py` çalıştırır)
+3. **ÖNEMLİ:** web servisinde `INLINE_WORKER=0` ver (çift tetikleme olmasın)
 
 ### 6. Web'e domain ver
 1. **web** servisi → **Settings** → **Networking** → **Generate Domain**
