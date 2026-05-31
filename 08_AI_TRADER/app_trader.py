@@ -33,10 +33,10 @@ INITIAL_BANKROLL = 5_000.0
 IDDAA_URL = "https://www.iddaa.com/program/futbol-mac-onceski"
 
 
-def db_connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+def db_connect():
+    """Taşınabilir bağlantı (SQLite yerel / PostgreSQL Railway) — db.py'ye delege."""
+    import db as _dbcore
+    return _dbcore.connect(DB_PATH)
 
 
 # ── Page config ────────────────────────────────────────────────

@@ -93,13 +93,24 @@ CREATE TABLE IF NOT EXISTS cache_meta (
 # CONNECT / INIT
 # ============================================================
 
-def connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+def connect():
+    """
+    Taşınabilir bağlantı (SQLite yerel / PostgreSQL Railway).
+    Merkezî db.py katmanına delege eder; DATABASE_URL'e göre otomatik seçer.
+    Dönen nesne sqlite3.Connection davranışını taklit eder
+    (execute/commit/close/read_df + row[0] & row['col']).
+    """
+    import db as _dbcore
+    return _dbcore.connect(DB_PATH)
 
 
 def init_db() -> None:
+    # PostgreSQL şeması migrate_to_postgres.py ile kurulur; eski SQLite
+    # SCHEMA'sı (AUTOINCREMENT) PG'de geçersiz olduğundan atlanır.
+    import db as _dbcore
+    if _dbcore.is_postgres():
+        print("PostgreSQL modu: şema migrate_to_postgres.py ile kurulur, init_db atlandı.")
+        return
     conn = connect()
     try:
         conn.executescript(SCHEMA)

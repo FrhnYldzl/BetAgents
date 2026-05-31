@@ -29,6 +29,8 @@ sys.path.insert(0, str(THIS_DIR))
 sys.stdout.reconfigure(encoding="utf-8")
 LOG_FILE.parent.mkdir(exist_ok=True)
 
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
+
 DB = THIS_DIR / "bahis_agent.db"
 
 
@@ -57,7 +59,7 @@ def run(no_fetch: bool = False, max_events: int = 40):
         log("Fetch atlandı (--no-fetch).")
 
     # ── 2. Açık kupon limiti kontrolü ────────────────────────────
-    conn = sqlite3.connect(str(DB))
+    conn = db.connect()
     open_n = conn.execute(
         "SELECT COUNT(*) FROM paper_coupons WHERE status='open'"
     ).fetchone()[0]

@@ -19,6 +19,8 @@ LOG_FILE = YAZILIM / "07_LOG_VE_RAPORLAR" / "auto_settle.log"
 sys.path.insert(0, str(THIS_DIR))
 sys.stdout.reconfigure(encoding="utf-8")
 
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
+
 LOG_FILE.parent.mkdir(exist_ok=True)
 
 
@@ -34,9 +36,7 @@ def run():
     log("=== AUTO SETTLE BASLADI ===")
 
     # Acik kupon var mi?
-    db_path = THIS_DIR / "bahis_agent.db"
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
+    conn = db.connect()
     open_count = conn.execute(
         "SELECT COUNT(*) FROM paper_coupons WHERE status='open'"
     ).fetchone()[0]
@@ -78,7 +78,7 @@ def run():
         else:
             log(f"KAPATILDI: {settled} kupon  |  Kazanan: {won}  |  PnL: {pnl:+.2f} TL")
             # Guncel bankroll
-            conn2 = sqlite3.connect(str(db_path))
+            conn2 = db.connect()
             br = conn2.execute(
                 "SELECT current_bankroll FROM paper_portfolio WHERE portfolio_id='PAPER_V1'"
             ).fetchone()

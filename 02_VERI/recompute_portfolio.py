@@ -1,8 +1,10 @@
 """Portföy sayaçlarını paper_coupons kaynağından authoritative yeniden hesapla."""
-import sqlite3, sys
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
-conn = sqlite3.connect("bahis_agent.db")
-conn.row_factory = sqlite3.Row
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
+conn = db.connect()
 
 init = conn.execute("SELECT initial_bankroll FROM paper_portfolio WHERE portfolio_id='PAPER_V1'").fetchone()[0]
 

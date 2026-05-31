@@ -21,3 +21,6 @@ playwright==1.60.0
 # ── Veritabanı (Postgres geçişi için) ──
 sqlalchemy==2.0.49
 psycopg2-binary==2.9.9
+
+# ── Zamanlayıcı (Railway worker: auto_play + auto_settle) ──
+APScheduler==3.11.2

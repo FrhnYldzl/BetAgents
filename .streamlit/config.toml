@@ -1,0 +1,15 @@
+# Streamlit — Railway/production ayarları
+# (Port CLI'dan --server.port $PORT ile gelir)
+
+[server]
+headless = true
+address = "0.0.0.0"
+enableCORS = false
+enableXsrfProtection = false
+fileWatcherType = "none"
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"

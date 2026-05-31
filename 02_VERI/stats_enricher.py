@@ -29,7 +29,10 @@ from pathlib import Path
 THIS_DIR = Path(__file__).resolve().parent
 DB_PATH  = THIS_DIR / "bahis_agent.db"
 
+sys.path.insert(0, str(THIS_DIR))
 sys.stdout.reconfigure(encoding="utf-8")
+
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
 
 BASE_STATS = "https://statisticsv2.iddaa.com/statistics/soccer"
 BASE_BOOK  = "https://sportsbookv2.iddaa.com/sportsbook"
@@ -313,8 +316,7 @@ def main():
     parser.add_argument("--days",    type=int, default=3,   help="Önümüzdeki kaç gün")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = db.connect()
 
     if args.event:
         # Tek maç modu

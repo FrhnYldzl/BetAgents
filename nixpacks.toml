@@ -1,0 +1,7 @@
+# Nixpacks build (Railway) — Python 3.12, sadece pip wheel kurulumu.
+# playwright BROWSER indirilmez (canlı yol urllib kullanır; playwright yalnız
+# yerel probe scriptleri içindir).
+providers = ["python"]
+
+[phases.install]
+cmds = ["pip install --no-cache-dir -r requirements.txt"]

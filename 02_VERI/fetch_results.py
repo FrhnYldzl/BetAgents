@@ -26,7 +26,10 @@ from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
 DB = THIS_DIR / "bahis_agent.db"
+sys.path.insert(0, str(THIS_DIR))
 sys.stdout.reconfigure(encoding="utf-8")
+
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
 
 HEADERS = {
     "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -56,8 +59,7 @@ def fetch_results(only_open: bool = True, verbose: bool = True,
     void_stuck_hours: Maç bu kadar saat geçmiş VE iddaa API'sinde veri yoksa
     (event silinmiş) → maçı VOID işaretle ki kupon takılı kalmasın (stake iade).
     """
-    conn = sqlite3.connect(str(DB))
-    conn.row_factory = sqlite3.Row
+    conn = db.connect()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Sonuçlanması gereken maçlar: kickoff 2+ saat geçmiş, is_settled=0

@@ -36,6 +36,8 @@ THIS_DIR = Path(__file__).resolve().parent
 YAZILIM = THIS_DIR.parent
 sys.path.insert(0, str(YAZILIM / "02_VERI"))
 
+import db  # merkezî bağlantı katmanı (SQLite/PostgreSQL)
+
 DB_PATH = YAZILIM / "02_VERI" / "bahis_agent.db"
 REGISTRY_PATH = YAZILIM / "03_MODELLER" / "MODEL_REGISTRY" / "model_registry.json"
 
@@ -543,9 +545,9 @@ def get_odd(row, direction):
 
 @st.cache_data(ttl=300)
 def load_signals():
-    conn = sqlite3.connect(DB_PATH)
+    conn = db.connect()
     # JOIN with matches_v2 to pull enriched columns (H2H, standings, form, YC/corners)
-    df = pd.read_sql_query("""
+    df = conn.read_df("""
         SELECT ss.*,
                m.h2h_n, m.h2h_home_wins, m.h2h_away_wins, m.h2h_draws,
                m.h2h_avg_goals, m.h2h_btts_rate,
@@ -564,7 +566,7 @@ def load_signals():
             AND substr(ss.kickoff_iso,1,10) = substr(m.kickoff_utc,1,10)
             AND lower(replace(ss.home_team,' ','')) = lower(replace(m.home_team,' ',''))
         WHERE ss.source='football_data'
-    """, conn)
+    """)
     conn.close()
     df["season_canon"] = df["season"].astype(str).map(lambda s: SEASON_CONV.get(s, s))
     df["matchday"] = pd.to_datetime(df["kickoff_iso"]).dt.strftime("%Y-%m-%d")
@@ -1572,7 +1574,7 @@ def page_data_excellency():
                 '<div class="section-title-meta">VERİTABANI KALİTE · COVERAGE · SNAPSHOTS</div>'
                 '</div>', unsafe_allow_html=True)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = db.connect()
     n_matches = conn.execute("SELECT COUNT(*) FROM matches_v2").fetchone()[0]
     n_settled = conn.execute("SELECT COUNT(*) FROM matches_v2 WHERE is_settled=1").fetchone()[0]
     n_signals = conn.execute("SELECT COUNT(*) FROM signal_snapshots WHERE source='football_data'").fetchone()[0]
@@ -1615,11 +1617,11 @@ def page_data_excellency():
     st.markdown("---")
 
     # Coverage heatmap
-    df_cov = pd.read_sql_query("""
+    df_cov = conn.read_df("""
         SELECT league_code, season, COUNT(*) as n, SUM(has_full_odds) as odds
         FROM matches_v2 GROUP BY league_code, season
         ORDER BY season, league_code
-    """, conn)
+    """)
     pivot = df_cov.pivot_table(index="league_code", columns="season",
                               values="odds", aggfunc="sum")
     n_pivot = df_cov.pivot_table(index="league_code", columns="season",
@@ -2480,11 +2482,8 @@ TRIVOX (T1, %82 hit), DUOVOX (E0+SP1, %62), OU25-D1-Over (%59), BTTS-D1-Var (%64
 
 
 def db_connect():
-    """Local DB connect for paper trader page."""
-    import sqlite3
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Taşınabilir bağlantı (SQLite yerel / PostgreSQL Railway) — db.py'ye delege."""
+    return db.connect(DB_PATH)
 
 
 # ============================================================
