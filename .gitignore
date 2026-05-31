@@ -36,3 +36,6 @@ venv/
 *.bak
 .DS_Store
 Thumbs.db
+
+# Sofascore probe capture artefaktı (probe ile yeniden üretilir)
+02_VERI/scrapers/sofascore_capture.json

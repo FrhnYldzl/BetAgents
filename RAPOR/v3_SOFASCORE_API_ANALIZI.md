@@ -8,16 +8,18 @@
 
 ## 0. YÖNETİCİ ÖZETİ (önce sonuç)
 
-| Boyut | Bulgu |
-|---|---|
-| **API erişimi** | ⚠️ **Cloudflare korumalı** — düz script `403` alıyor (iddaa'nın açık JSON'unun aksine). Tarayıcı-taklidi veya headless gerekir. |
-| **Veri zenginliği** | ⭐⭐⭐⭐⭐ Sektördeki en derin ücretsiz kaynaklardan: xG, oyuncu rating, momentum, şut haritası, dizilişler. |
-| **Lig kapsamı** | ⭐⭐⭐⭐⭐ **Neredeyse iddaa'nın sunduğu HER lig** (Belarus, Avustralya, İzlanda, Estonya, milli takımlar…). |
-| **Bizdeki açık** | 🔴 Kritik: niş liglerde (`ALL` kovası) xG=0, model=YOK. **Sofascore tam bu boşluğu doldurur.** |
-| **Katkı** | 🟢 **Yüksek** — trader'ın en zayıf noktasını (kör bahis) kapatma potansiyeli. |
-| **Maliyet/Risk** | 🟡 Erişim kırılgan (anti-bot) + ToS gri alan. Üretimde bakım yükü iddaa'dan fazla. |
+> **GÜNCELLEME (ampirik):** Playwright network-capture ile gerçek veriye ulaşıldı; aşağıdaki tablo ve §6 ampirik test sonuçlarıyla revize edildi.
 
-**Tek cümle:** Sofascore'un verisi muazzam ve tam ihtiyacımız olan niş ligleri kapsıyor; **engel veri değil, erişim** (anti-bot). Erişim çözülürse trader'a en büyük "cephane" bu olur.
+| Boyut | Bulgu (ampirik) |
+|---|---|
+| **API erişimi** | ✅ **Çözüldü** — düz script `403`, ama **headless Playwright + sayfa-içi fetch** ile 127/147 çağrı `200`. Eklenti/headed gerekmez. |
+| **Veri zenginliği** | ⭐⭐⭐⭐⭐ üst/orta ligler: xG + 40-46 metrik + diziliş + olaylar + kitle-oyu. |
+| **Lig kapsamı** | ⭐⭐⭐⭐ **Understat'tan çok geniş** (Brezilya, Çin, Mısır, İrlanda, Norveç, İskandinavya…) AMA en dip egzotik ligler (Belarus 2.düzey, Çek alt-lig) **sığ — sadece kart**. |
+| **Bizdeki açık** | 🟡 Kısmen kapanır: niş liglerin **çoğunda** xG gelir, **en dibinde gelmez** (örnek maç Belarus = sığ). |
+| **Katkı** | 🟢 **Yüksek ama evrensel değil** — xG kapsamı 5 lig → onlarca lige çıkar; egzotik kuyruk eksik kalır. |
+| **Maliyet/Risk** | 🟡 Headless tarayıcı/çekim gerekir (iddaa'dan ağır) + ToS gri alan. |
+
+**Tek cümle (revize):** Sofascore xG kapsamımızı 5 Avrupa liginden **dünya çapında onlarca lige** çıkarır (dev DATA kazancı) — ama iddaa'nın en dip egzotik liglerinin (Belarus vb.) bir kısmı orada da sığ. **Engel veri değil erişimdi; erişim çözüldü (headless+in-page fetch).**
 
 ---
 
@@ -130,4 +132,56 @@ Bu maçlarda elimizde **ne xG, ne DC modeli, ne sinyal** var → edge = sadece `
 
 ---
 
-*Analiz: 2026-05-31 · Erişim ampirik test edildi (403/Cloudflare) · Karşılaştırma DB'den gerçek rakamlarla · Endpoint kataloğu network-capture ile birebir doğrulanacak.*
+---
+
+## 6. AMPİRİK SONUÇLAR (Playwright network-capture — 2026-05-31)
+
+**Probe:** `02_VERI/scrapers/sofascore_probe.py` (tek maç) + `sofascore_depth_calib.py` (lig derinliği).
+
+### 6.1 Erişim — ÇÖZÜLDÜ ✅
+- Düz `urllib`/`requests` → **403** (Cloudflare).
+- `page.request.get()` (Playwright API context) → **403**.
+- **Headless Chromium + sayfanın KENDİ `fetch()`'i (page.evaluate)** → **200** (127/147 çağrı). ✅
+- Maç sayfası yüklenince 140 `/api/v1` çağrısı yakalandı; event id otomatik bulundu (16142049).
+
+### 6.2 Gerçek endpoint kataloğu (200-OK, doğrulandı)
+```
+/event/{id}                  → maç özeti (skor, takım, turnuva, durum)
+/event/{id}/statistics       → maç istatistikleri (üst liglerde xG + 40-46 metrik)
+/event/{id}/lineups          → 11'ler + yedekler (+rating: üst liglerde)
+/event/{id}/incidents        → gol/kart/değişiklik zaman çizelgesi
+/event/{id}/managers         → teknik direktörler
+/event/{id}/pregame-form     → maç öncesi form + lig pozisyonu
+/event/{id}/votes            → kitle tahmini (1X2, KG, ilk gol)
+/team/{id}/.../statistics/overall   → takım sezon istatistikleri
+/tournament/{id}/season/{id}/standings/total → puan durumu
+/sport/football/scheduled-events/{YYYY-MM-DD} → günün tüm maçları
+(graph/momentum: yalnız üst maçlarda; bu örnekte 404)
+```
+
+### 6.3 Veri DERİNLİĞİ lig-seviyesine bağlı (14 maç kalibrasyonu, 2026-05-30)
+| Lig | Metrik | xG |
+|---|---|---|
+| UEFA Şampiyonlar Ligi | 46 | ✅ |
+| Brezilya Série A / B | 42 / 45 | ✅ |
+| Çin Super League | 45 | ✅ |
+| Mısır / İrlanda / Norveç Eliteserien | 43-45 | ✅ |
+| LaLiga2 / Serie B / Fransa / Şili / Bolivya / Ekvador | 40-44 | ✅/derin |
+| **Belarus Vysshaya** (örnek maç) | **2** | ❌ sadece kart |
+| **Çek alt-lig (relegation)** | **2** | ❌ sadece kart |
+
+→ **9/14 maçta açık xG; üst+orta liglerin neredeyse tamamı zengin.** Yalnız en dip ligler sığ.
+
+### 6.4 Net karar
+- **DATA kazancı gerçek ve büyük:** xG kapsamı 5 Avrupa ligi (Understat) → **dünya çapında onlarca lig** (Brezilya, İskandinavya, Çin, Mısır, İrlanda…). iddaa yaz programının büyük kısmı bunlarla örtüşür.
+- **Sınır:** Belarus 2.düzey / Estonya / Çek alt-lig gibi en dip egzotikler Sofascore'da da sığ → bu maçlarda yine model kurulamaz (ama bunlar zaten **elenmeli** — kör bahisten kaçınmak da kazanç).
+- **Erişim yöntemi netleşti:** headless Playwright + in-page fetch (üretimde `data_sources/sofascore.py` adapter buna dayanır).
+
+### Sıradaki (PoC)
+1. iddaa açık kuponlarındaki liglerin Sofascore'da hangi oranda **zengin** (xG'li) olduğunu ölç (kapsam haritası).
+2. xG'li niş ligler için (ör. Norveç/Brezilya/İrlanda) → maçları Sofascore xG ile çek → xG-baseline edge modeli → backtest.
+3. Sığ ligleri (Belarus vb.) → otomatik **PAS** kuralı (model yoksa kupona alma).
+
+---
+
+*Analiz: 2026-05-31 · Erişim & şema Playwright network-capture ile AMPİRİK doğrulandı · Derinlik 14-maç kalibrasyonuyla ölçüldü · Probe: `02_VERI/scrapers/sofascore_probe.py` + `sofascore_depth_calib.py`*
