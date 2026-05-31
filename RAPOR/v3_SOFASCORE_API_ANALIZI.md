@@ -177,10 +177,40 @@ Bu maçlarda elimizde **ne xG, ne DC modeli, ne sinyal** var → edge = sadece `
 - **Sınır:** Belarus 2.düzey / Estonya / Çek alt-lig gibi en dip egzotikler Sofascore'da da sığ → bu maçlarda yine model kurulamaz (ama bunlar zaten **elenmeli** — kör bahisten kaçınmak da kazanç).
 - **Erişim yöntemi netleşti:** headless Playwright + in-page fetch (üretimde `data_sources/sofascore.py` adapter buna dayanır).
 
-### Sıradaki (PoC)
-1. iddaa açık kuponlarındaki liglerin Sofascore'da hangi oranda **zengin** (xG'li) olduğunu ölç (kapsam haritası).
-2. xG'li niş ligler için (ör. Norveç/Brezilya/İrlanda) → maçları Sofascore xG ile çek → xG-baseline edge modeli → backtest.
-3. Sığ ligleri (Belarus vb.) → otomatik **PAS** kuralı (model yoksa kupona alma).
+## 7. KAPSAM PoC SONUÇLARI (kendi maçlarımız ↔ Sofascore — 2026-05-31)
+
+**Probe:** `02_VERI/scrapers/sofascore_coverage_poc.py` — DB'den örnek maçları Sofascore'da
+tarih+takım fuzzy-eşle → `statistics`'ten xG çek. **21 örnek, 19 eşleşti (%90).**
+
+### 7.1 T1 (Türkiye) — xG sezon eşiği KESİN
+| Sezon | Eşleşme | xG |
+|---|---|---|
+| 2018 / 2020 / 2021 / 2022 | ✅ %100 | ❌ **yok** |
+| **2023 / 2024 / 2025 / 2026** | ✅ %100 | ✅ **VAR** (örn. 1.89-0.75, 3.61-1.68, 2.68-1.82, 1.34-1.37) |
+
+→ **Sofascore Türk Süper Lig'e ~2023 sezonundan beri xG veriyor.** Eşleşme oranı %100
+(Galatasaray/Beşiktaş/Kayserispor… isimleri birebir tutuyor).
+
+### 7.2 Niş 'ALL' ligler — karışık (lig-spesifik)
+| Maç | Lig | xG |
+|---|---|---|
+| Nomme United v Flora | 🇪🇪 Estonya | ✅ 0.32-6.06 |
+| Heidelberg v Dandenong | 🇦🇺 Avustralya | ✅ 1.29-1.52 |
+| Arsenal Dzerz. v Dinamo Minsk | 🇧🇾 Belarus | ❌ sığ |
+| Taby FK / Al Urooba | 🇸🇪/🇦🇪 alt-lig | — eşleşmedi (isim normalizasyonu) |
+
+### 7.3 Backfill için NET kapsam (revize, ampirik)
+- **T1:** 2023-2026 sezonları (~4 sezon × ~306 maç ≈ **~1.200 maç** 0→xG) + bundan sonra her maç. Pre-2023 yok.
+- **5 Avrupa ligi:** Understat'ın eksik bıraktığı yakın sezonlar tamamlanır + 40-metrik eklenir.
+- **Niş ligler:** Estonya/Avustralya/Brezilya/İskandinavya/İrlanda → xG var; Belarus/dip-lig → yok.
+- **Compounding değer:** asıl kazanç ileriye dönük — her yeni canlı maç artık xG'li gelir.
+
+### 7.4 İnşa planı (yürüyebiliriz)
+1. **`data_sources/sofascore.py` adapter** — headless Playwright + in-page fetch (kanıtlandı). Maç → event eşleme (fuzzy isim, %90 → team_aliases ile %98'e çıkar).
+2. **`sofascore_stats` tablosu** (match_id FK) — xG + ~40 metrik + votes. matches_v2 şişmez.
+3. **Backfill:** T1 2023+ pilot (flagship) → kalite gör → 5 Avrupa + zengin niş genişlet.
+4. **Her maç xG-kontrolü:** Sofascore'da xG yoksa (Belarus vb.) o maça model kurma → **otomatik PAS** (kör bahisten kaçın).
+5. **Model:** xG-baseline (Poisson/DC) yeni kapsanan ligler için → backtest'te edge anlamlı mı.
 
 ---
 
