@@ -22,5 +22,5 @@ COPY . .
 
 EXPOSE 8080
 
-# Railway $PORT'u sağlar; yoksa 8080. Shell formu → $PORT genişler.
-CMD streamlit run 08_AI_TRADER/app_unified.py --server.port $PORT --server.address 0.0.0.0
+# Tek imaj; ROLE env değişkeni web/worker'ı seçer (start.py).
+CMD ["python", "start.py"]
