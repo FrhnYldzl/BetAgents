@@ -104,9 +104,19 @@ with st.sidebar:
     _nav_group("💸 CANLI TRADER", TRADER_PAGES)
     _nav_group("📊 ANALİZ", RESEARCH_PAGES)
 
+    import sys as _sys
+    import os as _os
+    _veri_path = str(Path(__file__).resolve().parent.parent / "02_VERI")
+    if _veri_path not in _sys.path:
+        _sys.path.insert(0, _veri_path)
+    try:
+        import db as _db_mod
+        _db_label = "PostgreSQL" if _db_mod.is_postgres() else "bahis_agent (SQLite)"
+    except Exception:
+        _db_label = "bahis_agent"
     st.markdown(
-        '<div style="border-top:1px solid #1e293b;margin-top:10px;padding:8px 14px;'
-        'color:#2d3f5e;font-size:9px;font-family:Consolas,monospace;">DB: bahis_agent</div>',
+        f'<div style="border-top:1px solid #1e293b;margin-top:10px;padding:8px 14px;'
+        f'color:#2d3f5e;font-size:9px;font-family:Consolas,monospace;">DB: {_db_label}</div>',
         unsafe_allow_html=True,
     )
 
