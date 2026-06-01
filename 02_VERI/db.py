@@ -304,23 +304,33 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
             raise RuntimeError(
                 "psycopg2 kurulu değil. 'pip install psycopg2-binary' komutunu çalıştırın."
             ) from exc
+        import time
         url = database_url()
-        try:
-            raw = psycopg2.connect(
-                url,
-                cursor_factory=psycopg2.extras.DictCursor,
-            )
-        except psycopg2.OperationalError as exc:
-            # Bağlantı bilgilerini logla (şifreyi gizle)
-            import re as _re
-            safe_url = _re.sub(r":[^:@]+@", ":***@", url)
-            raise RuntimeError(
-                f"PostgreSQL bağlantısı kurulamadı: {exc}\n"
-                f"Bağlantı URL'si (şifre gizli): {safe_url}\n"
-                "DATABASE_URL, PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE "
-                "ortam değişkenlerini kontrol edin."
-            ) from exc
-        return Conn(raw, is_pg=True)
+        # Railway iç-DNS (postgres.railway.internal) ara sıra anlık çözülemez →
+        # geçici OperationalError'da kısa bekleyip TEKRAR DENE. Başarılı bağlantı
+        # anında döner (sleep yok); yalnız hata olunca backoff.
+        last = None
+        for attempt in range(4):
+            try:
+                raw = psycopg2.connect(
+                    url,
+                    cursor_factory=psycopg2.extras.DictCursor,
+                    connect_timeout=15,
+                    keepalives=1, keepalives_idle=30,
+                    keepalives_interval=10, keepalives_count=5,
+                )
+                return Conn(raw, is_pg=True)
+            except psycopg2.OperationalError as exc:
+                last = exc
+                if attempt < 3:
+                    time.sleep(0.7 * (attempt + 1))   # 0.7s, 1.4s, 2.1s
+        # tüm denemeler başarısız → açıklayıcı hata (şifre gizli)
+        import re as _re
+        safe_url = _re.sub(r":[^:@]+@", ":***@", url)
+        raise RuntimeError(
+            f"PostgreSQL bağlantısı 4 denemede kurulamadı: {last}\n"
+            f"Bağlantı URL'si (şifre gizli): {safe_url}"
+        ) from last
 
     import sqlite3
     path = str(sqlite_path) if sqlite_path else str(DEFAULT_SQLITE_PATH)
