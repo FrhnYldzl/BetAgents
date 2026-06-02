@@ -623,20 +623,22 @@ class PaperEngine:
                 odds *= p["odds"]
             return round(odds, 3)
 
-        # ── K2_FAVORI: En guclu 2 MS sinyali (farklı maçlar) ──────
-        # iddaa.com min 2 ayak — tekli bahis kabul edilmez
+        # iddaa.com kupon kuralı: asıl oyun 3 AYAK (tekli bahis istisna).
+        # Bu yüzden tüm kupon tipleri 3 farklı maçtan oluşur → gerçek kazanç/olasılık.
+
+        # ── K3_FAVORI: En guclu 3 MS sinyali (farklı maçlar) ──────
         fav_pool = [
             s for s in all_signals
             if s["market"] == "1X2"
-            and s["model_prob"] >= 0.65
-            and s["odds"] >= 1.25
+            and s["model_prob"] >= 0.62
+            and s["odds"] >= 1.20
         ]
-        fav_picks = _pick_n(fav_pool, 2)
-        if len(fav_picks) == 2:
-            stake = round(bankroll * 0.025, 2)
+        fav_picks = _pick_n(fav_pool, 3)
+        if len(fav_picks) == 3:
+            stake = round(bankroll * 0.020, 2)
             co = _combo(fav_picks)
             coupons.append({
-                "coupon_type":      "K2_FAVORI",
+                "coupon_type":      "K3_FAVORI",
                 "picks":            fav_picks,
                 "stake":            stake,
                 "combined_odds":    co,
@@ -644,18 +646,18 @@ class PaperEngine:
             })
             _register(fav_picks)
 
-        # ── K2_VALUE: En guclu 2 value pick (herhangi pazar) ──────
+        # ── K3_VALUE: En guclu 3 value pick (herhangi pazar) ──────
         value_pool = [
             s for s in all_signals
-            if s["model_prob"] >= 0.60
+            if s["model_prob"] >= 0.58
             and s["edge"] >= 0.04          # min +4% edge
         ]
-        val_picks = _pick_n(value_pool, 2)
-        if len(val_picks) == 2:
-            stake = round(bankroll * 0.02, 2)
+        val_picks = _pick_n(value_pool, 3)
+        if len(val_picks) == 3:
+            stake = round(bankroll * 0.018, 2)
             co = _combo(val_picks)
             coupons.append({
-                "coupon_type":      "K2_VALUE",
+                "coupon_type":      "K3_VALUE",
                 "picks":            val_picks,
                 "stake":            stake,
                 "combined_odds":    co,
@@ -663,29 +665,31 @@ class PaperEngine:
             })
             _register(val_picks)
 
-        # ── K2_KARISIK: 1 MS + 1 KG/ALT karışık (farklı maçlar) ──
-        ms_pool = [s for s in all_signals if s["market"] == "1X2" and s["model_prob"] >= 0.63]
+        # ── K3_KARISIK: 1 MS + 2 KG/ALT-ÜST (3 farklı maç) ──
+        ms_pool = [s for s in all_signals if s["market"] == "1X2" and s["model_prob"] >= 0.60]
         alt_pool = [
             s for s in all_signals
             if s["market"] in ("KG_VAR", "ALT_25", "UST_25")
-            and s["model_prob"] >= 0.62
+            and s["model_prob"] >= 0.60
         ]
-        ms_pick  = _pick_n(ms_pool, 1)
+        ms_pick = _pick_n(ms_pool, 1)
         if ms_pick:
-            # alt_pool'dan farklı VE kullanılmamış maçtan bir pick al
             ms_mid = ms_pick[0]["_match"].get("match_id")
-            alt_pick = next(
-                (s for s in alt_pool
-                 if s["_match"].get("match_id") != ms_mid
-                 and s["_match"].get("match_id") not in used_match_ids),
-                None
-            )
-            if alt_pick:
-                karisik_picks = [ms_pick[0], alt_pick]
-                stake = round(bankroll * 0.02, 2)
+            # alt_pool'dan, MS maçından ve kullanılanlardan FARKLI 2 maç
+            alt_sel, seen = [], {ms_mid}
+            for s in alt_pool:
+                mid = s["_match"].get("match_id")
+                if mid in used_match_ids or mid in seen:
+                    continue
+                alt_sel.append(s); seen.add(mid)
+                if len(alt_sel) == 2:
+                    break
+            if len(alt_sel) == 2:
+                karisik_picks = [ms_pick[0]] + alt_sel
+                stake = round(bankroll * 0.018, 2)
                 co = _combo(karisik_picks)
                 coupons.append({
-                    "coupon_type":      "K2_KARISIK",
+                    "coupon_type":      "K3_KARISIK",
                     "picks":            karisik_picks,
                     "stake":            stake,
                     "combined_odds":    co,
@@ -696,7 +700,7 @@ class PaperEngine:
         # ── K3_KOMBO: 3 güçlü sinyal (farklı maçlar) ──────────────
         kombo_pool = [
             s for s in all_signals
-            if s["model_prob"] >= 0.60
+            if s["model_prob"] >= 0.58
         ]
         kombo_picks = _pick_n(kombo_pool, 3)
         if len(kombo_picks) == 3:
