@@ -596,15 +596,31 @@ class PaperEngine:
         # Bu oturumda kullanılan maçlar — bir maç en fazla 1 kuponda olsun.
         used_match_ids: set = set()
 
-        # ── Yardımcı: farklı maçlardan N pick seç ─────────────────
-        def _pick_n(pool: list[dict], n: int) -> list[dict]:
+        # ── iddaa MBS (Minimum Bahis Sayısı) ──────────────────────
+        # Her maçın mbs'i: 1=tek oynanabilir, 3=en az 3 ayak zorunlu.
+        # Bir N-ayaklı kupon GEÇERLİ ise: N >= her ayağın mbs'i.
+        # Veri yoksa (NULL) güvenli varsayım 3 (çoğu niş maç 1 veya 3).
+        def _mbs(s: dict) -> int:
+            v = s["_match"].get("mbs")
+            try:
+                return int(v) if v else 3
+            except Exception:
+                return 3
+
+        # ── Yardımcı: farklı maçlardan N pick seç (MBS-farkında) ──
+        def _pick_n(pool: list[dict], n: int, max_mbs: int | None = None) -> list[dict]:
             """pool'dan farklı match_id'li n pick sec.
-            Zaten baska kuponda kullanilan maclari (used_match_ids) atlar."""
+            max_mbs = nihai kuponun ayak sayısı (verilmezse n). Sadece mbs <= max_mbs
+            olan maçları alır (o ayak, kuponun boyutunda oynanabilmeli).
+            Zaten kullanilan maclari (used_match_ids) atlar."""
+            mm = max_mbs if max_mbs is not None else n
             result: list[dict] = []
             seen: set = set()
             for s in pool:
                 mid = s["_match"].get("match_id")
                 if mid in used_match_ids or mid in seen:
+                    continue
+                if _mbs(s) > mm:         # bu maç bu boyutta kuponda oynanamaz
                     continue
                 result.append(s)
                 seen.add(mid)
@@ -623,8 +639,29 @@ class PaperEngine:
                 odds *= p["odds"]
             return round(odds, 3)
 
-        # iddaa.com kupon kuralı: asıl oyun 3 AYAK (tekli bahis istisna).
-        # Bu yüzden tüm kupon tipleri 3 farklı maçtan oluşur → gerçek kazanç/olasılık.
+        # iddaa GERÇEK kuralı (Spor Toto Oyun Planı): her maçın MBS'i var.
+        # MBS=1 → TEK oynanabilir (istisna); MBS=2/3 → en az o kadar ayak zorunlu.
+        # _pick_n artık mbs<=N filtreliyor → her kupon kurala otomatik uyar.
+
+        # ── TEK_FAVORI: yalnız MBS=1 maçlarda, çok güçlü tekli (istisna) ──
+        tek_pool = [
+            s for s in all_signals
+            if s["market"] == "1X2"
+            and s["model_prob"] >= 0.70     # tekli için yüksek güven eşiği
+            and s["odds"] >= 1.20
+        ]
+        tek_picks = _pick_n(tek_pool, 1)     # _pick_n: sadece mbs==1 maç gelir
+        if tek_picks:
+            p = tek_picks[0]
+            stake = round(bankroll * 0.020, 2)
+            coupons.append({
+                "coupon_type":      "TEK_FAVORI",
+                "picks":            [p],
+                "stake":            stake,
+                "combined_odds":    round(p["odds"], 3),
+                "potential_return": round(stake * p["odds"], 2),
+            })
+            _register([p])
 
         # ── K3_FAVORI: En guclu 3 MS sinyali (farklı maçlar) ──────
         fav_pool = [
@@ -672,7 +709,7 @@ class PaperEngine:
             if s["market"] in ("KG_VAR", "ALT_25", "UST_25")
             and s["model_prob"] >= 0.60
         ]
-        ms_pick = _pick_n(ms_pool, 1)
+        ms_pick = _pick_n(ms_pool, 1, max_mbs=3)   # 3-ayaklı kupon → MS ayağı mbs<=3
         if ms_pick:
             ms_mid = ms_pick[0]["_match"].get("match_id")
             # alt_pool'dan, MS maçından ve kullanılanlardan FARKLI 2 maç
@@ -680,6 +717,8 @@ class PaperEngine:
             for s in alt_pool:
                 mid = s["_match"].get("match_id")
                 if mid in used_match_ids or mid in seen:
+                    continue
+                if _mbs(s) > 3:          # 3-ayaklı kuponda yer alamaz
                     continue
                 alt_sel.append(s); seen.add(mid)
                 if len(alt_sel) == 2:
@@ -715,8 +754,8 @@ class PaperEngine:
             })
             _register(kombo_picks)
 
-        # Max 4 kupon, tekli yok
-        return coupons[:4]
+        # MBS kuralına uygun kuponlar: TEK (mbs=1) + K3'ler. Oturum başına en fazla 5.
+        return coupons[:5]
 
     # ----------------------------------------------------------
     # KUPONU DB'YE YAZ

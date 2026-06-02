@@ -194,6 +194,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
             "home": home_name,
             "away": away_name,
             "competition_id": ev.get("ci"),
+            "mbs": ev.get("mbc"),   # iddaa Minimum Bahis Sayısı (1=tek olur, 3=3'lü zorunlu)
             "odds": odds_combined,
         })
 
@@ -206,6 +207,12 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
     if not dry_run and results:
         print(f"\n[4] matches_v2 + signal_snapshots'a yaziliyor...")
         conn = db.connect()
+        # mbs (Minimum Bahis Sayısı) kolonu yoksa ekle (idempotent)
+        try:
+            conn.execute("ALTER TABLE matches_v2 ADD COLUMN mbs INTEGER")
+            conn.commit()
+        except Exception:
+            conn.rollback()
         now = datetime.utcnow().isoformat()
         n_ins_m2 = 0
         n_upd_m2 = 0
@@ -244,6 +251,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             closing_btts_yes=?, closing_btts_no=?,
                             closing_source='iddaa',
                             external_id_iddaa=?,
+                            mbs=?,
                             refreshed_at=?
                         WHERE match_id=?
                     """, (
@@ -251,6 +259,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                         odds.get("over25"), odds.get("under25"),
                         odds.get("btts_yes"), odds.get("btts_no"),
                         str(r["event_id"]),
+                        r.get("mbs"),
                         now,
                         existing["match_id"]
                     ))
@@ -264,18 +273,19 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             closing_1, closing_X, closing_2,
                             closing_over25, closing_under25,
                             closing_btts_yes, closing_btts_no,
-                            closing_source,
+                            closing_source, mbs,
                             has_full_odds, has_opening_odds, has_xg, has_result,
                             is_settled,
                             ingested_at, refreshed_at, quality_score
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NS', ?, ?, ?, ?, ?, ?, ?,
-                                  'iddaa', ?, 0, 0, 0, 0, ?, ?, 0.50)
+                                  'iddaa', ?, ?, 0, 0, 0, 0, ?, ?, 0.50)
                     """, (
                         str(r["event_id"]), lg, season, md, kickoff,
                         r["home"], r["away"],
                         odds.get("1"), odds.get("X"), odds.get("2"),
                         odds.get("over25"), odds.get("under25"),
                         odds.get("btts_yes"), odds.get("btts_no"),
+                        r.get("mbs"),
                         1 if (odds.get("1") and odds.get("X") and odds.get("2")) else 0,
                         now, now
                     ))
