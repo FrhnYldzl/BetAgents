@@ -853,6 +853,25 @@ def render_ready_coupons() -> None:
                 '</div>', unsafe_allow_html=True)
 
 
+def page_ready_coupons(portfolio: dict) -> None:
+    """Ayrı sayfa: SENİN manuel oynaman için öneriler (sistemin kuponlarından AYRI)."""
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">▸ HAZIR KUPONLAR (MANUEL)</div>
+      <div class="sec-title-meta">SENİN OYNAMAN İÇİN ÖNERİLER</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #3b82f6;'
+        'border-radius:8px;padding:10px 14px;margin:4px 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.6;">'
+        'ℹ️ Bu kuponlar <b style="color:#e2e8f0;">SENİN manuel oynaman</b> için önerilir — '
+        'iddaa\'da kendin oynarsın. <b style="color:#e2e8f0;">Sistemin kendi otomatik (paper) kuponlarından AYRIDIR</b>; '
+        'bunlar bankroll\'a/portföye dahil değildir, sadece öneridir. '
+        'Sistemin kuponları için → <b>Genel Bakış</b> · <b>Pozisyonlar</b> · <b>Emirler</b>.'
+        '</div>', unsafe_allow_html=True)
+    render_ready_coupons()
+
+
 def page_overview(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
@@ -950,9 +969,6 @@ def page_overview(portfolio: dict) -> None:
         """, unsafe_allow_html=True)
     except Exception:
         pass
-
-    # ── HAZIR KUPONLAR (oynanmamış, MBS-uyumlu öneriler) ────
-    render_ready_coupons()
 
     # ── Settle button (compact, above tabs) ─────────────────
     settle_col, _ = st.columns([1, 3])
