@@ -872,6 +872,161 @@ def page_ready_coupons(portfolio: dict) -> None:
     render_ready_coupons()
 
 
+# ════════════════════════════════════════════════════════════════
+# CLV — TRUTH METER (Faz 0): çizgiyi yeniyor muyuz?
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=600, show_spinner=False)
+def get_clv_data():
+    """CLV backfill + karne + son bahisler (10 dk cache). Hata olursa boş döner."""
+    try:
+        import clv as _clv
+        _clv.backfill_clv(PORTFOLIO_ID)          # idempotent — başlamış maçlar için hesapla
+        return {
+            "summary": _clv.clv_summary(PORTFOLIO_ID),
+            "recent":  _clv.recent_bets(PORTFOLIO_ID, limit=20),
+        }
+    except Exception as e:
+        return {"summary": None, "recent": [], "error": str(e)}
+
+
+def _clv_tile(label: str, value: str, color: str, sub: str = "") -> str:
+    return (
+        f'<div style="flex:1;background:#0d1628;border:1px solid #1a2840;'
+        f'border-top:3px solid {color};border-radius:10px;padding:12px 14px;">'
+        f'<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+        f'letter-spacing:0.08em;font-weight:700;">{label}</div>'
+        f'<div style="color:{color};font-size:24px;font-weight:900;'
+        f'font-family:Consolas,monospace;margin-top:4px;">{value}</div>'
+        f'<div style="color:#475569;font-size:10px;margin-top:2px;">{sub}</div></div>')
+
+
+def page_clv(portfolio: dict) -> None:
+    """CLV dashboard — sistemin GERÇEK karnesi (P&L değil, çizgiyi yenme)."""
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">▸ CLV · ÇİZGİYİ YENİYOR MUYUZ?</div>
+      <div class="sec-title-meta">CLOSING LINE VALUE · GERÇEK EDGE KARNESİ</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #3b82f6;'
+        'border-radius:8px;padding:10px 14px;margin:4px 0 14px 0;color:#94a3b8;font-size:12px;line-height:1.6;">'
+        'ℹ️ <b style="color:#e2e8f0;">CLV = (giriş oranı ÷ kapanış oranı) − 1</b>. '
+        'Pozitifse kapanıştan <b style="color:#10d48e;">daha iyi fiyat</b> yakaladık = uzun vadede kâr işareti. '
+        'P&L gürültülüdür ve aylar alır; <b style="color:#e2e8f0;">CLV haftalar içinde "edge var mı?"</b> sorusuna cevap verir. '
+        'Not: giriş ve kapanış aynı kitabın (iddaa) oranı → bu <b>intra-iddaa CLV</b>, '
+        'sharp-book CLV\'si değil. Anlamlı yorum için <b style="color:#e2e8f0;">≥150 bahis</b> gerekir.'
+        '</div>', unsafe_allow_html=True)
+
+    data = get_clv_data()
+    s = data.get("summary")
+    if not s or not s["overall"]["n"]:
+        st.markdown('<div style="color:#475569;font-size:13px;padding:10px 0;">'
+                    'Henüz CLV hesaplanabilir (maçı başlamış) bahis yok. '
+                    'Maçlar başladıkça karne otomatik dolar — 10 dk\'da bir güncellenir.'
+                    '</div>', unsafe_allow_html=True)
+        if data.get("error"):
+            st.caption(f"({data['error']})")
+        return
+
+    o = s["overall"]
+    n = o["n"]
+    mean = o["mean"]; med = o["median"]; beat = o["beat_rate"]
+    pos = mean > 0
+    main_color = "#10d48e" if pos else "#f59e0b"
+
+    # KPI satırı
+    tiles = "".join([
+        _clv_tile("CLV'li Bahis", f"{n}", "#3b82f6",
+                  "≥150 anlamlı" if n < 150 else "anlamlı örneklem ✓"),
+        _clv_tile("Ortalama CLV", f"{mean*100:+.2f}%", main_color,
+                  "edge işareti" if pos else "edge yok"),
+        _clv_tile("Medyan CLV", f"{med*100:+.2f}%", "#94a3b8", ""),
+        _clv_tile("Beat-rate", f"{beat*100:.0f}%", "#94a3b8", "CLV>0 oranı"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;margin-bottom:10px;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+    # VERDİKT
+    if n < 30:
+        verdict = ("⏳ Örneklem küçük (n<30) — yorum için erken. Karne dolmaya devam ediyor.", "#64748b")
+    elif pos and n >= 150:
+        verdict = (f"✅ EDGE İŞARETİ: {n} bahiste ortalama +{mean*100:.2f}% CLV. "
+                   "Bu pazar/nişe yüklenmeyi değerlendir.", "#10d48e")
+    elif pos:
+        verdict = (f"🟡 Umut verici (+{mean*100:.2f}%) ama n={n}<150 — kesin değil, örneklem büyümeli.", "#f59e0b")
+    else:
+        verdict = (f"🔴 Ortalama CLV negatif ({mean*100:.2f}%) — bu örneklemde çizgiyi yenmiyoruz. "
+                   "Verimli-pazar duvarı; nişlere bakılmalı.", "#ef4444")
+    st.markdown(
+        f'<div style="background:#0d1628;border-left:3px solid {verdict[1]};border-radius:8px;'
+        f'padding:10px 14px;margin:4px 0 14px 0;color:{verdict[1]};font-size:13px;font-weight:600;">'
+        f'{verdict[0]}</div>', unsafe_allow_html=True)
+
+    # Pazar + Lig kırılımı
+    def _breakdown(title, d):
+        rows = ""
+        for k, a in d.items():
+            if not a["n"]:
+                continue
+            c = "#10d48e" if (a["mean"] or 0) > 0 else "#f59e0b"
+            rows += (
+                '<tr style="border-top:1px solid #18233a;">'
+                f'<td style="padding:5px 8px;color:#e2e8f0;font-size:12px;">{k}</td>'
+                f'<td style="padding:5px 8px;color:#94a3b8;font-size:12px;text-align:right;font-family:Consolas;">{a["n"]}</td>'
+                f'<td style="padding:5px 8px;color:{c};font-size:12px;text-align:right;font-family:Consolas;font-weight:700;">{a["mean"]*100:+.2f}%</td>'
+                f'<td style="padding:5px 8px;color:#94a3b8;font-size:12px;text-align:right;font-family:Consolas;">{a["beat_rate"]*100:.0f}%</td>'
+                '</tr>')
+        return (
+            f'<div style="flex:1;background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:8px 6px;">'
+            f'<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;'
+            f'font-weight:700;padding:4px 8px;">{title}</div>'
+            '<table style="width:100%;border-collapse:collapse;">'
+            '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+            '<td style="padding:2px 8px;">İsim</td><td style="padding:2px 8px;text-align:right;">n</td>'
+            '<td style="padding:2px 8px;text-align:right;">Ort CLV</td><td style="padding:2px 8px;text-align:right;">Beat</td></tr>'
+            f'{rows}</table></div>')
+
+    st.markdown(
+        f'<div style="display:flex;gap:10px;margin-bottom:12px;">'
+        f'{_breakdown("PAZAR BAZLI", s["by_market"])}{_breakdown("LİG BAZLI", s["by_league"])}'
+        f'</div>', unsafe_allow_html=True)
+
+    # Son bahisler
+    recent = data.get("recent") or []
+    if recent:
+        st.markdown('<div class="sec-title" style="margin-top:6px;">'
+                    '<div class="sec-title-main">▸ SON BAHİSLER · GİRİŞ vs KAPANIŞ</div></div>',
+                    unsafe_allow_html=True)
+        rows = ""
+        for b in recent:
+            clv = b.get("clv") or 0.0
+            c = "#10d48e" if clv > 0 else ("#ef4444" if clv < 0 else "#64748b")
+            entry = b.get("odds") or 0.0
+            close = b.get("closing_odds")
+            entry_s = f"{entry:.2f}" if entry else "—"
+            close_s = f"{close:.2f}" if close else "—"
+            ko = (b.get("kickoff_utc") or "")[:10]
+            rows += (
+                '<tr style="border-top:1px solid #18233a;">'
+                f'<td style="padding:5px 8px;color:#e2e8f0;font-size:11px;">{b.get("home_team","?")} v {b.get("away_team","?")}</td>'
+                f'<td style="padding:5px 8px;color:#10d48e;font-size:11px;font-family:Consolas;">{b.get("market","")}:{b.get("pick","")}</td>'
+                f'<td style="padding:5px 8px;color:#94a3b8;font-size:11px;text-align:right;font-family:Consolas;">{entry_s}</td>'
+                f'<td style="padding:5px 8px;color:#94a3b8;font-size:11px;text-align:right;font-family:Consolas;">{close_s}</td>'
+                f'<td style="padding:5px 8px;color:{c};font-size:11px;text-align:right;font-family:Consolas;font-weight:700;">{clv*100:+.1f}%</td>'
+                f'<td style="padding:5px 8px;color:#3a4a63;font-size:10px;text-align:right;">{ko}</td>'
+                '</tr>')
+        st.markdown(
+            '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;overflow-x:auto;">'
+            '<table style="width:100%;border-collapse:collapse;">'
+            '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+            '<td style="padding:2px 8px;">Maç</td><td style="padding:2px 8px;">Seçim</td>'
+            '<td style="padding:2px 8px;text-align:right;">Giriş</td><td style="padding:2px 8px;text-align:right;">Kapanış</td>'
+            '<td style="padding:2px 8px;text-align:right;">CLV</td><td style="padding:2px 8px;text-align:right;">Tarih</td></tr>'
+            f'{rows}</table></div>', unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">

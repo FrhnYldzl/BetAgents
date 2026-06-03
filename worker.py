@@ -50,6 +50,14 @@ def job_auto_settle():
         auto_settle.run()
     except Exception as e:
         print(f"[{_ts()}] AUTO_SETTLE HATA: {e}")
+    # CLV backfill — settle sonrası kapanış kesinleşir (Faz 0 truth meter).
+    # Hata olsa bile settle akışını bozmaz.
+    try:
+        import clv
+        res = clv.backfill_clv()
+        print(f"[{_ts()}] CLV backfill: hesaplanan={res['computed']} atlanan={res['skipped']}")
+    except Exception as e:
+        print(f"[{_ts()}] CLV BACKFILL HATA: {e}")
 
 
 def main():
