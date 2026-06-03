@@ -758,6 +758,93 @@ class PaperEngine:
         return coupons[:5]
 
     # ----------------------------------------------------------
+    # HAZIR KUPON ÖNERİLERİ (UI için — YERLEŞTİRMEZ, ağ yok)
+    # ----------------------------------------------------------
+    def recommend_coupons(self, stake: float = 100.0) -> list[dict]:
+        """
+        Başlamamış + açık kuponda olmayan maçlardan MBS-uyumlu kupon önerileri.
+        Edge bilgisi DAHİL (dürüst): avg_edge<0 ise değer yok demektir.
+        DB'ye YAZMAZ, ağ çağrısı YAPMAZ (matches_v2.mbs kullanır).
+        """
+        from datetime import datetime, timezone
+        pid = self.portfolio_id
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        conn = db.connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT * FROM matches_v2
+                WHERE is_settled=0 AND kickoff_utc > ? AND closing_1 IS NOT NULL
+                  AND match_id NOT IN (
+                      SELECT pb.match_id FROM paper_bets pb
+                      JOIN paper_coupons pc ON pb.coupon_id = pc.coupon_id
+                      WHERE pc.status='open' AND pb.match_id IS NOT NULL)
+                ORDER BY kickoff_utc ASC LIMIT 300
+                """, (now,)).fetchall()
+        finally:
+            conn.close()
+        matches = [dict(r) for r in rows]
+
+        sigs = []
+        for m in matches:
+            for s in self.evaluate_match(m):
+                s["_match"] = m
+                sigs.append(s)
+        if not sigs:
+            return []
+        sigs.sort(key=lambda x: x["signal_score"], reverse=True)
+
+        def _mbs(s):
+            v = s["_match"].get("mbs")
+            try:
+                return int(v) if v else 3
+            except Exception:
+                return 3
+
+        used = set()
+        def _pick(pool, n, max_mbs):
+            res, seen = [], set()
+            for s in pool:
+                mid = s["_match"].get("match_id")
+                if mid in used or mid in seen or _mbs(s) > max_mbs:
+                    continue
+                res.append(s); seen.add(mid)
+                if len(res) == n:
+                    break
+            return res
+
+        def _make(ctype, picks):
+            co, wp, eg = 1.0, 1.0, 0.0
+            for p in picks:
+                co *= p["odds"]; wp *= p["model_prob"]; eg += p["edge"]
+            co = round(co, 2)
+            legs = [{
+                "home": p["_match"].get("home_team"), "away": p["_match"].get("away_team"),
+                "league": p["_match"].get("league_code"), "kickoff": p["_match"].get("kickoff_utc"),
+                "market": p["market"], "pick": p["pick"], "odds": round(p["odds"], 2),
+                "model_prob": p["model_prob"], "edge": p["edge"], "mbs": _mbs(p),
+                "iddaa_id": p["_match"].get("external_id_iddaa"),
+            } for p in picks]
+            return {
+                "type": ctype, "legs": legs, "combined_odds": co,
+                "win_prob": round(wp, 3), "avg_edge": round(eg / len(picks), 4),
+                "stake": stake, "gross": round(stake * co, 2),
+                "net": round(stake + (stake * co - stake) * 0.90, 2),
+            }
+
+        out = []
+        tek = _pick([s for s in sigs if s["market"] == "1X2" and s["model_prob"] >= 0.66], 1, 1)
+        if tek:
+            out.append(_make("TEK_FAVORI", tek)); used.update(p["_match"]["match_id"] for p in tek)
+        k3 = _pick([s for s in sigs if s["model_prob"] >= 0.60], 3, 3)
+        if len(k3) == 3:
+            out.append(_make("K3_KOMBO", k3)); used.update(p["_match"]["match_id"] for p in k3)
+        kv = _pick(sorted(sigs, key=lambda x: x["edge"], reverse=True), 3, 3)
+        if len(kv) == 3:
+            out.append(_make("K3_VALUE", kv))
+        return out
+
+    # ----------------------------------------------------------
     # KUPONU DB'YE YAZ
     # ----------------------------------------------------------
 

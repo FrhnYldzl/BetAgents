@@ -787,6 +787,72 @@ def _show_today_preview() -> None:
 # PAGE: OVERVIEW
 # ============================================================
 
+@st.cache_data(ttl=900, show_spinner=False)
+def get_ready_coupons(stake: float = 100.0):
+    """HAZIR KUPONLAR — oynanmamış maçlardan MBS-uyumlu öneriler (15 dk cache)."""
+    try:
+        from paper_engine import PaperEngine
+        return PaperEngine(PORTFOLIO_ID).recommend_coupons(stake=stake)
+    except Exception:
+        return []
+
+
+def render_ready_coupons() -> None:
+    """Overview'da 'HAZIR KUPONLAR' bölümü — manuel oynamak için, edge-dürüst."""
+    try:
+        recs = get_ready_coupons(100.0)
+    except Exception:
+        recs = []
+    st.markdown(
+        '<div class="sec-title" style="margin-top:6px;">'
+        '<div class="sec-title-main">▸ HAZIR KUPONLAR</div>'
+        '<div class="sec-title-meta">OYNANMAMIŞ · MBS-UYUMLU · 100 TL · MANUEL OYNA</div></div>',
+        unsafe_allow_html=True)
+    if not recs:
+        st.markdown('<div style="color:#475569;font-size:12px;padding:6px 0 14px 0;">'
+                    'Şu an uygun (başlamamış) maç/sinyal yok — worker yeni program çekince güncellenir.'
+                    '</div>', unsafe_allow_html=True)
+        return
+    TYPE_LABEL = {"TEK_FAVORI": "TEK MAÇ (favori)", "K3_KOMBO": "3'LÜ KOMBO", "K3_VALUE": "3'LÜ VALUE"}
+    cols = st.columns(len(recs))
+    for col, rc in zip(cols, recs):
+        with col:
+            edge = rc["avg_edge"]
+            ev_ok = edge > 0
+            ev_color = "#10d48e" if ev_ok else "#f59e0b"
+            ev_txt = (f"+DEĞER %{edge*100:.1f}" if ev_ok else f"−EV %{edge*100:.1f}")
+            legs_html = ""
+            for L in rc["legs"]:
+                ko = (L["kickoff"] or "")[:16].replace("T", " ")
+                legs_html += (
+                    '<div style="border-top:1px solid #18233a;padding:6px 0;">'
+                    f'<div style="color:#e2e8f0;font-size:12px;font-weight:600;">{L["home"]} '
+                    f'<span style="color:#475569;">v</span> {L["away"]}</div>'
+                    '<div style="font-family:Consolas,monospace;font-size:11px;margin-top:2px;">'
+                    f'<span style="color:#10d48e;font-weight:700;">{L["market"]}:{L["pick"]}</span> '
+                    f'<span style="color:#94a3b8;">@{L["odds"]:.2f}</span> '
+                    f'<span style="color:#64748b;">· %{L["model_prob"]*100:.0f} · MBS{L["mbs"]}</span></div>'
+                    f'<div style="color:#3a4a63;font-size:10px;">{L["league"]} · {ko} UTC</div></div>')
+            st.markdown(
+                f'<div style="background:#0d1628;border:1px solid #1a2840;border-left:3px solid {ev_color};'
+                'border-radius:10px;padding:12px 14px;margin-bottom:6px;">'
+                '<div style="display:flex;justify-content:space-between;align-items:center;">'
+                f'<span style="color:#e2e8f0;font-weight:800;font-size:13px;font-family:Consolas,monospace;">'
+                f'{TYPE_LABEL.get(rc["type"], rc["type"])}</span>'
+                f'<span style="color:{ev_color};font-size:10px;font-weight:700;">{ev_txt}</span></div>'
+                f'{legs_html}'
+                '<div style="border-top:1px solid #1a2840;margin-top:6px;padding-top:6px;font-family:Consolas,monospace;">'
+                f'<span style="color:#94a3b8;font-size:11px;">Kombine </span>'
+                f'<span style="color:#e2e8f0;font-weight:700;">{rc["combined_odds"]}</span>'
+                f'<span style="color:#475569;font-size:11px;"> · 100→</span>'
+                f'<span style="color:#10d48e;font-weight:700;">{rc["gross"]:.0f} TL</span>'
+                f'<span style="color:#475569;font-size:11px;"> · tutma %{rc["win_prob"]*100:.0f}</span></div>'
+                '</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#475569;font-size:10px;padding:2px 0 12px 0;">'
+                '⚠️ Öneri — garanti değil. −EV ise model "PAS" diyor (eğlence amaçlı). 15 dk\'da bir güncellenir.'
+                '</div>', unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
@@ -884,6 +950,9 @@ def page_overview(portfolio: dict) -> None:
         """, unsafe_allow_html=True)
     except Exception:
         pass
+
+    # ── HAZIR KUPONLAR (oynanmamış, MBS-uyumlu öneriler) ────
+    render_ready_coupons()
 
     # ── Settle button (compact, above tabs) ─────────────────
     settle_col, _ = st.columns([1, 3])
