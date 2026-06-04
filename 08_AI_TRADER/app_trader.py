@@ -1988,10 +1988,28 @@ def page_risk(portfolio: dict) -> None:
 # PAGE: JOURNAL
 # ============================================================
 
+def _verify_link(match_p: str, date_str: str = "") -> str:
+    """Bir maç için bağımsız skor-doğrulama linki (Google skor kartı).
+    Skoru iddaa'dan çekiyoruz; bu link kullanıcının sonucu 3. taraftan
+    bağımsız teyit etmesi için ('tıkla, sonucu gör')."""
+    from urllib.parse import quote
+    teams = re.sub(r"\s*\(.*?\)\s*", " ", (match_p or "")).strip()
+    q_teams = teams.replace(" vs ", " ").replace(" VS ", " ").replace(" v ", " ")
+    query = f"{q_teams} {date_str} maç sonucu".strip()
+    url = "https://www.google.com/search?q=" + quote(query)
+    return (
+        f'<a href="{url}" target="_blank" rel="noopener noreferrer" '
+        f'style="color:#3b82f6;font-size:10px;text-decoration:none;'
+        f'font-family:Consolas,monospace;display:inline-flex;align-items:center;gap:3px;">'
+        f'🔗 sonucu bağımsız gör</a>'
+    )
+
+
 def page_journal(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
       <div class="sec-title-main">▸ JOURNAL — MODEL NOTES</div>
+      <div class="sec-title-meta">SKOR KAYNAĞI: İDDAA · 🔗 İLE BAĞIMSIZ TEYİT (GOOGLE)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2110,6 +2128,8 @@ def page_journal(portfolio: dict) -> None:
                             f'</div>'
                             if sig_p else ""
                         )
+                        # Row 3: bağımsız skor doğrulama linki
+                        + f'<div style="margin-top:6px;">{_verify_link(match_p, edate)}</div>'
                         + f'</div>'  # end bet row
                     )
 
