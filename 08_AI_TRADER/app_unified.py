@@ -46,6 +46,7 @@ st.session_state.setdefault("sb_bankroll", 5000)
 # (etiket → fonksiyon).  Trader sayfaları portfolio arg alır; analiz almaz.
 TRADER_PAGES = {
     "Genel Bakış":        T.page_overview,
+    "Kupon Analizi":      T.page_coupon_analysis,
     "CLV · Edge Karne":   T.page_clv,
     "Hazır Kuponlar":     T.page_ready_coupons,
     "Maçlar & Sinyaller": T.page_matches,

@@ -1027,6 +1027,136 @@ def page_clv(portfolio: dict) -> None:
             f'{rows}</table></div>', unsafe_allow_html=True)
 
 
+# ════════════════════════════════════════════════════════════════
+# KUPON ANALİZİ — DATA · MODEL · TRADE
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=600, show_spinner=False)
+def get_coupon_analysis():
+    try:
+        import analyze_coupons as _ac
+        return _ac.analyze(PORTFOLIO_ID)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def page_coupon_analysis(portfolio: dict) -> None:
+    """Kazanan/kaybeden kupon analizi — DATA · MODEL · TRADE çerçevesi."""
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">▸ KUPON ANALİZİ</div>
+      <div class="sec-title-meta">DATA · MODEL · TRADE · KAZANAN/KAYBEDEN</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    a = get_coupon_analysis()
+    if a.get("error") or "overview" not in a:
+        st.warning(f"Analiz yüklenemedi: {a.get('error','veri yok')}")
+        return
+    o = a["overview"]
+    n_dec = o["coupons_decided"]
+
+    def _pc(x):
+        return f"%{x*100:.0f}" if x is not None else "—"
+
+    # KPI tiles
+    roi = o["roi"]
+    roi_c = "#10d48e" if (roi or 0) > 0 else "#ef4444" if (roi or 0) < 0 else "#94a3b8"
+    tiles = "".join([
+        _clv_tile("Karar Kupon", f"{n_dec}", "#3b82f6", f"+{o['coupons_open']} açık · {o['coupons_void']} void"),
+        _clv_tile("İsabet", _pc(o["hit_rate"]), "#94a3b8", f"{o['coupons_won']}/{n_dec} kazanan"),
+        _clv_tile("ROI", f"{roi:+.1f}%" if roi is not None else "—", roi_c, f"PnL {o['pnl']:+.0f} TL"),
+        _clv_tile("Bankroll", f"{o['bankroll_cur']:.0f}" if o['bankroll_cur'] else "—", "#94a3b8",
+                  f"başlangıç {o['bankroll_init']:.0f}" if o['bankroll_init'] else ""),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;margin-bottom:10px;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+    # Örneklem uyarısı
+    if n_dec < 30:
+        st.markdown(
+            f'<div style="background:#1a1410;border-left:3px solid #f59e0b;border-radius:8px;'
+            f'padding:10px 14px;margin-bottom:14px;color:#f59e0b;font-size:13px;font-weight:600;">'
+            f'⚠️ Karar verilen kupon = {n_dec} (&lt;30). Bu örneklemde win/loss & ROI <b>GÜRÜLTÜ</b> — '
+            f'yorum erken. Bu aşamada <b>CLV</b> ve <b>kalibrasyon</b> daha hızlı sinyal verir. '
+            f'(Haziran = sezon arası; gerçek test ligler Ağustos\'ta açılınca başlar.)'
+            f'</div>', unsafe_allow_html=True)
+
+    # tablo helper
+    def _tbl(title, headers, rows_data):
+        head = "".join(f'<td style="padding:2px 8px;text-align:right;">{h}</td>' for h in headers[1:])
+        head = f'<td style="padding:2px 8px;">{headers[0]}</td>' + head
+        body = ""
+        for r in rows_data:
+            cells = f'<td style="padding:5px 8px;color:#e2e8f0;font-size:12px;">{r[0]}</td>'
+            for cell, color in r[1:]:
+                cells += (f'<td style="padding:5px 8px;color:{color};font-size:12px;text-align:right;'
+                          f'font-family:Consolas,monospace;">{cell}</td>')
+            body += f'<tr style="border-top:1px solid #18233a;">{cells}</tr>'
+        return (
+            f'<div style="flex:1;background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:8px 6px;">'
+            f'<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;'
+            f'font-weight:700;padding:4px 8px;">{title}</div>'
+            f'<table style="width:100%;border-collapse:collapse;">'
+            f'<tr style="color:#475569;font-size:9px;text-transform:uppercase;">{head}</tr>{body}</table></div>')
+
+    # MODEL: kalibrasyon + edge
+    calib_rows = []
+    for c in a["calibration"]:
+        if c["n"]:
+            gap = c["gap"]
+            gc = "#10d48e" if abs(gap) <= 0.07 else "#f59e0b" if abs(gap) <= 0.15 else "#ef4444"
+            calib_rows.append([c["band"], (str(c["n"]), "#94a3b8"), (_pc(c["pred"]), "#64748b"),
+                               (_pc(c["actual"]), "#e2e8f0"), (f"{gap*100:+.0f}p", gc)])
+        else:
+            calib_rows.append([c["band"], ("0", "#3a4a63"), ("—", "#3a4a63"), ("—", "#3a4a63"), ("—", "#3a4a63")])
+    edge_rows = []
+    for e in a["edge_perf"]:
+        edge_rows.append([e["band"], (str(e["n"]), "#94a3b8"), (_pc(e["hit_rate"]), "#e2e8f0")])
+    st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;'
+                'font-weight:700;margin:6px 0 4px 0;">🧠 MODEL — kalibrasyon & edge geçerliliği</div>',
+                unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="display:flex;gap:10px;margin-bottom:12px;">'
+        f'{_tbl("KALİBRASYON (tahmin vs gerçek)", ["Bant","n","Tahmin","Gerçek","Fark"], calib_rows)}'
+        f'{_tbl("EDGE → İSABET", ["Edge bandı","n","İsabet"], edge_rows)}'
+        f'</div>', unsafe_allow_html=True)
+
+    # TRADE: tür + lig
+    type_rows = [[k, (str(v["n"]), "#94a3b8"), (_pc(v["hit_rate"]), "#e2e8f0"),
+                  (f"{v['roi']:+.0f}%" if v["roi"] is not None else "—",
+                   "#10d48e" if (v["roi"] or 0) > 0 else "#ef4444" if (v["roi"] or 0) < 0 else "#94a3b8")]
+                 for k, v in sorted(a["by_type"].items())]
+    league_rows = [[k, (str(v["n"]), "#94a3b8"), (_pc(v["hit_rate"]), "#e2e8f0")]
+                   for k, v in sorted(a["by_league"].items())]
+    st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;'
+                'font-weight:700;margin:6px 0 4px 0;">💸 TRADE — tür & lig performansı</div>',
+                unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="display:flex;gap:10px;margin-bottom:12px;">'
+        f'{_tbl("KUPON TÜRÜ", ["Tür","n","İsabet","ROI"], type_rows or [["(veri yok)",("","#3a4a63"),("","#3a4a63"),("","#3a4a63")]])}'
+        f'{_tbl("LİG", ["Lig","n","İsabet"], league_rows or [["(veri yok)",("","#3a4a63"),("","#3a4a63")]])}'
+        f'</div>', unsafe_allow_html=True)
+
+    # DATA kalite + CLV özet satırı
+    dq = a["data_quality"]
+    clv = a["clv"]
+    vr = dq["void_rate"]
+    vr_c = "#10d48e" if (vr or 0) < 0.15 else "#f59e0b" if (vr or 0) < 0.4 else "#ef4444"
+    clv_c = "#10d48e" if (clv and clv["mean"] > 0) else "#94a3b8"
+    clv_val = (f"{clv['mean']*100:+.2f}%" if clv else "—")
+    clv_sub = (f"beat {_pc(clv['beat_rate'])} · n={clv['n']}" if clv else "veri yok")
+    cov_val = _pc(dq["closing_coverage"])
+    settled_n = str(dq["settled_bets"])
+    tiles2 = "".join([
+        _clv_tile("📊 Void oranı", _pc(vr), vr_c, "yüksek=operasyonel sorun"),
+        _clv_tile("Kapanış kapsamı", cov_val, "#94a3b8", "CLV için gerekli"),
+        _clv_tile("CLV", clv_val, clv_c, clv_sub),
+        _clv_tile("Settle bahis", settled_n, "#3b82f6", "truth meter girdisi"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;">{tiles2}</div>', unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
