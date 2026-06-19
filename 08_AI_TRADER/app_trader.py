@@ -1685,6 +1685,95 @@ def page_overview(portfolio: dict) -> None:
 # PAGE: MATCHES
 # ============================================================
 
+# ════════════════════════════════════════════════════════════════
+# SUPERPOWER SİNYAL — konfluans + tarihsel kanıt (gerekçeli)
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=600, show_spinner=False)
+def get_superpower(limit: int = 6):
+    try:
+        import superpower as _sp
+        return _sp.superpower_signals(limit=limit, portfolio_id=PORTFOLIO_ID)
+    except Exception:
+        return []
+
+
+def render_superpower() -> None:
+    """Gerekçeli SUPERPOWER sinyal bölümü — sinyal sayfasının tepesinde."""
+    sigs = get_superpower(6)
+    st.markdown(
+        '<div class="sec-title" style="margin-top:2px;">'
+        '<div class="sec-title-main">⚡ SUPERPOWER SİNYAL</div>'
+        '<div class="sec-title-meta">KONFLUANS + TARİHSEL KANIT · GEREKÇELİ</div></div>',
+        unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #a78bfa;'
+        'border-radius:8px;padding:9px 13px;margin:2px 0 12px 0;color:#94a3b8;font-size:11px;line-height:1.6;">'
+        'ℹ️ SUPERPOWER = kör favori DEĞİL. Skor; <b style="color:#e2e8f0;">piyasa güveni (düşük ağırlık)</b> + '
+        '<b style="color:#10d48e;">ortogonal teyit</b> (sharp money · H2H · çoklu-pazar — çizgide olmayan bilgi) + '
+        '<b style="color:#f5c518;">tarihsel kanıt</b> (bu sinyal tipi geçmişte kazandı mı / +CLV mi?) harmanıdır. '
+        'Kanıt zayıfsa skor düşer ve tier "İZLE" kalır — dürüstlük gereği.'
+        '</div>', unsafe_allow_html=True)
+
+    if not sigs:
+        st.markdown('<div style="color:#475569;font-size:12px;padding:6px 0 14px 0;">'
+                    'Şu an değerlendirilecek (başlamamış, oranlı) maç yok — worker yeni program çekince dolar.'
+                    '</div>', unsafe_allow_html=True)
+        return
+
+    TIER = {
+        "SUPERPOWER": ("#f5c518", "⚡ SUPERPOWER", "rgba(245,197,24,0.07)"),
+        "GÜÇLÜ":      ("#10d48e", "★ GÜÇLÜ",      "rgba(16,212,142,0.05)"),
+        "İZLE":       ("#64748b", "İZLE",          "#0d1628"),
+    }
+    n_super = sum(1 for x in sigs if x["tier"] == "SUPERPOWER")
+    if n_super == 0:
+        st.markdown('<div style="color:#f59e0b;font-size:11px;margin-bottom:8px;">'
+                    '⚠️ Şu an SUPERPOWER tier sinyal YOK (yeterli konfluans/tarihsel kanıt birikmedi). '
+                    'En güçlü adaylar aşağıda — gerçek test ligler Ağustos\'ta açılınca güçlenir.'
+                    '</div>', unsafe_allow_html=True)
+
+    for x in sigs:
+        col, label, bg = TIER.get(x["tier"], ("#64748b", x["tier"], "#0d1628"))
+        ko = (x.get("kickoff") or "")[:16].replace("T", " ")
+        verify = _verify_link(f'{x.get("home","?")} vs {x.get("away","?")}', (x.get("kickoff") or "")[:10])
+        reasons_html = "".join(
+            f'<li style="color:#94a3b8;font-size:11px;line-height:1.55;margin-bottom:2px;">{r}</li>'
+            for r in x.get("reasons", []))
+        edge = x.get("edge") or 0.0
+        edge_c = "#10d48e" if edge > 0 else "#ef4444"
+        st.markdown(
+            f'<div style="background:{bg};border:1px solid #1a2840;border-left:4px solid {col};'
+            f'border-radius:10px;padding:12px 15px;margin-bottom:9px;">'
+            # üst satır: tier + skor + maç
+            f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+            f'<div><span style="background:{col};color:#0a0d14;font-size:10px;font-weight:800;'
+            f'padding:2px 8px;border-radius:4px;letter-spacing:0.05em;">{label}</span>'
+            f'<span style="color:#e2e8f0;font-weight:700;font-size:13px;margin-left:8px;">'
+            f'{x.get("home","?")} <span style="color:#475569;">v</span> {x.get("away","?")}</span></div>'
+            f'<div style="text-align:right;"><span style="color:{col};font-size:20px;font-weight:900;'
+            f'font-family:Consolas,monospace;">{x.get("score",0):.0f}</span>'
+            f'<span style="color:#475569;font-size:10px;"> /100</span></div>'
+            f'</div>'
+            # pick satırı
+            f'<div style="font-family:Consolas,monospace;font-size:12px;margin-bottom:6px;">'
+            f'<span style="color:#10d48e;font-weight:700;">{x.get("market","")}:{x.get("pick","")}</span> '
+            f'<span style="color:#94a3b8;">@{x.get("odds",0):.2f}</span> '
+            f'<span style="color:#475569;">· {x.get("league","")} · {ko} UTC · </span>'
+            f'<span style="color:{edge_c};">edge %{edge*100:+.1f}</span> '
+            f'<span style="color:#64748b;">· {x.get("confirmers",0)} teyit</span></div>'
+            # gerekçeler
+            f'<div style="background:rgba(10,13,20,0.4);border-radius:6px;padding:7px 10px 7px 6px;margin-bottom:6px;">'
+            f'<ul style="margin:0;padding-left:18px;">{reasons_html}</ul></div>'
+            f'<div>{verify}</div>'
+            f'</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="color:#475569;font-size:10px;padding:2px 0 14px 0;">'
+                '⚠️ Gerekçeli öneri — garanti değil. Skor yüksek olsa bile −EV olabilir; '
+                'gerçek doğrulama <b>CLV · Edge Karne</b> sayfasında. 10 dk\'da bir güncellenir.'
+                '</div>', unsafe_allow_html=True)
+
+
 def page_matches(portfolio: dict) -> None:
     now_utc  = datetime.utcnow()
     today_s  = now_utc.date().isoformat()
@@ -1720,6 +1809,11 @@ def page_matches(portfolio: dict) -> None:
     with h_r:
         if st.button("▶ AUTO-PLAY", type="primary", use_container_width=True):
             _auto_play()
+
+    # ── ⚡ SUPERPOWER SİNYAL (gerekçeli, konfluans + tarihsel) ──
+    render_superpower()
+    st.markdown('<div style="border-top:1px solid #1a2840;margin:6px 0 14px 0;"></div>',
+                unsafe_allow_html=True)
 
     if not picks:
         st.markdown(
