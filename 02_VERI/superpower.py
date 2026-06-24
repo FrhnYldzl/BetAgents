@@ -32,11 +32,15 @@ except Exception:
 
 import db
 from paper_engine import PaperEngine
+import independent_model as im
 
 # bileşen ağırlıkları — ortogonal + tarihsel baskın (piyasa güveni düşük)
-W_CONV = 25.0
-W_ORTH = 35.0
-W_HIST = 40.0
+# Bağımsız model "ikinci görüş/belirsizlik" olarak girer (POZİTİF edge üreticisi
+# DEĞİL — backtest: naive gol-modeli piyasadan kötü). Uyum → güven, ayrışma → temkin.
+W_CONV = 20.0
+W_ORTH = 30.0
+W_HIST = 30.0
+W_AGREE = 20.0
 
 
 def _base_name(sn: str) -> str:
@@ -73,10 +77,10 @@ def signal_scorecard(portfolio_id: str = "PAPER_V1") -> dict:
     }
 
 
-def _score_signal(s: dict, n_markets: int, sc: dict) -> dict:
+def _score_signal(s: dict, n_markets: int, sc: dict, indep_probs: dict | None) -> dict:
     reasons: list[str] = []
     confirmers = 0
-    mp = s.get("model_prob") or 0.0
+    mp = s.get("model_prob") or 0.0          # = piyasanın vig'siz olasılığı
     odds = s.get("odds") or 0.0
     sn = s.get("signal_name") or ""
 
@@ -85,6 +89,26 @@ def _score_signal(s: dict, n_markets: int, sc: dict) -> dict:
     reasons.append(
         f"Piyasa olasılığı %{mp*100:.0f} @ {odds:.2f} — tek başına EDGE DEĞİL, "
         f"piyasanın kendi vig'siz fiyatı")
+
+    # 4) BAĞIMSIZ MODEL — ikinci görüş (POZİTİF edge üreticisi DEĞİL):
+    #    uyum → daha sağlam; ayrışma → belirsizlik → güven düşer.
+    indep = im.model_prob_for(indep_probs, s.get("market", ""), s.get("pick", "")) if indep_probs else None
+    real_edge = None
+    veto = False
+    if indep is not None:
+        real_edge = indep - mp
+        div = abs(real_edge)
+        agree = 1.0 - min(1.0, div / 0.20)
+        tag = "uyumlu ✓" if div < 0.06 else ("hafif ayrışma" if div < 0.12 else "AYRIŞIYOR ✗")
+        reasons.append(
+            f"🧮 Bağımsız gol-modeli %{indep*100:.0f} vs piyasa %{mp*100:.0f} "
+            f"(sapma {div*100:.0f}p · {tag})")
+        if real_edge < -0.08:
+            veto = True   # model belirgin daha düşük diyor → SUPERPOWER vetosu
+            reasons.append("   ↳ model belirgin DAHA DÜŞÜK diyor → temkin (favori tuzağı olabilir)")
+    else:
+        agree = 0.40      # ikinci görüş yok → hafif temkin
+        reasons.append("🧮 Bağımsız model: yeterli geçmiş yok (ikinci görüş yok)")
 
     # 2) Ortogonal teyitler — çizgide OLMAYAN bilgi
     if "SHARP" in sn:
@@ -123,18 +147,19 @@ def _score_signal(s: dict, n_markets: int, sc: dict) -> dict:
         reasons.append("ℹ️ Tarihsel veri yetersiz — temkinli değerlendir "
                        "(sezon arası / az örneklem)")
 
-    score = W_CONV * conv + W_ORTH * orth + W_HIST * hist_norm
+    score = W_CONV * conv + W_ORTH * orth + W_HIST * hist_norm + W_AGREE * agree
 
-    # TIER — SUPERPOWER sadece gerçek konfluansta
-    if score >= 70 and (confirmers >= 2 or (confirmers >= 1 and hist_positive)):
+    # TIER — SUPERPOWER sadece gerçek konfluansta VE bağımsız model veto etmiyorsa
+    if score >= 70 and not veto and (confirmers >= 2 or (confirmers >= 1 and hist_positive)):
         tier = "SUPERPOWER"
-    elif score >= 52:
+    elif score >= 52 and not veto:
         tier = "GÜÇLÜ"
     else:
         tier = "İZLE"
 
     return {"score": score, "tier": tier, "reasons": reasons,
-            "confirmers": confirmers, "hist": hist, "hist_positive": hist_positive}
+            "confirmers": confirmers, "hist": hist, "hist_positive": hist_positive,
+            "indep_prob": indep, "real_edge": real_edge, "veto": veto}
 
 
 def superpower_signals(limit: int = 8, portfolio_id: str = "PAPER_V1") -> list[dict]:
@@ -144,6 +169,7 @@ def superpower_signals(limit: int = 8, portfolio_id: str = "PAPER_V1") -> list[d
     conn = db.connect()
     now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     try:
+        ratings = im.build_current_ratings(conn)   # leak-free snapshot (settle maçlar)
         rows = [dict(r) for r in conn.execute(
             "SELECT * FROM matches_v2 WHERE is_settled=0 AND kickoff_utc > ? "
             "AND closing_1 IS NOT NULL ORDER BY kickoff_utc ASC LIMIT 300",
@@ -160,8 +186,12 @@ def superpower_signals(limit: int = 8, portfolio_id: str = "PAPER_V1") -> list[d
         if not sigs:
             continue
         n_markets = len(set(s["market"] for s in sigs))
+        try:
+            indep_probs = ratings.predict(m)
+        except Exception:
+            indep_probs = None
         for s in sigs:
-            comp = _score_signal(s, n_markets, sc)
+            comp = _score_signal(s, n_markets, sc, indep_probs)
             comp["_m"] = m
             comp["_s"] = s
             cand.append(comp)
@@ -179,6 +209,8 @@ def superpower_signals(limit: int = 8, portfolio_id: str = "PAPER_V1") -> list[d
             "model_prob": s["model_prob"], "edge": s["edge"],
             "signal_name": s["signal_name"],
             "confirmers": c["confirmers"], "hist": c["hist"],
+            "indep_prob": c.get("indep_prob"), "real_edge": c.get("real_edge"),
+            "veto": c.get("veto", False),
             "reasons": c["reasons"],
         })
     return out

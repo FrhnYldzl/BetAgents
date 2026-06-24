@@ -1711,7 +1711,10 @@ def render_superpower() -> None:
         'border-radius:8px;padding:9px 13px;margin:2px 0 12px 0;color:#94a3b8;font-size:11px;line-height:1.6;">'
         'ℹ️ SUPERPOWER = kör favori DEĞİL. Skor; <b style="color:#e2e8f0;">piyasa güveni (düşük ağırlık)</b> + '
         '<b style="color:#10d48e;">ortogonal teyit</b> (sharp money · H2H · çoklu-pazar — çizgide olmayan bilgi) + '
-        '<b style="color:#f5c518;">tarihsel kanıt</b> (bu sinyal tipi geçmişte kazandı mı / +CLV mi?) harmanıdır. '
+        '<b style="color:#f5c518;">tarihsel kanıt</b> (bu sinyal tipi geçmişte kazandı mı / +CLV mi?) + '
+        '<b style="color:#a78bfa;">bağımsız gol-modeli</b> (ikinci görüş) harmanıdır. '
+        'NOT: bağımsız model backtest\'te piyasadan zayıf çıktı → POZİTİF edge üreticisi değil, '
+        '<b>belirsizlik kontrolü</b>: piyasayla ayrışırsa güven düşer, uyumluysa daha sağlam. '
         'Kanıt zayıfsa skor düşer ve tier "İZLE" kalır — dürüstlük gereği.'
         '</div>', unsafe_allow_html=True)
 
