@@ -39,6 +39,50 @@ import app_pro as P
 st.markdown(P.PRO_CSS, unsafe_allow_html=True)
 st.markdown(T.TRADER_CSS, unsafe_allow_html=True)
 
+# ── MOBİL DÜZELTME (en son enjekte → baskın) ───────────────────
+# Sorun: TRADER/PRO CSS toolbar'ı komple gizliyordu; sidebar'ı AÇAN hamburger
+# (stExpandSidebarButton) o toolbar'ın içinde → mobilde sidebar açılamıyordu.
+# Çözüm: toolbar'ı görünür yap, içeriğini gizle, SADECE hamburger'ı zorla göster.
+MOBILE_FIX_CSS = """
+<style>
+/* Toolbar'ı geri getir ama yalnız sidebar-aç butonu görünsün */
+[data-testid="stToolbar"]{display:flex !important;visibility:visible !important;height:auto !important;background:transparent !important;}
+[data-testid="stToolbarActions"],[data-testid="stMainMenu"],#MainMenu,[data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],.stAppDeployButton,[data-testid="stDeployButton"]{display:none !important;}
+[data-testid="stHeader"]{pointer-events:auto !important;}
+
+/* Sidebar AÇ (hamburger) — her zaman görünür ve dokunulabilir */
+[data-testid="stExpandSidebarButton"],
+[data-testid="stExpandSidebarButton"] > button{
+  display:inline-flex !important;visibility:visible !important;opacity:1 !important;
+  width:40px !important;height:40px !important;min-width:40px !important;
+  align-items:center !important;justify-content:center !important;
+  color:#10d48e !important;background:rgba(16,212,142,0.12) !important;
+  border:1px solid #1e293b !important;border-radius:9px !important;
+  margin:6px 0 0 6px !important;z-index:1000000 !important;cursor:pointer !important;
+}
+[data-testid="stExpandSidebarButton"] svg{width:22px !important;height:22px !important;color:#10d48e !important;}
+
+@media (max-width:768px){
+  /* Sidebar açıkken kullanışlı genişlik (220px override) + kapatma butonu görünür */
+  [data-testid="stSidebar"]{min-width:80vw !important;max-width:80vw !important;width:80vw !important;}
+  [data-testid="stSidebar"] [data-testid="stSidebarHeader"]{display:flex !important;height:auto !important;padding:6px !important;}
+  [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
+  [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] > button{
+    display:inline-flex !important;width:36px !important;height:36px !important;color:#10d48e !important;}
+  /* Üst durum çubuğunun negatif marjı mobilde içeriği kesmesin */
+  .status-bar{margin:0 -6px 12px -6px !important;padding:8px 12px !important;}
+  /* İçerik: hamburger için üstte boşluk + dar yan boşluk */
+  .block-container,[data-testid="stMainBlockContainer"]{padding:50px 10px 28px 10px !important;}
+  /* Yatay taşan tablolar parmakla kaydırılabilir olsun */
+  .stMarkdown table{display:block !important;overflow-x:auto !important;-webkit-overflow-scrolling:touch;white-space:nowrap;}
+  /* Yan yana flex kartlar mobilde alt alta insin */
+  [data-testid="stHorizontalBlock"]{flex-wrap:wrap !important;}
+}
+</style>
+"""
+st.markdown(MOBILE_FIX_CSS, unsafe_allow_html=True)
+
 # app_pro bazı sayfaları sb_bankroll session_state'i bekler → varsayılan ver
 st.session_state.setdefault("sb_bankroll", 5000)
 
