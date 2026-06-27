@@ -9,7 +9,7 @@ Log: YAZILIM/07_LOG_VE_RAPORLAR/auto_settle.log
 from __future__ import annotations
 import sys
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -30,6 +30,46 @@ def log(msg: str):
     print(line)
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+def void_stale_matches(hours: int = 12) -> int:
+    """Kickoff'tan {hours} saat gecmis ama hala SONUCSUZ (is_settled=0, skor yok)
+    maclari VOID isaretle — sonuc cekilemedi demek (off-season hazirlik maci,
+    iddaa event'i silinmis vs). Boylece kupon ayagi 'push/iade' olur ve kupon
+    sonsuza dek 'open' takili kalmaz.
+
+    SADECE acik paper bahsi olan maclara dokunur (tarihsel 19k veriye degil).
+    Dondurur: VOID isaretlenen mac sayisi.
+    """
+    conn = db.connect()
+    try:
+        cutoff = (datetime.now(timezone.utc).replace(tzinfo=None)
+                  - timedelta(hours=hours)).isoformat()
+        rows = conn.execute(
+            """
+            SELECT DISTINCT m.match_id
+            FROM matches_v2 m
+            JOIN paper_bets pb   ON pb.match_id = m.match_id
+            JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id
+            WHERE pc.status = 'open'
+              AND m.is_settled = 0
+              AND m.home_score IS NULL
+              AND m.kickoff_utc < ?
+            """,
+            (cutoff,),
+        ).fetchall()
+        ids = [r[0] for r in rows]
+        now_iso = datetime.utcnow().isoformat()
+        for mid in ids:
+            conn.execute(
+                "UPDATE matches_v2 SET is_settled=1, status='VOID', refreshed_at=? "
+                "WHERE match_id=?",
+                (now_iso, mid),
+            )
+        conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
 
 
 def run():
@@ -60,6 +100,14 @@ def run():
             log(f"Yeni biten mac yok (kontrol:{res['checked']}, devam:{res['still_live']})")
     except Exception as e:
         log(f"FETCH RESULTS HATA: {e}")
+
+    # ── Bayat maçları VOID'le (sonuç çekilemeyenler kuponu tıkamasın) ──
+    try:
+        n_void = void_stale_matches(hours=12)
+        if n_void:
+            log(f"BAYAT MAÇ VOID: {n_void} maç (kickoff+12sa sonuçsuz) → kuponlar çözülecek")
+    except Exception as e:
+        log(f"VOID STALE HATA: {e}")
 
     log("Settle deneniyor...")
 
