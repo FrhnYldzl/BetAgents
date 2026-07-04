@@ -160,14 +160,18 @@ def run():
             log("Kapatilacak bitmis mac bulunamadi (maclar henuz devam ediyor).")
         else:
             log(f"KAPATILDI: {settled} kupon  |  Kazanan: {won}  |  PnL: {pnl:+.2f} TL")
-            # Guncel bankroll
-            conn2 = db.connect()
-            br = conn2.execute(
-                "SELECT current_bankroll FROM paper_portfolio WHERE portfolio_id='PAPER_V1'"
-            ).fetchone()
-            if br:
-                log(f"Guncel bankroll: {br[0]:,.2f} TL")
-            conn2.close()
+
+        # ── SAYAÇ SENKRONU (kaynak-gerçek): artımlı sayaçlar kayabilir;
+        # her koşuda kupon satırlarından yeniden türet → kazanan/kaybeden/
+        # bankroll rakamları HER ZAMAN doğru.
+        try:
+            from recompute_portfolio import recompute
+            rp = recompute(verbose=False)
+            if rp:
+                log(f"Sayac senkron: kupon {rp['played']} (kazanan {rp['won']}, "
+                    f"void {rp['voids']}) | bankroll {rp['bankroll']:,.2f} TL")
+        except Exception as e:
+            log(f"RECOMPUTE HATA: {e}")
 
     except Exception as e:
         log(f"HATA: {e}")
