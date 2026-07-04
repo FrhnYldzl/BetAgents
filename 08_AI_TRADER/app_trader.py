@@ -2289,19 +2289,23 @@ def page_risk(portfolio: dict) -> None:
 # ============================================================
 
 def _verify_link(match_p: str, date_str: str = "") -> str:
-    """Bir maç için bağımsız skor-doğrulama linki (Google skor kartı).
-    Skoru iddaa'dan çekiyoruz; bu link kullanıcının sonucu 3. taraftan
-    bağımsız teyit etmesi için ('tıkla, sonucu gör')."""
+    """Bir maç için skor-teyit linkleri: Google (bağımsız 3. taraf) +
+    iddaa Sonuçlar sayfası (resmi kaynak — skoru zaten oradan çekiyoruz).
+    Not: iddaa bitmiş event sayfalarını sildiği için per-maç kalıcı iddaa
+    linki yok; Sonuçlar sayfası + tarih ile teyit edilir."""
     from urllib.parse import quote
     teams = re.sub(r"\s*\(.*?\)\s*", " ", (match_p or "")).strip()
     q_teams = teams.replace(" vs ", " ").replace(" VS ", " ").replace(" v ", " ")
     query = f"{q_teams} {date_str} maç sonucu".strip()
-    url = "https://www.google.com/search?q=" + quote(query)
+    g_url = "https://www.google.com/search?q=" + quote(query)
+    link_css = ('style="color:#3b82f6;font-size:10px;text-decoration:none;'
+                'font-family:Consolas,monospace;"')
     return (
-        f'<a href="{url}" target="_blank" rel="noopener noreferrer" '
-        f'style="color:#3b82f6;font-size:10px;text-decoration:none;'
-        f'font-family:Consolas,monospace;display:inline-flex;align-items:center;gap:3px;">'
-        f'🔗 sonucu bağımsız gör</a>'
+        f'<a href="{g_url}" target="_blank" rel="noopener noreferrer" {link_css}>'
+        f'🔗 sonucu bağımsız gör (Google)</a>'
+        f'<span style="color:#2d3f5e;font-size:10px;"> · </span>'
+        f'<a href="https://www.iddaa.com/sonuclar" target="_blank" '
+        f'rel="noopener noreferrer" {link_css}>iddaa Sonuçlar</a>'
     )
 
 

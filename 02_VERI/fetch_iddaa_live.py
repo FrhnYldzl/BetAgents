@@ -61,12 +61,47 @@ LIG_CATEGORIES = {
 }
 
 
-def map_iddaa_league(event: dict) -> str | None:
-    """iddia event → canonical league_code via ci (competition_id)."""
-    ci = event.get("ci")
-    if ci is None:
+def _norm_tr(s: str) -> str:
+    s = (s or "").casefold()
+    for a, b in (("ı", "i"), ("i̇", "i"), ("ş", "s"), ("ğ", "g"),
+                 ("ü", "u"), ("ö", "o"), ("ç", "c")):
+        s = s.replace(a, b)
+    return s
+
+
+# SEZON HAZIRLIĞI (Ağustos): ci sabit-eşlemesi sezon başında değişir; lig ADI
+# (cn) üzerinden kanonik kod türet. Kural: ülke-ipucu + lig-ipucu + red-listesi.
+# Eşleşmezse None → lig_code 'ALL' (mevcut güvenli davranış).
+LEAGUE_NAME_RULES = [
+    # code  ülke_ipuçları        lig_ipuçları             red (kadın/alt lig)
+    ("T1",  ("turkiye",),        ("super lig",),          ("kadin", "u19", "u21", "2.")),
+    ("E0",  ("ingiltere",),      ("premier",),            ("kadin", "u21")),
+    ("SP1", ("ispanya",),        ("laliga", "la liga"),   ("kadin", "laliga 2", "la liga 2")),
+    ("D1",  ("almanya",),        ("bundesliga",),         ("kadin", "2.")),
+    ("I1",  ("italya",),         ("serie a",),            ("kadin",)),
+    ("F1",  ("fransa",),         ("ligue 1",),            ("kadin", "ligue 2")),
+]
+
+
+def map_league_by_name(cn: str) -> str | None:
+    """Lig adından (cn) kanonik kod. Örn 'Türkiye Süper Lig' → T1."""
+    n = _norm_tr(cn)
+    if not n:
         return None
-    return IDDAA_CI_MAPPING.get(ci)
+    for code, countries, leagues, deny in LEAGUE_NAME_RULES:
+        if (any(c in n for c in countries)
+                and any(l in n for l in leagues)
+                and not any(d in n for d in deny)):
+            return code
+    return None
+
+
+def map_iddaa_league(event: dict) -> str | None:
+    """iddia event → canonical league_code: önce ci eşlemesi, sonra lig adı (cn)."""
+    ci = event.get("ci")
+    if ci is not None and ci in IDDAA_CI_MAPPING:
+        return IDDAA_CI_MAPPING[ci]
+    return map_league_by_name(event.get("cn") or "")
 
 
 def extract_odds_from_market(market: dict) -> dict:
@@ -142,6 +177,17 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                 filtered.append(ev)
         events = filtered
         print(f"  Target lig filter sonrasi: {len(events)} event")
+    else:
+        # Tüm-ligler modunda da kanonik kodu ata (sezonda T1/E0... 'ALL' düşmesin).
+        n_mapped = 0
+        for ev in events:
+            if "_league_code" not in ev:
+                code = map_iddaa_league(ev)
+                if code:
+                    ev["_league_code"] = code
+                    n_mapped += 1
+        if n_mapped:
+            print(f"  Lig adi eslemesi: {n_mapped} event kanonik koda baglandi")
 
     if not events:
         print("  Bizim 6 lig için event yok. Yaz arası olabilir.")

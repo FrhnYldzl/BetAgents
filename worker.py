@@ -39,9 +39,23 @@ def _ts() -> str:
 def job_auto_play():
     print(f"[{_ts()}] >>> AUTO_PLAY tetiklendi")
     try:
-        auto_play.run()
+        auto_play.run(max_events=120)   # sezonda 40 yetmez — kapsami genis tut
     except Exception as e:
         print(f"[{_ts()}] AUTO_PLAY HATA: {e}")
+
+
+def job_fetch_program():
+    """Sadece iddaa programini tazele (kupon KURMAZ). Amac:
+    - kapanis oranlari kickoff'a yakin yakalansin (CLV kalitesi)
+    - Hazir Kuponlar / sinyaller taze kalsin
+    - skorlar icin refreshed_at güncel olsun."""
+    print(f"[{_ts()}] >>> FETCH_PROGRAM tetiklendi")
+    try:
+        from fetch_iddaa_live import fetch_and_ingest
+        fetch_and_ingest(dry_run=False, max_events=120, only_target_leagues=False)
+        print(f"[{_ts()}] FETCH_PROGRAM tamam")
+    except Exception as e:
+        print(f"[{_ts()}] FETCH_PROGRAM HATA: {e}")
 
 
 def job_auto_settle():
@@ -61,16 +75,21 @@ def job_auto_settle():
 
 
 def main():
-    print(f"[{_ts()}] WORKER BAŞLADI — auto_play (06:00/15:00 UTC) + auto_settle (90 dk)")
+    print(f"[{_ts()}] WORKER BAŞLADI — auto_play (06:00/15:00 UTC) + "
+          f"auto_settle (90 dk) + fetch_program (3 sa)")
 
-    # Açılışta bir kez settle (devam eden kuponları hemen kontrol et)
+    # Açılışta: önce settle/temizlik, sonra taze program (deploy sonrası
+    # sistem dakikalar içinde güncel olsun)
     job_auto_settle()
+    job_fetch_program()
 
     sched = BlockingScheduler(timezone="UTC")
     sched.add_job(job_auto_play, "cron", hour="6,15", minute=0,
                   id="auto_play", misfire_grace_time=3600, coalesce=True)
     sched.add_job(job_auto_settle, "interval", minutes=90,
                   id="auto_settle", misfire_grace_time=900, coalesce=True)
+    sched.add_job(job_fetch_program, "interval", hours=3,
+                  id="fetch_program", misfire_grace_time=1800, coalesce=True)
 
     try:
         sched.start()
