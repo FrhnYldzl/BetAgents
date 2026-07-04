@@ -1157,7 +1157,80 @@ def page_coupon_analysis(portfolio: dict) -> None:
     st.markdown(f'<div style="display:flex;gap:10px;">{tiles2}</div>', unsafe_allow_html=True)
 
 
+# ════════════════════════════════════════════════════════════════
+# SİSTEM SAĞLIĞI — worker canlı mı, motor pozisyon açabiliyor mu?
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_system_health():
+    now_iso = datetime.utcnow().isoformat()
+    def one(sql, params=()):
+        r = _db_rows(sql, params)
+        return r[0] if r else {}
+    h = {}
+    h["last_fetch"] = one("SELECT MAX(refreshed_at) AS v FROM matches_v2").get("v")
+    cp = one("SELECT MAX(created_at) AS v, "
+             "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS o FROM paper_coupons")
+    h["last_coupon"] = cp.get("v")
+    h["open_n"] = cp.get("o") or 0
+    h["period"] = one("SELECT period_status AS s, current_bankroll AS cb, "
+                      "period_start_bankroll AS pb FROM paper_portfolio "
+                      "WHERE portfolio_id=?", (PORTFOLIO_ID,))
+    h["stray"] = one("SELECT COUNT(*) AS n FROM matches_v2 "
+                     "WHERE is_settled=0 AND kickoff_utc < ?", (now_iso,)).get("n") or 0
+    h["upcoming"] = one("SELECT COUNT(*) AS n FROM matches_v2 WHERE is_settled=0 "
+                        "AND kickoff_utc > ? AND closing_1 IS NOT NULL",
+                        (now_iso,)).get("n") or 0
+    return h
+
+
+def _age_str(ts):
+    if not ts:
+        return None, None
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "")[:19])
+    except Exception:
+        return None, None
+    hrs = (datetime.utcnow() - dt).total_seconds() / 3600
+    if hrs < 1:
+        return f"{hrs*60:.0f} dk önce", hrs
+    if hrs < 48:
+        return f"{hrs:.0f} sa önce", hrs
+    return f"{hrs/24:.0f} gün önce", hrs
+
+
+def render_system_health() -> None:
+    """Tek bakışta: worker fetch tazeliği · son kupon · dönem · motor görüşü ·
+    bekleyen sonuçsuz birikinti (tıkanma erken uyarısı)."""
+    try:
+        h = get_system_health()
+    except Exception:
+        return
+    fetch_s, fetch_h = _age_str(h.get("last_fetch"))
+    cp_s, cp_h = _age_str(h.get("last_coupon"))
+    fetch_c = ("#10d48e" if (fetch_h is not None and fetch_h <= 12)
+               else "#f59e0b" if (fetch_h is not None and fetch_h <= 26) else "#ef4444")
+    cp_c = ("#10d48e" if (cp_h is not None and cp_h <= 72)
+            else "#f59e0b" if (cp_h is not None and cp_h <= 168) else "#ef4444")
+    per = h.get("period") or {}
+    pst = str(per.get("s") or "?")
+    per_c = "#10d48e" if pst == "active" else "#f59e0b"
+    stray = h.get("stray") or 0
+    stray_c = "#10d48e" if stray < 60 else "#f59e0b" if stray < 300 else "#ef4444"
+    tiles = "".join([
+        _clv_tile("⚙ Son Veri", fetch_s or "—", fetch_c, "worker fetch tazeliği"),
+        _clv_tile("Son Kupon", cp_s or "—", cp_c, f"açık: {h.get('open_n', 0)}"),
+        _clv_tile("Dönem", pst.upper(), per_c,
+                  "bahis açılabilir" if pst == "active" else "kilit/duraklama"),
+        _clv_tile("Motor Görüşü", f"{h.get('upcoming', 0)}", "#3b82f6", "oranlı upcoming maç"),
+        _clv_tile("Bekleyen Sonuçsuz", f"{stray}", stray_c, "yüksek = tıkanma riski"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;margin:0 0 12px 0;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
+    render_system_health()
     st.markdown("""
     <div class="sec-title">
       <div class="sec-title-main">▸ OVERVIEW</div>

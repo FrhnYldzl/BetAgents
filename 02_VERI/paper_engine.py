@@ -552,6 +552,12 @@ class PaperEngine:
         # Aktif maclari cek — tüm ligler
         # ÖNEMLİ: Zaten AÇIK bir kuponda olan maçları HARİÇ tut.
         # Bu olmadan --run iki kez çalışınca aynı maça mükerrer kupon açılıyor.
+        # KRİTİK FİX (2026-07): kickoff filtresi YOKTU → sorgu en-eski 200
+        # sonuçsuz maçı getiriyordu. Sonucu hiç çekilmemiş eski maçlar (stray)
+        # birikince bugünün maçları LIMIT 200'e hiç giremiyordu → sinyal 0 →
+        # kupon 0 (22 Haziran'dan beri sistemin pozisyon açmama nedeni).
+        # Kupon zaten sadece BAŞLAMAMIŞ + ORANLI maça kurulabilir.
+        now_iso = datetime.utcnow().isoformat()
         conn = db.connect()
         try:
             rows = conn.execute(
@@ -559,6 +565,8 @@ class PaperEngine:
                 SELECT *
                 FROM matches_v2
                 WHERE is_settled = 0
+                  AND kickoff_utc > ?
+                  AND closing_1 IS NOT NULL
                   AND match_id NOT IN (
                       SELECT pb.match_id
                       FROM paper_bets pb
@@ -570,7 +578,7 @@ class PaperEngine:
                 ORDER BY kickoff_utc ASC
                 LIMIT 200
                 """,
-                (pid,),
+                (now_iso, pid),
             ).fetchall()
         finally:
             conn.close()

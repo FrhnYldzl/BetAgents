@@ -72,34 +72,67 @@ def void_stale_matches(hours: int = 12) -> int:
         conn.close()
 
 
+def void_stray_matches(hours: int = 48) -> int:
+    """BAHİS KONMAMIŞ ama kickoff'u {hours}+ saat gecmis, hala sonucsuz
+    iddaa-kaynakli maclari dogrudan VOID'le (API cagrisi YOK — event coktan
+    silinmis). Bunlar birikince build_session_coupons'un LIMIT 200 penceresini
+    tikiyordu (877 stray -> motor bugunun macini goremiyordu). Tablo hijyeni."""
+    conn = db.connect()
+    try:
+        cutoff = (datetime.now(timezone.utc).replace(tzinfo=None)
+                  - timedelta(hours=hours)).isoformat()
+        now_iso = datetime.utcnow().isoformat()
+        rows = conn.execute(
+            """
+            SELECT match_id FROM matches_v2
+            WHERE is_settled = 0
+              AND home_score IS NULL
+              AND kickoff_utc < ?
+              AND (external_id_iddaa IS NOT NULL OR closing_source = 'iddaa')
+            """,
+            (cutoff,),
+        ).fetchall()
+        ids = [r[0] for r in rows]
+        for mid in ids:
+            conn.execute(
+                "UPDATE matches_v2 SET is_settled=1, status='VOID', refreshed_at=? "
+                "WHERE match_id=?",
+                (now_iso, mid),
+            )
+        conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
+
+
 def run():
     log("=== AUTO SETTLE BASLADI ===")
 
-    # Acik kupon var mi?
     conn = db.connect()
     open_count = conn.execute(
         "SELECT COUNT(*) FROM paper_coupons WHERE status='open'"
     ).fetchone()[0]
     conn.close()
+    log(f"Acik kupon: {open_count}")
 
-    if open_count == 0:
-        log("Acik kupon yok. Islem yapilmadi.")
-        log("=== AUTO SETTLE BITTI ===\n")
-        return
-
-    log(f"Acik kupon: {open_count}  — once skorlar cekiliyor...")
-
-    # ── ÖNCE: biten maçların skorunu iddaa.com'dan çek ──────────
+    # ── SKOR ÇEK — açık kupon olmasa da (UI skorları + CLV tazelensin).
+    # only_open=False: başlamış tüm sonuçsuz iddaa maçları (stray temizliği
+    # sonrası bu küçük bir pencere — son 48 saat).
     try:
         from fetch_results import fetch_results
-        res = fetch_results(only_open=True, verbose=False)
-        if res["updated"] > 0:
-            log(f"Skor cekildi: {res['updated']} mac sonuclandi  "
-                f"(kontrol:{res['checked']}, devam:{res['still_live']})")
-        else:
-            log(f"Yeni biten mac yok (kontrol:{res['checked']}, devam:{res['still_live']})")
+        res = fetch_results(only_open=False, verbose=False)
+        log(f"Skor taramasi: kontrol={res['checked']} skor={res['updated']} "
+            f"devam={res['still_live']} void={res.get('voided', 0)}")
     except Exception as e:
         log(f"FETCH RESULTS HATA: {e}")
+
+    # ── ESKİ STRAY TEMİZLİĞİ (bahis konmamış, 48sa+ sonuçsuz → direkt VOID)
+    try:
+        n_stray = void_stray_matches(hours=48)
+        if n_stray:
+            log(f"STRAY TEMIZLIK: {n_stray} eski sonuçsuz maç VOID (motor penceresi açıldı)")
+    except Exception as e:
+        log(f"VOID STRAY HATA: {e}")
 
     # ── Bayat maçları VOID'le (sonuç çekilemeyenler kuponu tıkamasın) ──
     try:
