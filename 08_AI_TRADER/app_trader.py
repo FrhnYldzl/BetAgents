@@ -538,11 +538,16 @@ def load_portfolio() -> dict:
 
 
 def _regime_chip(bankroll: float) -> str:
+    """Bankroll durumunu DÜRÜST etiketle (eskisi -%5 altına 'OFF-SEASON'
+    yazıyordu — o bir sezon durumu değil, drawdown'dur)."""
     change_pct = (bankroll - INITIAL_BANKROLL) / INITIAL_BANKROLL * 100
     if change_pct >= -5:
         return '<span class="sb-chip chip-green">● REGIME: STRONG</span>'
-    else:
-        return '<span class="sb-chip chip-orange">● OFF-SEASON</span>'
+    if change_pct >= -15:
+        return (f'<span class="sb-chip chip-orange">● TEMKİN '
+                f'({change_pct:+.0f}%)</span>')
+    return (f'<span class="sb-chip chip-orange" style="color:#ef4444;">'
+            f'● DRAWDOWN ({change_pct:+.0f}%)</span>')
 
 
 # ============================================================
@@ -1348,23 +1353,33 @@ def page_overview(portfolio: dict) -> None:
                 st.error(f"Settle hatasi: {_e}")
 
     TYPE_COLORS = {
+        # Aktif MBS-aware motor tipleri
+        "TEK_FAVORI":  "#10d48e",
+        "K3_FAVORI":   "#10d48e",
+        "K3_VALUE":    "#3b82f6",
+        "K3_KARISIK":  "#f59e0b",
+        "K3_KOMBO":    "#a78bfa",
+        # Eski tipler (tarihsel kayıtlar için)
         "K2_FAVORI":   "#10d48e",
         "K2_VALUE":    "#3b82f6",
         "K2_KARISIK":  "#f59e0b",
-        "K3_KOMBO":    "#a78bfa",
         "K1_FAVORITE": "#10d48e",
         "K1_KG":       "#3b82f6",
         "K2_COMBO":    "#f59e0b",
         "K1_ALT":      "#a78bfa",
     }
     TYPE_DESC = {
-        "K2_FAVORI":   "2'li Favori",
-        "K2_VALUE":    "2'li Value",
-        "K2_KARISIK":  "2'li Karisik",
-        "K3_KOMBO":    "3'lu Kombo",
+        "TEK_FAVORI":  "Tek Maç (MBS=1)",
+        "K3_FAVORI":   "3'lü Favori",
+        "K3_VALUE":    "3'lü Value",
+        "K3_KARISIK":  "3'lü Karışık",
+        "K3_KOMBO":    "3'lü Kombo",
+        "K2_FAVORI":   "2'li Favori (eski)",
+        "K2_VALUE":    "2'li Value (eski)",
+        "K2_KARISIK":  "2'li Karisik (eski)",
         "K1_FAVORITE": "Favori (eski)",
         "K1_KG":       "KG (eski)",
-        "K2_COMBO":    "2'li Kombin",
+        "K2_COMBO":    "2'li Kombin (eski)",
         "K1_ALT":      "Alt 2.5 (eski)",
     }
 
@@ -2004,10 +2019,12 @@ def page_charts(portfolio: dict) -> None:
     </div>
     """, unsafe_allow_html=True)
 
+    # SADECE karar kuponları (won/lost). Void = bahis hiç olmadı (iade):
+    # eğriye etkisi 0 ama sayaçlara karışırsa Win Rate/Yield YANLIŞ çıkar.
     eq_rows = _db_rows("""
         SELECT settled_at, pnl, coupon_type, status, combined_odds, stake
         FROM paper_coupons
-        WHERE portfolio_id=? AND status != 'open'
+        WHERE portfolio_id=? AND status IN ('won','lost')
         ORDER BY settled_at
     """, (PORTFOLIO_ID,))
 
@@ -2279,8 +2296,11 @@ def page_risk(portfolio: dict) -> None:
 
     st.markdown("---")
     st.markdown(
-        "**Aktif Eşikler (min 2 ayak — iddaa.com tekli yok):** "
-        "K2_FAVORI stake=%2.5 bankroll · K2_VALUE=%2 · K2_KARISIK=%2 · K3_KOMBO=%1.5"
+        "**Aktif Motor (iddaa MBS kuralı — ayak sayısı ≥ her ayağın MBS'i):** "
+        "TEK_FAVORI (yalnız MBS=1 maç, güven ≥%70) stake=%2.0 · "
+        "K3_FAVORI=%2.0 · K3_VALUE=%1.8 · K3_KARISIK=%1.8 · K3_KOMBO=%1.5 "
+        "— stake'ler dönem-başı bankroll'a göre; oturum başına en fazla 5 kupon, "
+        "açık kupon limiti 12."
     )
 
 
