@@ -115,9 +115,19 @@ def run():
     conn.close()
     log(f"Acik kupon: {open_count}")
 
+    # ── ÖNCE: eski stray temizliği (API'siz, hızlı) — 48sa+ sonuçsuz →
+    # direkt VOID. Böylece aşağıdaki skor taraması SADECE son 48 saatin
+    # küçük penceresiyle uğraşır (877 stray'e tek tek API çağrısı yapılmaz).
+    try:
+        n_stray = void_stray_matches(hours=48)
+        if n_stray:
+            log(f"STRAY TEMIZLIK: {n_stray} eski sonuçsuz maç VOID (motor penceresi açıldı)")
+    except Exception as e:
+        log(f"VOID STRAY HATA: {e}")
+
     # ── SKOR ÇEK — açık kupon olmasa da (UI skorları + CLV tazelensin).
-    # only_open=False: başlamış tüm sonuçsuz iddaa maçları (stray temizliği
-    # sonrası bu küçük bir pencere — son 48 saat).
+    # only_open=False: başlamış tüm sonuçsuz iddaa maçları (yukarıdaki
+    # temizlik sonrası sadece son 48 saat penceresi).
     try:
         from fetch_results import fetch_results
         res = fetch_results(only_open=False, verbose=False)
@@ -125,14 +135,6 @@ def run():
             f"devam={res['still_live']} void={res.get('voided', 0)}")
     except Exception as e:
         log(f"FETCH RESULTS HATA: {e}")
-
-    # ── ESKİ STRAY TEMİZLİĞİ (bahis konmamış, 48sa+ sonuçsuz → direkt VOID)
-    try:
-        n_stray = void_stray_matches(hours=48)
-        if n_stray:
-            log(f"STRAY TEMIZLIK: {n_stray} eski sonuçsuz maç VOID (motor penceresi açıldı)")
-    except Exception as e:
-        log(f"VOID STRAY HATA: {e}")
 
     # ── Bayat maçları VOID'le (sonuç çekilemeyenler kuponu tıkamasın) ──
     try:
