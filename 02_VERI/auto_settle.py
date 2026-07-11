@@ -146,32 +146,33 @@ def run():
 
     log("Settle deneniyor...")
 
-    # Settle calistir
+    # Settle calistir — TÜM aktif portföyler (PAPER_V1 + TEMKINLI_V1 + ...)
     try:
         from paper_engine import PaperEngine
-        engine = PaperEngine("PAPER_V1")
-        result = engine.settle_coupons()
+        from recompute_portfolio import recompute
 
-        settled = result.get("settled", 0)
-        won     = result.get("won", 0)
-        pnl     = result.get("pnl", 0.0)
+        conn = db.connect()
+        pids = [r[0] for r in conn.execute(
+            "SELECT portfolio_id FROM paper_portfolio ORDER BY portfolio_id"
+        ).fetchall()]
+        conn.close()
 
-        if settled == 0:
-            log("Kapatilacak bitmis mac bulunamadi (maclar henuz devam ediyor).")
-        else:
-            log(f"KAPATILDI: {settled} kupon  |  Kazanan: {won}  |  PnL: {pnl:+.2f} TL")
-
-        # ── SAYAÇ SENKRONU (kaynak-gerçek): artımlı sayaçlar kayabilir;
-        # her koşuda kupon satırlarından yeniden türet → kazanan/kaybeden/
-        # bankroll rakamları HER ZAMAN doğru.
-        try:
-            from recompute_portfolio import recompute
-            rp = recompute(verbose=False)
-            if rp:
-                log(f"Sayac senkron: kupon {rp['played']} (kazanan {rp['won']}, "
-                    f"void {rp['voids']}) | bankroll {rp['bankroll']:,.2f} TL")
-        except Exception as e:
-            log(f"RECOMPUTE HATA: {e}")
+        for pid in pids:
+            try:
+                result = PaperEngine(pid).settle_coupons()
+                settled = result.get("settled", 0)
+                if settled:
+                    log(f"[{pid}] KAPATILDI: {settled} kupon | "
+                        f"Kazanan: {result.get('won',0)} | "
+                        f"PnL: {result.get('pnl',0.0):+.2f} TL")
+                # SAYAÇ SENKRONU (kaynak-gerçek) — her portföy için
+                rp = recompute(pid, verbose=False)
+                if rp:
+                    log(f"[{pid}] sayac: {rp['played']} karar "
+                        f"(W{rp['won']}/V{rp['voids']}) | "
+                        f"bankroll {rp['bankroll']:,.2f} TL")
+            except Exception as e:
+                log(f"[{pid}] SETTLE/RECOMPUTE HATA: {e}")
 
     except Exception as e:
         log(f"HATA: {e}")

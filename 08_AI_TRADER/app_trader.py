@@ -1246,6 +1246,167 @@ def render_system_health() -> None:
                 unsafe_allow_html=True)
 
 
+# ════════════════════════════════════════════════════════════════
+# 🛡 AGENT: TEMKİNLİ — ayrı kasa, kanıta dayalı düşük risk
+# ════════════════════════════════════════════════════════════════
+
+TEMKINLI_PID = "TEMKINLI_V1"
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def get_temkinli_data():
+    out: dict = {}
+    try:
+        rows = _db_rows("SELECT * FROM paper_portfolio WHERE portfolio_id=?",
+                        (TEMKINLI_PID,))
+        out["port"] = rows[0] if rows else None
+        out["open"] = _db_rows(
+            "SELECT coupon_id, coupon_type, combined_odds, stake, "
+            "potential_return, session_date FROM paper_coupons "
+            "WHERE portfolio_id=? AND status='open' ORDER BY created_at DESC",
+            (TEMKINLI_PID,))
+        for c in out["open"]:
+            c["legs"] = _db_rows(
+                "SELECT home_team, away_team, market, pick, odds, kickoff_utc "
+                "FROM paper_bets WHERE coupon_id=?", (c["coupon_id"],))
+        out["last"] = _db_rows(
+            "SELECT coupon_type, combined_odds, stake, pnl, status, settled_at "
+            "FROM paper_coupons WHERE portfolio_id=? AND status IN "
+            "('won','lost','void') ORDER BY settled_at DESC LIMIT 10",
+            (TEMKINLI_PID,))
+        try:
+            import analyze_coupons as _ac
+            out["analysis"] = _ac.analyze(TEMKINLI_PID)
+        except Exception:
+            out["analysis"] = None
+        try:
+            import clv as _clv
+            out["clv"] = (_clv.clv_summary(TEMKINLI_PID) or {}).get("overall")
+        except Exception:
+            out["clv"] = None
+        out["journal"] = _db_rows(
+            "SELECT entry_date, title, pnl FROM paper_journal "
+            "WHERE portfolio_id=? AND entry_type='RESULT' "
+            "ORDER BY created_at DESC LIMIT 6", (TEMKINLI_PID,))
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
+def page_temkinli(portfolio: dict) -> None:
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">🛡 AGENT: TEMKİNLİ</div>
+      <div class="sec-title-meta">AYRI KASA 1.000 TL · HEDEF 2.500 TL / 1 AY · KANITA DAYALI DÜŞÜK RİSK</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Kural kartı — kanıt sayılarıyla (227 karar bahis analizi, 2026-07)
+    st.markdown(
+        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #10d48e;'
+        'border-radius:8px;padding:10px 14px;margin:2px 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.7;">'
+        '🧾 <b style="color:#e2e8f0;">Kanıt-kuralları</b> (227 karar bahis analizinden): '
+        '<b style="color:#10d48e;">✅ oynar:</b> KG_YOK (%80 isabet, +1.3% ROI) · '
+        'ÜST 2.5 (%77, +0.4%) · GÜÇLÜ FAVORİ 1X2 (≥%72 olasılık; %79, ≈başabaş) &nbsp;'
+        '<b style="color:#ef4444;">⛔ yasak:</b> KG_VAR (−22.5% ROI, ana kayıp kaynağı) · ALT 2.5 · zayıf favori. '
+        '<b style="color:#e2e8f0;">TEK öncelik</b> (1-2 ayak 10/10 kazandı; 3 ayak −%27) · '
+        'günde max 2 kupon · oran tavanı 2.60 · 3 ardışık kayıpta PAS · stop −%15. '
+        '<span style="color:#f59e0b;">Not: hedef (+%150/ay) agresiftir — ajan kaybetmemeyi '
+        'önceler, PAS meşru sonuçtur.</span></div>', unsafe_allow_html=True)
+
+    d = get_temkinli_data()
+    port = d.get("port")
+    if not port:
+        st.info("TEMKİNLİ portföyü ilk worker koşusunda oluşturulur (06:00/15:00 UTC). "
+                "Deploy sonrası ilk koşuyu bekleyin.")
+        return
+
+    cur = port.get("current_bankroll") or 1000.0
+    init = port.get("initial_bankroll") or 1000.0
+    target = init * 2.5
+    a = d.get("analysis") or {}
+    ov = a.get("overview") or {}
+    n_dec = ov.get("coupons_decided") or 0
+    hit = ov.get("hit_rate")
+    roi = ov.get("roi")
+    clv = d.get("clv")
+    pnl = cur - init
+    pc = "#10d48e" if pnl >= 0 else "#ef4444"
+    tiles = "".join([
+        _clv_tile("Kasa", f"{cur:,.0f} TL", pc, f"başlangıç {init:,.0f}"),
+        _clv_tile("PnL", f"{pnl:+,.0f} TL", pc, f"ROI {roi:+.1f}%" if roi is not None else ""),
+        _clv_tile("Karar Kupon", f"{n_dec}", "#3b82f6",
+                  f"isabet %{hit*100:.0f}" if hit is not None else "henüz yok"),
+        _clv_tile("Açık", f"{len(d.get('open') or [])}", "#94a3b8", "max 4"),
+        _clv_tile("CLV", f"{clv['mean']*100:+.2f}%" if (clv and clv.get("n")) else "—",
+                  "#10d48e" if (clv and (clv.get("mean") or 0) > 0) else "#94a3b8",
+                  f"n={clv['n']}" if clv else "veri yok"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;margin-bottom:10px;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+    # Hedef ilerleme: 1.000 → 2.500
+    prog = max(0.0, min(100.0, (cur - init) / (target - init) * 100))
+    st.markdown(
+        f'<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;'
+        f'padding:12px 16px;margin-bottom:14px;">'
+        f'<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;'
+        f'font-weight:700;margin-bottom:6px;">🎯 HEDEF İLERLEMESİ</div>'
+        f'<div style="background:#0a0f1a;border-radius:6px;height:24px;position:relative;overflow:hidden;">'
+        f'<div style="background:linear-gradient(90deg,#10d48e88,#10d48e);width:{prog:.0f}%;height:100%;"></div>'
+        f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;'
+        f'align-items:center;justify-content:center;font-family:Consolas,monospace;'
+        f'font-size:12px;font-weight:700;color:#e2e8f0;">{cur:,.0f} / {target:,.0f} TL · %{prog:.0f}</div>'
+        f'</div></div>', unsafe_allow_html=True)
+
+    # Açık kuponlar
+    st.markdown('<div class="sec-title"><div class="sec-title-main">▸ AÇIK KUPONLAR</div></div>',
+                unsafe_allow_html=True)
+    opens = d.get("open") or []
+    if not opens:
+        st.markdown('<div style="color:#475569;font-size:12px;padding:4px 0 12px 0;">'
+                    'Açık kupon yok — TEMKİNLİ uygun sinyal bulamazsa PAS geçer (bu bir hata değil, '
+                    'disiplindir). Sonraki değerlendirme: 06:00/15:00 UTC.</div>',
+                    unsafe_allow_html=True)
+    for c in opens:
+        legs_html = "".join(
+            f'<div style="color:#94a3b8;font-size:11px;font-family:Consolas,monospace;padding:2px 0;">'
+            f'• {(L.get("home_team") or "?")[:16]} v {(L.get("away_team") or "?")[:16]} — '
+            f'<span style="color:#10d48e;font-weight:700;">{L.get("market")}:{L.get("pick")}</span> '
+            f'@{(L.get("odds") or 0):.2f} <span style="color:#475569;">'
+            f'{(L.get("kickoff_utc") or "")[:16].replace("T"," ")} UTC</span></div>'
+            for L in (c.get("legs") or []))
+        st.markdown(
+            f'<div style="background:#0d1628;border:1px solid #1a2840;border-left:3px solid #10d48e;'
+            f'border-radius:8px;padding:10px 14px;margin-bottom:8px;">'
+            f'<div style="display:flex;justify-content:space-between;font-family:Consolas,monospace;">'
+            f'<span style="color:#e2e8f0;font-weight:700;font-size:12px;">{c.get("coupon_type")}</span>'
+            f'<span style="color:#10d48e;font-size:12px;">@{(c.get("combined_odds") or 0):.2f} · '
+            f'{(c.get("stake") or 0):.0f} TL → {(c.get("potential_return") or 0):.0f} TL</span></div>'
+            f'{legs_html}</div>', unsafe_allow_html=True)
+
+    # Son sonuçlar + mini journal
+    last = d.get("last") or []
+    if last:
+        st.markdown('<div class="sec-title"><div class="sec-title-main">▸ SON SONUÇLAR</div></div>',
+                    unsafe_allow_html=True)
+        rows_h = ""
+        for r in last:
+            stt = (r.get("status") or "").upper()
+            col = "#10d48e" if stt == "WON" else "#ef4444" if stt == "LOST" else "#64748b"
+            rows_h += (
+                f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:11px;">'
+                f'<td style="padding:5px 8px;color:#94a3b8;">{(r.get("settled_at") or "")[:10]}</td>'
+                f'<td style="padding:5px 8px;color:#e2e8f0;">{r.get("coupon_type")}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:#94a3b8;">@{(r.get("combined_odds") or 0):.2f}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:{col};font-weight:700;">{stt}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:{col};">{(r.get("pnl") or 0):+.0f} TL</td></tr>')
+        st.markdown(
+            f'<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;">'
+            f'<table style="width:100%;border-collapse:collapse;">{rows_h}</table></div>',
+            unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
     render_system_health()
     st.markdown("""
