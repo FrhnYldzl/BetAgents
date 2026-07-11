@@ -102,6 +102,30 @@ PROFILES: dict[str, dict] = {
         "sort": "value",
         "mode": "value", "value_min_edge": 0.06,
     },
+    # ── 😴 SEZON AJANLARI: kayıtlı ama UYKUDA (Ağustos'ta aktive edilecek) ──
+    # MODEL_REGISTRY'de 13 model var; iki amiral gemisi burada ajan olarak
+    # açıldı ki UNUTULMASIN. dormant=True → kasa hazır, kupon OYNAMAZ.
+    # Aktivasyon (Ağustos): dormant kaldır + lig eşleme (T1/E0/SP1...) +
+    # model sinyal hattını bağla. Alt-modeller (MONOVOX/DUOVOX/BTTS-*/OU25-*)
+    # aktivasyonda filtre/bacak olarak bunlara bağlanır.
+    "TRIVOX_V1": {
+        "name": "TRIVOX (T1 uzmanı — sezon bekliyor)",
+        "stop_pct": -0.15, "dormant": True,
+        "markets": {"KG_YOK", "UST_25"}, "fav_min": 0.72,
+        "min_mp": 0.66, "min_odds": 1.20,
+        "combo_cap": 3.00, "max_daily": 2, "max_open": 4,
+        "max_tek": 1, "loss_streak": 3,
+        "tek_stake": 0.05, "k3_stake": 0.04, "sort": "safety",
+    },
+    "EUVOX_V1": {
+        "name": "EUVOX (Avrupa DC — sezon bekliyor)",
+        "stop_pct": -0.15, "dormant": True,
+        "markets": {"KG_YOK", "UST_25", "ALT_25"}, "fav_min": 0.68,
+        "min_mp": 0.64, "min_odds": 1.22,
+        "combo_cap": 3.00, "max_daily": 2, "max_open": 4,
+        "max_tek": 1, "loss_streak": 3,
+        "tek_stake": 0.05, "k3_stake": 0.04, "sort": "safety",
+    },
 }
 
 # Bağımsız model rating önbelleği (run_all içinde 1 kez kurulur)
@@ -187,6 +211,9 @@ def _sort_key(prof: dict):
 def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     prof = PROFILES[pid]
     tag = f"[{pid.split('_')[0]}]"
+    if prof.get("dormant"):
+        print(f"{tag} 😴 sezon bekliyor (Agustos'ta aktive edilecek) -> PAS")
+        return []
     conn = db.connect()
     try:
         if _loss_streak(conn, pid, prof["loss_streak"]):

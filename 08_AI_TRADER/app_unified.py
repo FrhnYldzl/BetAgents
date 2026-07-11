@@ -96,6 +96,8 @@ TRADER_PAGES = {
     "📋 Memur":           T.page_memur,
     "🧮 Hoca":            T.page_hoca,
     "🧪 Simyacı":         T.page_simyaci,
+    "🇹🇷 Trivox 😴":       T.page_trivox,
+    "🇪🇺 Euvox 😴":        T.page_euvox,
     "Kupon Analizi":      T.page_coupon_analysis,
     "CLV · Edge Karne":   T.page_clv,
     "Hazır Kuponlar":     T.page_ready_coupons,

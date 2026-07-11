@@ -1289,6 +1289,19 @@ AGENT_META = {
                   "oran ≥1.40 · tavan 4.00 · küçük stake (%3-4) · stop −%25. "
                   "DÜRÜST NOT: backtest bu hipoteze −%8 dedi — SİMYACI canlı "
                   "KONTROL deneyidir; kazanırsa hipotez ayağa kalkar.")},
+    "TRIVOX_V1": {
+        "icon": "🇹🇷", "title": "TRIVOX", "renk": "#e11d48", "dormant": True,
+        "sub": "😴 SEZON BEKLİYOR (AĞUSTOS) · T1 UZMANI",
+        "rules": ("Türkiye Süper Lig konsensüs modeli (TRIVOX v1.2 — kayıt "
+                  "defterindeki 13 modelin T1 amirali). Kasa hazır, T1 açılınca "
+                  "aktive edilecek: lig eşleme + model sinyal hattı bağlanacak. "
+                  "Alt-modeller (MONOVOX/DUOVOX/BTTS-*) filtre olarak katılır.")},
+    "EUVOX_V1": {
+        "icon": "🇪🇺", "title": "EUVOX", "renk": "#6366f1", "dormant": True,
+        "sub": "😴 SEZON BEKLİYOR (AĞUSTOS) · AVRUPA DC",
+        "rules": ("Avrupa ligleri Dixon-Coles modeli (EUVOX v1.1 — SP1/I1/F1 "
+                  "lig-ayarlı). Kasa hazır, Avrupa ligleri açılınca aktive "
+                  "edilecek. OU25-*/BTTS-* alt-modelleri bacak filtresi olur.")},
 }
 
 
@@ -1504,6 +1517,14 @@ def page_simyaci(portfolio: dict) -> None:
     _render_agent_page("SIMYACI_V1")
 
 
+def page_trivox(portfolio: dict) -> None:
+    _render_agent_page("TRIVOX_V1")
+
+
+def page_euvox(portfolio: dict) -> None:
+    _render_agent_page("EUVOX_V1")
+
+
 # ════════════════════════════════════════════════════════════════
 # 🏆 AGENTS SCORE TABLE — tüm oyuncuların tam karşılaştırması
 # ════════════════════════════════════════════════════════════════
@@ -1548,6 +1569,7 @@ def get_score_table():
             "clv": clv_mean, "clv_n": clv_n,
             "open": agg.get("o") or 0,
             "period": p.get("period_status") or "?",
+            "dormant": bool(meta.get("dormant")),
         })
     rows.sort(key=lambda r: r["pnl_pct"], reverse=True)
     return rows
@@ -1582,7 +1604,9 @@ def page_score_table(portfolio: dict) -> None:
         hit_txt = f"%{r['hit']:.0f}" if r["hit"] is not None else "—"
         roi_txt = f"{r['roi']:+.1f}%" if r["roi"] is not None else "—"
         roi_c = "#10d48e" if (r["roi"] or 0) > 0 else "#ef4444" if (r["roi"] or 0) < 0 else "#94a3b8"
-        per_c = "#10d48e" if r["period"] == "active" else "#f59e0b"
+        per_disp = "😴 SEZON" if r.get("dormant") else r["period"].upper()
+        per_c = "#f59e0b" if r.get("dormant") else (
+            "#10d48e" if r["period"] == "active" else "#f59e0b")
         body += (
             f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
             f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '
@@ -1597,7 +1621,7 @@ def page_score_table(portfolio: dict) -> None:
             f'<td style="padding:8px;text-align:right;color:{roi_c};">{roi_txt}</td>'
             f'<td style="padding:8px;text-align:right;color:{clv_c};">{clv_txt}</td>'
             f'<td style="padding:8px;text-align:right;color:#94a3b8;">{r["open"]}</td>'
-            f'<td style="padding:8px;text-align:right;color:{per_c};font-size:10px;">{r["period"].upper()}</td>'
+            f'<td style="padding:8px;text-align:right;color:{per_c};font-size:10px;">{per_disp}</td>'
             f'</tr>')
     st.markdown(
         '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;overflow-x:auto;">'
