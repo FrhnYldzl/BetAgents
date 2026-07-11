@@ -42,13 +42,13 @@ def job_auto_play():
         auto_play.run(max_events=120)   # sezonda 40 yetmez — kapsami genis tut
     except Exception as e:
         print(f"[{_ts()}] AUTO_PLAY HATA: {e}")
-    # 🛡 TEMKİNLİ ajan — ayrı kasa (TEMKINLI_V1, 1K→2.5K hedef), kanıt-kurallı
-    # düşük risk. Fetch zaten yapıldı; sadece kendi kurallarıyla kupon kurar.
+    # 🤖 AGENT LİGİ — TEMKİNLİ + MEMUR + AVCI (her biri ayrı 1K kasa,
+    # kendi kanıt-kurallı profili). Fetch zaten yapıldı; kupon kurarlar.
     try:
-        import agent_temkinli
-        agent_temkinli.run(place=True)
+        import agents
+        agents.run_all(place=True)
     except Exception as e:
-        print(f"[{_ts()}] TEMKINLI HATA: {e}")
+        print(f"[{_ts()}] AGENTS HATA: {e}")
 
 
 def job_fetch_program():

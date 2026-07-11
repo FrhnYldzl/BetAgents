@@ -91,6 +91,8 @@ st.session_state.setdefault("sb_bankroll", 5000)
 TRADER_PAGES = {
     "Genel Bakış":        T.page_overview,
     "🛡 Temkinli":        T.page_temkinli,
+    "🎯 Avcı":            T.page_avci,
+    "📋 Memur":           T.page_memur,
     "Kupon Analizi":      T.page_coupon_analysis,
     "CLV · Edge Karne":   T.page_clv,
     "Hazır Kuponlar":     T.page_ready_coupons,

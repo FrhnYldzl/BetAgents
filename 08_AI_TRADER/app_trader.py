@@ -1250,21 +1250,40 @@ def render_system_health() -> None:
 # 🛡 AGENT: TEMKİNLİ — ayrı kasa, kanıta dayalı düşük risk
 # ════════════════════════════════════════════════════════════════
 
-TEMKINLI_PID = "TEMKINLI_V1"
+AGENT_META = {
+    "TEMKINLI_V1": {
+        "icon": "🛡", "title": "TEMKİNLİ", "renk": "#10d48e",
+        "sub": "DÜŞÜK RİSK",
+        "rules": ("✅ KG_YOK · ÜST 2.5 · GÜÇLÜ FAV (≥%72) — kanıtla pozitif/başabaş "
+                  "pazarlar · TEK öncelik · oran tavanı 2.60 · günde max 2 · "
+                  "3 ardışık kayıpta PAS · stop −%15")},
+    "MEMUR_V1": {
+        "icon": "📋", "title": "MEMUR", "renk": "#3b82f6",
+        "sub": "ORTA RİSK",
+        "rules": ("✅ KG_YOK · ÜST/ALT 2.5 · FAV (≥%66) — aynı kanıt seti, gevşek "
+                  "eşikler · oran tavanı 3.20 · günde max 2 · 4 ardışık kayıpta "
+                  "PAS · stop −%20")},
+    "AVCI_V1": {
+        "icon": "🎯", "title": "AVCI", "renk": "#f59e0b",
+        "sub": "RİSK SEVER · KAZANMA ODAKLI",
+        "rules": ("✅ SHARP (oran hareketi) önceliği · yüksek oran bandı (≥1.30) · "
+                  "kombine tavanı 4.50 · günde max 3, TEK max 2 · 5 ardışık "
+                  "kayıpta PAS · stop −%25")},
+}
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def get_temkinli_data():
+def get_agent_data(pid: str):
     out: dict = {}
     try:
         rows = _db_rows("SELECT * FROM paper_portfolio WHERE portfolio_id=?",
-                        (TEMKINLI_PID,))
+                        (pid,))
         out["port"] = rows[0] if rows else None
         out["open"] = _db_rows(
             "SELECT coupon_id, coupon_type, combined_odds, stake, "
             "potential_return, session_date FROM paper_coupons "
             "WHERE portfolio_id=? AND status='open' ORDER BY created_at DESC",
-            (TEMKINLI_PID,))
+            (pid,))
         for c in out["open"]:
             c["legs"] = _db_rows(
                 "SELECT home_team, away_team, market, pick, odds, kickoff_utc "
@@ -1273,52 +1292,89 @@ def get_temkinli_data():
             "SELECT coupon_type, combined_odds, stake, pnl, status, settled_at "
             "FROM paper_coupons WHERE portfolio_id=? AND status IN "
             "('won','lost','void') ORDER BY settled_at DESC LIMIT 10",
-            (TEMKINLI_PID,))
+            (pid,))
         try:
             import analyze_coupons as _ac
-            out["analysis"] = _ac.analyze(TEMKINLI_PID)
+            out["analysis"] = _ac.analyze(pid)
         except Exception:
             out["analysis"] = None
         try:
             import clv as _clv
-            out["clv"] = (_clv.clv_summary(TEMKINLI_PID) or {}).get("overall")
+            out["clv"] = (_clv.clv_summary(pid) or {}).get("overall")
         except Exception:
             out["clv"] = None
         out["journal"] = _db_rows(
             "SELECT entry_date, title, pnl FROM paper_journal "
             "WHERE portfolio_id=? AND entry_type='RESULT' "
-            "ORDER BY created_at DESC LIMIT 6", (TEMKINLI_PID,))
+            "ORDER BY created_at DESC LIMIT 6", (pid,))
     except Exception as e:
         out["error"] = str(e)
     return out
 
 
-def page_temkinli(portfolio: dict) -> None:
-    st.markdown("""
+def _agent_league_html() -> str:
+    """🏁 3 ajanın kompakt kıyası — her ajan sayfasının tepesinde."""
+    rows = ""
+    for apid, meta in AGENT_META.items():
+        p = _db_rows("SELECT current_bankroll, initial_bankroll FROM paper_portfolio "
+                     "WHERE portfolio_id=?", (apid,))
+        if not p:
+            continue
+        cur = p[0].get("current_bankroll") or 0
+        init = p[0].get("initial_bankroll") or 1
+        s = _db_rows(
+            "SELECT SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
+            "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
+            "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o "
+            "FROM paper_coupons WHERE portfolio_id=?", (apid,))[0]
+        n = s.get("n") or 0
+        w = s.get("w") or 0
+        o = s.get("o") or 0
+        pnl = cur - init
+        c = "#10d48e" if pnl >= 0 else "#ef4444"
+        rows += (
+            f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:11px;">'
+            f'<td style="padding:4px 8px;color:#e2e8f0;">{meta["icon"]} {meta["title"]}</td>'
+            f'<td style="padding:4px 8px;text-align:right;color:#e2e8f0;">{cur:,.0f} TL</td>'
+            f'<td style="padding:4px 8px;text-align:right;color:{c};font-weight:700;">{pnl:+,.0f}</td>'
+            f'<td style="padding:4px 8px;text-align:right;color:#94a3b8;">{w}/{n} kupon</td>'
+            f'<td style="padding:4px 8px;text-align:right;color:#94a3b8;">{o} açık</td></tr>')
+    if not rows:
+        return ""
+    return ('<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;'
+            'padding:6px;margin-bottom:12px;">'
+            '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;font-weight:700;padding:4px 8px;">'
+            '🏁 AJAN LİGİ — aynı para (1.000 TL) · aynı ay · farklı karakter</div>'
+            f'<table style="width:100%;border-collapse:collapse;">{rows}</table></div>')
+
+
+def _render_agent_page(pid: str) -> None:
+    meta = AGENT_META[pid]
+    st.markdown(f"""
     <div class="sec-title">
-      <div class="sec-title-main">🛡 AGENT: TEMKİNLİ</div>
-      <div class="sec-title-meta">AYRI KASA 1.000 TL · HEDEF 2.500 TL / 1 AY · KANITA DAYALI DÜŞÜK RİSK</div>
+      <div class="sec-title-main">{meta['icon']} AGENT: {meta['title']}</div>
+      <div class="sec-title-meta">AYRI KASA 1.000 TL · HEDEF 2.500 TL / 1 AY · {meta['sub']}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Kural kartı — kanıt sayılarıyla (227 karar bahis analizi, 2026-07)
-    st.markdown(
-        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #10d48e;'
-        'border-radius:8px;padding:10px 14px;margin:2px 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.7;">'
-        '🧾 <b style="color:#e2e8f0;">Kanıt-kuralları</b> (227 karar bahis analizinden): '
-        '<b style="color:#10d48e;">✅ oynar:</b> KG_YOK (%80 isabet, +1.3% ROI) · '
-        'ÜST 2.5 (%77, +0.4%) · GÜÇLÜ FAVORİ 1X2 (≥%72 olasılık; %79, ≈başabaş) &nbsp;'
-        '<b style="color:#ef4444;">⛔ yasak:</b> KG_VAR (−22.5% ROI, ana kayıp kaynağı) · ALT 2.5 · zayıf favori. '
-        '<b style="color:#e2e8f0;">TEK öncelik</b> (1-2 ayak 10/10 kazandı; 3 ayak −%27) · '
-        'günde max 2 kupon · oran tavanı 2.60 · 3 ardışık kayıpta PAS · stop −%15. '
-        '<span style="color:#f59e0b;">Not: hedef (+%150/ay) agresiftir — ajan kaybetmemeyi '
-        'önceler, PAS meşru sonuçtur.</span></div>', unsafe_allow_html=True)
+    league = _agent_league_html()
+    if league:
+        st.markdown(league, unsafe_allow_html=True)
 
-    d = get_temkinli_data()
+    st.markdown(
+        f'<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid {meta["renk"]};'
+        f'border-radius:8px;padding:9px 13px;margin:2px 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.7;">'
+        f'🧾 <b style="color:#e2e8f0;">Profil kuralları:</b> {meta["rules"]} '
+        f'<span style="color:#f59e0b;">· Ortak kanıt tabanı: 227 karar bahis analizi — '
+        f'KG_VAR (−%22.5 ROI) tüm ajanlarda yasak · hedef (+%150/ay) agresiftir, '
+        f'PAS meşru sonuçtur.</span></div>', unsafe_allow_html=True)
+
+    d = get_agent_data(pid)
     port = d.get("port")
     if not port:
-        st.info("TEMKİNLİ portföyü ilk worker koşusunda oluşturulur (06:00/15:00 UTC). "
-                "Deploy sonrası ilk koşuyu bekleyin.")
+        st.info(f"{meta['title']} portföyü ilk worker koşusunda oluşturulur "
+                "(06:00/15:00 UTC). Deploy sonrası ilk koşuyu bekleyin.")
         return
 
     cur = port.get("current_bankroll") or 1000.0
@@ -1364,9 +1420,9 @@ def page_temkinli(portfolio: dict) -> None:
                 unsafe_allow_html=True)
     opens = d.get("open") or []
     if not opens:
-        st.markdown('<div style="color:#475569;font-size:12px;padding:4px 0 12px 0;">'
-                    'Açık kupon yok — TEMKİNLİ uygun sinyal bulamazsa PAS geçer (bu bir hata değil, '
-                    'disiplindir). Sonraki değerlendirme: 06:00/15:00 UTC.</div>',
+        st.markdown(f'<div style="color:#475569;font-size:12px;padding:4px 0 12px 0;">'
+                    f'Açık kupon yok — {meta["title"]} uygun sinyal bulamazsa PAS geçer '
+                    f'(bu bir hata değil, disiplindir). Sonraki değerlendirme: 06:00/15:00 UTC.</div>',
                     unsafe_allow_html=True)
     for c in opens:
         legs_html = "".join(
@@ -1405,6 +1461,18 @@ def page_temkinli(portfolio: dict) -> None:
             f'<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;">'
             f'<table style="width:100%;border-collapse:collapse;">{rows_h}</table></div>',
             unsafe_allow_html=True)
+
+
+def page_temkinli(portfolio: dict) -> None:
+    _render_agent_page("TEMKINLI_V1")
+
+
+def page_avci(portfolio: dict) -> None:
+    _render_agent_page("AVCI_V1")
+
+
+def page_memur(portfolio: dict) -> None:
+    _render_agent_page("MEMUR_V1")
 
 
 def page_overview(portfolio: dict) -> None:
