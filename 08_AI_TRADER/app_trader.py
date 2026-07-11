@@ -642,7 +642,7 @@ def render_status_bar(portfolio: dict) -> None:
       <span class="sb-label">P&L:<span class="sb-value"
         style="color:{'#10d48e' if pnl >= 0 else '#ef4444'};">{pnl:+,.0f} TL</span></span>
       <span class="sb-spacer"></span>
-      <span class="sb-chip chip-gray">PAPER_V1 ▾</span>
+      <span class="sb-chip chip-gray">👑 KURUCU ▾</span>
       <span class="sb-btn btn-dry">DRY-RUN</span>
       <span class="sb-btn btn-live">PAPER</span>
       <span style="color:#475569;font-size:11px;font-family:Consolas,monospace;
@@ -1251,6 +1251,12 @@ def render_system_health() -> None:
 # ════════════════════════════════════════════════════════════════
 
 AGENT_META = {
+    # 👑 KURUCU = ana sistem (PAPER_V1) — o da bir oyuncu; ligde görünür,
+    # kendi sayfası zaten tüm ana dashboard'dur.
+    "PAPER_V1": {
+        "icon": "👑", "title": "KURUCU", "renk": "#a78bfa",
+        "sub": "ANA SİSTEM (5.000 TL)",
+        "rules": "Ana motor: MBS-aware TEK+K3 · tüm sinyal aileleri · dönem hedefi +%20"},
     "TEMKINLI_V1": {
         "icon": "🛡", "title": "TEMKİNLİ", "renk": "#10d48e",
         "sub": "DÜŞÜK RİSK",
@@ -1345,7 +1351,8 @@ def _agent_league_html() -> str:
             'padding:6px;margin-bottom:12px;">'
             '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
             'letter-spacing:0.08em;font-weight:700;padding:4px 8px;">'
-            '🏁 AJAN LİGİ — aynı para (1.000 TL) · aynı ay · farklı karakter</div>'
+            '🏁 OYUNCULAR — 👑 KURUCU (5.000 TL, ana sistem) + 3 ajan '
+            '(1.000 TL · hedef 2.500 · 1 ay · farklı karakter)</div>'
             f'<table style="width:100%;border-collapse:collapse;">{rows}</table></div>')
 
 
@@ -1479,7 +1486,7 @@ def page_overview(portfolio: dict) -> None:
     render_system_health()
     st.markdown("""
     <div class="sec-title">
-      <div class="sec-title-main">▸ OVERVIEW</div>
+      <div class="sec-title-main">▸ OVERVIEW — 👑 KURUCU</div>
       <div class="sec-title-meta">PAPER TRADING DASHBOARD</div>
     </div>
     """, unsafe_allow_html=True)
