@@ -352,11 +352,23 @@ st.markdown(TRADER_CSS, unsafe_allow_html=True)
 # ============================================================
 
 def _db_rows(sql: str, params: tuple = ()) -> list[dict]:
-    conn = db_connect()
-    try:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
-    finally:
-        conn.close()
+    """Sorgu başına taze bağlantı + 1 yeniden deneme.
+    Railway PG proxy'si ara sıra bağlantıyı sorgu ORTASINDA düşürür
+    ('server closed the connection unexpectedly') — tek deneme sayfayı
+    çökertiyordu; ikinci deneme taze bağlantıyla neredeyse hep geçer."""
+    last_err: Exception | None = None
+    for _attempt in (1, 2):
+        conn = db_connect()
+        try:
+            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+        except Exception as e:
+            last_err = e
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    raise last_err
 
 
 # ── SVG Position Chart (Meridian-style) ──────────────────────────────────────
@@ -1437,15 +1449,21 @@ def page_overview(portfolio: dict) -> None:
             bekleyen_devam.append(c)
 
     # ── MAIN TABS ────────────────────────────────────────────
-    n_open = len(open_coupons)
-    n_won  = len(won_coupons)
-    n_lost = len(lost_coupons)
+    # SAYAÇLAR GERÇEK TOPLAMDAN (COUNT) — listeler LIMIT 20 ile sınırlı olduğu
+    # için len(...) kullanmak sekmede yanlış sayı gösteriyordu (20/20 bug'ı).
+    _cnt = {r.get("status"): (r.get("n") or 0) for r in _db_rows(
+        "SELECT status, COUNT(*) AS n FROM paper_coupons "
+        "WHERE portfolio_id=? GROUP BY status", (PORTFOLIO_ID,))}
+    n_open = _cnt.get("open", 0)
+    n_won  = _cnt.get("won", 0)
+    n_lost = _cnt.get("lost", 0)
+    n_void = _cnt.get("void", 0)
 
     tab_bekleyen, tab_kazanan, tab_kaybeden, tab_arsiv = st.tabs([
         f"Bekleyen  ({n_open})",
         f"Kazanan  ({n_won})",
         f"Kaybeden  ({n_lost})",
-        "Arsiv",
+        f"Arsiv  ({n_void} void)",
     ])
 
     # ════════════════════════════════════════════════════════
@@ -1616,6 +1634,11 @@ def page_overview(portfolio: dict) -> None:
                 unsafe_allow_html=True
             )
         else:
+            if n_won > len(won_coupons):
+                st.markdown(
+                    f'<div style="color:#475569;font-size:11px;padding:2px 0 8px 0;">'
+                    f'Son {len(won_coupons)} gösteriliyor (toplam {n_won} kazanan — '
+                    f'tam liste: Arsiv)</div>', unsafe_allow_html=True)
             for coup in won_coupons:
                 ctype = coup.get("coupon_type", "")
                 tc    = TYPE_COLORS.get(ctype, "#10d48e")
@@ -1678,6 +1701,11 @@ def page_overview(portfolio: dict) -> None:
                 unsafe_allow_html=True
             )
         else:
+            if n_lost > len(lost_coupons):
+                st.markdown(
+                    f'<div style="color:#475569;font-size:11px;padding:2px 0 8px 0;">'
+                    f'Son {len(lost_coupons)} gösteriliyor (toplam {n_lost} kaybeden — '
+                    f'tam liste: Arsiv)</div>', unsafe_allow_html=True)
             for coup in lost_coupons:
                 cid  = (coup.get("coupon_id") or "")[:8]
                 pnl  = coup.get("pnl") or 0
