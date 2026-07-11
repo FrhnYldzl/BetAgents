@@ -1275,6 +1275,20 @@ AGENT_META = {
         "rules": ("✅ SHARP (oran hareketi) önceliği · yüksek oran bandı (≥1.30) · "
                   "kombine tavanı 4.50 · günde max 3, TEK max 2 · 5 ardışık "
                   "kayıpta PAS · stop −%25")},
+    "HOCA_V1": {
+        "icon": "🧮", "title": "HOCA", "renk": "#38bdf8",
+        "sub": "POISSON ÇİFT-ONAY (model-ajanı)",
+        "rules": ("Bağımsız gol-modeli İKİNCİ GÖRÜŞ olarak: piyasayla sapması ≤5p "
+                  "(çift onay) olan KG_YOK/ÜST/ALT + FAV(≥%62) seçimleri · ikinci "
+                  "görüş yoksa OYNAMAZ · tavan 2.80 · günde max 2 · stop −%15. "
+                  "Hipotez: model+piyasa uyumu isabeti artırır.")},
+    "SIMYACI_V1": {
+        "icon": "🧪", "title": "SİMYACI", "renk": "#e879f9",
+        "sub": "MODEL-DEĞER DENEYİ (kontrol grubu)",
+        "rules": ("Model piyasadan ≥+6p YÜKSEK dediğinde oynar (değer hipotezi) · "
+                  "oran ≥1.40 · tavan 4.00 · küçük stake (%3-4) · stop −%25. "
+                  "DÜRÜST NOT: backtest bu hipoteze −%8 dedi — SİMYACI canlı "
+                  "KONTROL deneyidir; kazanırsa hipotez ayağa kalkar.")},
 }
 
 
@@ -1480,6 +1494,132 @@ def page_avci(portfolio: dict) -> None:
 
 def page_memur(portfolio: dict) -> None:
     _render_agent_page("MEMUR_V1")
+
+
+def page_hoca(portfolio: dict) -> None:
+    _render_agent_page("HOCA_V1")
+
+
+def page_simyaci(portfolio: dict) -> None:
+    _render_agent_page("SIMYACI_V1")
+
+
+# ════════════════════════════════════════════════════════════════
+# 🏆 AGENTS SCORE TABLE — tüm oyuncuların tam karşılaştırması
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=600, show_spinner=False)
+def get_score_table():
+    rows = []
+    for apid, meta in AGENT_META.items():
+        p = _db_rows("SELECT * FROM paper_portfolio WHERE portfolio_id=?", (apid,))
+        if not p:
+            continue
+        p = p[0]
+        agg = _db_rows(
+            "SELECT SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
+            "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
+            "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o, "
+            "SUM(CASE WHEN status IN ('won','lost') THEN stake ELSE 0 END) stk, "
+            "SUM(CASE WHEN status IN ('won','lost') THEN actual_return ELSE 0 END) ret "
+            "FROM paper_coupons WHERE portfolio_id=?", (apid,))[0]
+        clv_mean = clv_n = None
+        try:
+            import clv as _clv
+            ov = (_clv.clv_summary(apid) or {}).get("overall") or {}
+            if ov.get("n"):
+                clv_mean, clv_n = ov.get("mean"), ov.get("n")
+        except Exception:
+            pass
+        init = p.get("initial_bankroll") or 1
+        cur = p.get("current_bankroll") or 0
+        n = agg.get("n") or 0
+        w = agg.get("w") or 0
+        stk = agg.get("stk") or 0
+        ret = agg.get("ret") or 0
+        rows.append({
+            "pid": apid, "icon": meta["icon"], "title": meta["title"],
+            "sub": meta["sub"], "renk": meta["renk"],
+            "init": init, "cur": cur, "pnl": cur - init,
+            "pnl_pct": (cur - init) / init * 100 if init else 0,
+            "n": n, "w": w,
+            "hit": (w / n * 100) if n else None,
+            "roi": ((ret - stk) / stk * 100) if stk else None,
+            "clv": clv_mean, "clv_n": clv_n,
+            "open": agg.get("o") or 0,
+            "period": p.get("period_status") or "?",
+        })
+    rows.sort(key=lambda r: r["pnl_pct"], reverse=True)
+    return rows
+
+
+def page_score_table(portfolio: dict) -> None:
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">🏆 AGENTS SCORE TABLE</div>
+      <div class="sec-title-meta">TÜM OYUNCULAR · ORTAK METRİKLER · GETİRİ %'YE GÖRE SIRALI</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #a78bfa;'
+        'border-radius:8px;padding:9px 13px;margin:2px 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.6;">'
+        'ℹ️ Kasalar farklı (👑 KURUCU 5.000 · ajanlar 1.000) → adil kıyas <b style="color:#e2e8f0;">Getiri %</b> '
+        'üzerinden. <b style="color:#e2e8f0;">CLV</b> gerçek beceri göstergesidir (şans değil); '
+        '<b style="color:#e2e8f0;">İsabet</b> tek başına yanıltır (düşük oranla şişer). '
+        'Az kuponlu ajanlarda tüm metrikler GÜRÜLTÜDÜR — 1 ay dolmadan şampiyon ilan etme.'
+        '</div>', unsafe_allow_html=True)
+
+    rows = get_score_table()
+    if not rows:
+        st.info("Henüz oyuncu verisi yok.")
+        return
+    medals = {0: "🥇", 1: "🥈", 2: "🥉"}
+    body = ""
+    for i, r in enumerate(rows):
+        pc = "#10d48e" if r["pnl"] >= 0 else "#ef4444"
+        clv_txt = (f"{r['clv']*100:+.2f}% (n={r['clv_n']})" if r["clv"] is not None else "—")
+        clv_c = "#10d48e" if (r["clv"] or 0) > 0 else "#94a3b8"
+        hit_txt = f"%{r['hit']:.0f}" if r["hit"] is not None else "—"
+        roi_txt = f"{r['roi']:+.1f}%" if r["roi"] is not None else "—"
+        roi_c = "#10d48e" if (r["roi"] or 0) > 0 else "#ef4444" if (r["roi"] or 0) < 0 else "#94a3b8"
+        per_c = "#10d48e" if r["period"] == "active" else "#f59e0b"
+        body += (
+            f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
+            f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '
+            f'{r["icon"]} <b>{r["title"]}</b><br>'
+            f'<span style="color:#475569;font-size:9px;">{r["sub"]}</span></td>'
+            f'<td style="padding:8px;text-align:right;color:#e2e8f0;">{r["cur"]:,.0f}<br>'
+            f'<span style="color:#475569;font-size:9px;">başl. {r["init"]:,.0f}</span></td>'
+            f'<td style="padding:8px;text-align:right;color:{pc};font-weight:700;">{r["pnl"]:+,.0f} TL<br>'
+            f'<span style="font-size:11px;">{r["pnl_pct"]:+.1f}%</span></td>'
+            f'<td style="padding:8px;text-align:right;color:#94a3b8;">{r["w"]}/{r["n"]}</td>'
+            f'<td style="padding:8px;text-align:right;color:#e2e8f0;">{hit_txt}</td>'
+            f'<td style="padding:8px;text-align:right;color:{roi_c};">{roi_txt}</td>'
+            f'<td style="padding:8px;text-align:right;color:{clv_c};">{clv_txt}</td>'
+            f'<td style="padding:8px;text-align:right;color:#94a3b8;">{r["open"]}</td>'
+            f'<td style="padding:8px;text-align:right;color:{per_c};font-size:10px;">{r["period"].upper()}</td>'
+            f'</tr>')
+    st.markdown(
+        '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;overflow-x:auto;">'
+        '<table style="width:100%;border-collapse:collapse;">'
+        '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+        '<td style="padding:4px 8px;">Oyuncu</td><td style="padding:4px 8px;text-align:right;">Kasa</td>'
+        '<td style="padding:4px 8px;text-align:right;">PnL / Getiri</td>'
+        '<td style="padding:4px 8px;text-align:right;">Kupon W/N</td>'
+        '<td style="padding:4px 8px;text-align:right;">İsabet</td>'
+        '<td style="padding:4px 8px;text-align:right;">ROI</td>'
+        '<td style="padding:4px 8px;text-align:right;">CLV</td>'
+        '<td style="padding:4px 8px;text-align:right;">Açık</td>'
+        '<td style="padding:4px 8px;text-align:right;">Dönem</td></tr>'
+        f'{body}</table></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="color:#475569;font-size:10px;padding:8px 0;">'
+        '🔬 DATA→MODEL→AGENT döngüsü: her ajan bir hipotezi test eder '
+        '(TEMKİNLİ=kanıt-disiplin · MEMUR=orta yol · AVCI=SHARP/varyans · '
+        '🧮 HOCA=model çift-onay · 🧪 SİMYACI=model-değer kontrol deneyi). '
+        'Ay sonunda kazanan DNA\'lardan karma ajan doğar; TRIVOX &amp; EUVOX '
+        'model-ajanları ligler açılınca (Ağustos) katılır.</div>',
+        unsafe_allow_html=True)
 
 
 def page_overview(portfolio: dict) -> None:

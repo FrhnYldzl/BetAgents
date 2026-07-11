@@ -72,7 +72,52 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.06, "k3_stake": 0.05,
         "sort": "hunt",                     # SHARP > edge > oran
     },
+    # ── MODEL-AJANLARI: bağımsız Poisson gol modeli (independent_model) ──
+    "HOCA_V1": {
+        # ÇİFT-ONAY hipotezi: model + piyasa AYNI fikirdeyse oyna.
+        # Backtest dersi: modelin doğru kullanımı teyit, tahmin değil.
+        "name": "HOCA (Poisson çift-onay)",
+        "stop_pct": -0.15,
+        "markets": {"KG_YOK", "UST_25", "ALT_25"},
+        "fav_min": 0.62,
+        "min_mp": 0.62, "min_odds": 1.22,
+        "combo_cap": 2.80, "max_daily": 2, "max_open": 4,
+        "max_tek": 1, "loss_streak": 3,
+        "tek_stake": 0.05, "k3_stake": 0.04,
+        "sort": "safety",
+        "mode": "confirm", "confirm_max_dev": 0.05,
+    },
+    "SIMYACI_V1": {
+        # DEĞER hipotezi (KONTROL DENEYİ): model piyasadan >= +6p yüksek
+        # dediğinde oyna. Backtest -%8 dedi — canlı kontrol grubu; kazanırsa
+        # hipotez ayağa kalkar, kaybederse kanıt pekişir. Küçük stake.
+        "name": "SİMYACI (model-değer deneyi)",
+        "stop_pct": -0.25,
+        "markets": {"KG_YOK", "UST_25", "ALT_25"},
+        "fav_min": 0.50,
+        "min_mp": 0.50, "min_odds": 1.40,
+        "combo_cap": 4.00, "max_daily": 2, "max_open": 4,
+        "max_tek": 2, "loss_streak": 4,
+        "tek_stake": 0.04, "k3_stake": 0.03,
+        "sort": "value",
+        "mode": "value", "value_min_edge": 0.06,
+    },
 }
+
+# Bağımsız model rating önbelleği (run_all içinde 1 kez kurulur)
+_RATINGS = {"ts": None, "obj": None}
+
+
+def _get_ratings():
+    from datetime import datetime as _dt
+    import independent_model as im
+    now = _dt.utcnow()
+    if _RATINGS["obj"] is not None and _RATINGS["ts"] is not None \
+            and (now - _RATINGS["ts"]).total_seconds() < 600:
+        return _RATINGS["obj"]
+    _RATINGS["obj"] = im.build_current_ratings()
+    _RATINGS["ts"] = now
+    return _RATINGS["obj"]
 
 
 def _now():
@@ -134,6 +179,8 @@ def _sort_key(prof: dict):
                           s.get("edge") or -9, s.get("odds") or 0)
     if mode == "score":
         return lambda s: (s.get("signal_score") or 0, s.get("model_prob") or 0)
+    if mode == "value":
+        return lambda s: (s.get("_dev") or -9, s.get("odds") or 0)
     return lambda s: (s.get("model_prob") or 0, s.get("signal_score") or 0)
 
 
@@ -177,6 +224,18 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         return []
     bankroll = per["period_start_bankroll"]
 
+    # Model modu (HOCA/SIMYACI): bağımsız Poisson gol modelini yükle
+    mode = prof.get("mode")
+    ratings = None
+    if mode in ("confirm", "value"):
+        try:
+            ratings = _get_ratings()
+        except Exception as e:
+            print(f"{tag} model yuklenemedi ({e}) -> PAS")
+            return []
+    import independent_model as im
+    _probs_cache: dict = {}
+
     picks: list[dict] = []
     for m in matches:
         try:
@@ -196,6 +255,23 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
                 continue
             if mp < prof["min_mp"] or (s.get("odds") or 0) < prof["min_odds"]:
                 continue
+            # ── MODEL FİLTRESİ (HOCA=çift-onay · SIMYACI=değer) ──
+            if ratings is not None:
+                mid = m.get("match_id")
+                if mid not in _probs_cache:
+                    try:
+                        _probs_cache[mid] = ratings.predict(m)
+                    except Exception:
+                        _probs_cache[mid] = None
+                ip = im.model_prob_for(_probs_cache[mid], mkt, s.get("pick"))
+                if ip is None:                      # ikinci görüş yoksa oynamaz
+                    continue
+                dev = ip - mp
+                s["_dev"] = dev
+                if mode == "confirm" and abs(dev) > prof["confirm_max_dev"]:
+                    continue
+                if mode == "value" and dev < prof["value_min_edge"]:
+                    continue
             picks.append(s)
 
     picks.sort(key=_sort_key(prof), reverse=True)
