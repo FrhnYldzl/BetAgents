@@ -1570,6 +1570,8 @@ def get_score_table():
             "open": agg.get("o") or 0,
             "period": p.get("period_status") or "?",
             "dormant": bool(meta.get("dormant")),
+            "ihtar": p.get("ihtar_count") or 0,
+            "benched": bool(p.get("benched")),
         })
     rows.sort(key=lambda r: r["pnl_pct"], reverse=True)
     return rows
@@ -1590,6 +1592,16 @@ def page_score_table(portfolio: dict) -> None:
         '<b style="color:#e2e8f0;">İsabet</b> tek başına yanıltır (düşük oranla şişer). '
         'Az kuponlu ajanlarda tüm metrikler GÜRÜLTÜDÜR — 1 ay dolmadan şampiyon ilan etme.'
         '</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#1a1410;border:1px solid #3a2d1a;border-left:3px solid #f59e0b;'
+        'border-radius:8px;padding:9px 13px;margin:0 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.7;">'
+        '📜 <b style="color:#f59e0b;">SÖZLEŞME LİGİ (motivasyon):</b> her 7 günde değerlendirme — '
+        '<b style="color:#e2e8f0;">⚠️ ihtar</b> sebepleri: lig sonuncusu + zararda (≥5 kupon) · '
+        '7 günde hiç kupon kurmamak (pasiflik) · 14. günden sonra ≤−%10 (rota). '
+        '<b style="color:#ef4444;">2 ihtar = 🚫 KADRO DIŞI</b>: ajan oynayamaz ve '
+        '<b style="color:#e2e8f0;">kalan kasası lig liderine devredilir</b>. '
+        'Yeni ajanlara 5 gün hoşgörü. Kararlar journal\'a yazılır.'
+        '</div>', unsafe_allow_html=True)
 
     rows = get_score_table()
     if not rows:
@@ -1604,9 +1616,15 @@ def page_score_table(portfolio: dict) -> None:
         hit_txt = f"%{r['hit']:.0f}" if r["hit"] is not None else "—"
         roi_txt = f"{r['roi']:+.1f}%" if r["roi"] is not None else "—"
         roi_c = "#10d48e" if (r["roi"] or 0) > 0 else "#ef4444" if (r["roi"] or 0) < 0 else "#94a3b8"
-        per_disp = "😴 SEZON" if r.get("dormant") else r["period"].upper()
-        per_c = "#f59e0b" if r.get("dormant") else (
-            "#10d48e" if r["period"] == "active" else "#f59e0b")
+        if r.get("benched"):
+            per_disp, per_c = "🚫 KADRO DIŞI", "#ef4444"
+        elif r.get("dormant"):
+            per_disp, per_c = "😴 SEZON", "#f59e0b"
+        else:
+            per_disp = r["period"].upper()
+            per_c = "#10d48e" if r["period"] == "active" else "#f59e0b"
+        if r.get("ihtar") and not r.get("benched"):
+            per_disp += f' <span style="color:#f59e0b;">⚠️×{r["ihtar"]}</span>'
         body += (
             f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
             f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '

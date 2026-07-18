@@ -189,11 +189,190 @@ def _mbs(m: dict) -> int:
 
 
 def _loss_streak(conn, pid: str, n: int) -> bool:
+    """n ardışık kayıp → PAS. PERMALOCK FIX: mola 48 saat — süre dolunca
+    ajan tekrar oynayabilir (eskisi süresiz kilitliyordu: hiç oynamayınca
+    son n hep 'lost' kalır → sonsuz PAS)."""
+    from datetime import datetime as _dt
     rows = conn.execute(
-        "SELECT status FROM paper_coupons WHERE portfolio_id=? "
+        "SELECT status, settled_at FROM paper_coupons WHERE portfolio_id=? "
         "AND status IN ('won','lost') ORDER BY settled_at DESC LIMIT ?",
         (pid, n)).fetchall()
-    return len(rows) == n and all(r[0] == "lost" for r in rows)
+    if len(rows) < n or not all(r[0] == "lost" for r in rows):
+        return False
+    try:
+        last = _dt.fromisoformat(str(rows[0][1])[:19])
+        return (_dt.utcnow() - last).total_seconds() < 48 * 3600
+    except Exception:
+        return False
+
+
+# ════════════════════════════════════════════════════════════════
+# 📜 SÖZLEŞME LİGİ — motivasyon: ihtar → kadro dışı → kasa lidere
+# ════════════════════════════════════════════════════════════════
+# Haftalık değerlendirme (lig saati: PAPER_V1.last_review):
+#   A) PERFORMANS: ≥5 karar kuponlular arasında en kötü PnL% (ve <0) → ⚠️ ihtar
+#   B) PASİFLİK : son 7 günde 0 kupon kuran saha ajanı → ⚠️ ihtar
+#   C) ROTA     : 14. günden sonra PnL% ≤ −10 olan herkes → ⚠️ ihtar
+#   2 ihtar → 🚫 KADRO DIŞI: oynayamaz, KALAN KASASI LİG LİDERİNE DEVREDİLİR.
+# Yeni ajanlara 5 gün hoşgörü. Her karar journal'a yazılır.
+
+def ensure_contract_columns(conn) -> None:
+    for col, typ in (("ihtar_count", "INTEGER"), ("benched", "INTEGER"),
+                     ("last_review", "TEXT")):
+        try:
+            conn.execute(f"ALTER TABLE paper_portfolio ADD COLUMN {col} {typ}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+def _is_benched(conn, pid: str) -> bool:
+    try:
+        r = conn.execute(
+            "SELECT benched FROM paper_portfolio WHERE portfolio_id=?",
+            (pid,)).fetchone()
+        return bool(r and r[0])
+    except Exception:
+        # PG: patlayan statement transaction'ı abort eder — rollback ŞART,
+        # yoksa aynı bağlantıdaki SONRAKİ tüm sorgular da ölür
+        # ("current transaction is aborted"). Canlıdaki sessiz ajan
+        # arızasının kök nedeni buydu.
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def _journal(conn, pid: str, title: str, content: str) -> None:
+    import uuid
+    try:
+        conn.execute(
+            "INSERT INTO paper_journal (journal_id, portfolio_id, entry_date, "
+            "entry_type, title, content, created_at) VALUES (?,?,?,?,?,?,?)",
+            (str(uuid.uuid4()), pid, _now()[:10], "LESSON", title, content, _now()))
+    except Exception:
+        pass
+
+
+def review_league() -> None:
+    """Haftalık sözleşme değerlendirmesi. Lig saati dolmadıysa sessizce çıkar."""
+    from datetime import datetime as _dt
+    conn = db.connect()
+    try:
+        ensure_contract_columns(conn)
+        clock = conn.execute(
+            "SELECT last_review FROM paper_portfolio WHERE portfolio_id='PAPER_V1'"
+        ).fetchone()
+        clock = clock[0] if clock else None
+        now = _dt.utcnow()
+        if not clock:
+            conn.execute("UPDATE paper_portfolio SET last_review=? "
+                         "WHERE portfolio_id='PAPER_V1'", (now.isoformat(),))
+            conn.commit()
+            print("[LIG] sozlesme saati baslatildi — ilk degerlendirme 7 gun sonra")
+            return
+        try:
+            if (now - _dt.fromisoformat(str(clock)[:19])).days < 7:
+                return
+        except Exception:
+            return
+
+        print("[LIG] 📜 HAFTALIK SOZLESME DEGERLENDIRMESI")
+        field = [p for p in PROFILES
+                 if not PROFILES[p].get("dormant") and not _is_benched(conn, p)]
+        stats = []
+        for pid in field:
+            row = conn.execute(
+                "SELECT current_bankroll, initial_bankroll, created_at, "
+                "COALESCE(ihtar_count,0) FROM paper_portfolio "
+                "WHERE portfolio_id=?", (pid,)).fetchone()
+            if not row:
+                continue
+            cur, init, created, ihtar = row[0] or 0, row[1] or 1, row[2], row[3]
+            try:
+                age_d = (now - _dt.fromisoformat(str(created)[:19])).days
+            except Exception:
+                age_d = 99
+            n_dec = conn.execute(
+                "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+                "AND status IN ('won','lost')", (pid,)).fetchone()[0]
+            from datetime import timedelta as _td
+            n_7g = conn.execute(
+                "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+                "AND created_at > ?",
+                (pid, (now - _td(days=7)).isoformat())).fetchone()[0]
+            stats.append({"pid": pid, "cur": cur, "init": init,
+                          "pnl_pct": (cur - init) / init * 100,
+                          "age": age_d, "n_dec": n_dec, "n_7g": n_7g,
+                          "ihtar": ihtar})
+
+        new_ihtar: dict[str, list] = {}
+        # A) performans: en kötü negatif (n_dec>=5)
+        perf = [s for s in stats if s["n_dec"] >= 5 and s["pnl_pct"] < 0
+                and s["age"] >= 5]
+        if perf:
+            worst = min(perf, key=lambda s: s["pnl_pct"])
+            new_ihtar.setdefault(worst["pid"], []).append(
+                f"performans (lig sonuncusu, {worst['pnl_pct']:+.1f}%)")
+        # B) pasiflik: 7 günde 0 kupon
+        for s in stats:
+            if s["age"] >= 5 and s["n_7g"] == 0:
+                new_ihtar.setdefault(s["pid"], []).append("pasiflik (7 günde 0 kupon)")
+        # C) rota: 14+ gün ve <= -10%
+        for s in stats:
+            if s["age"] >= 14 and s["pnl_pct"] <= -10:
+                new_ihtar.setdefault(s["pid"], []).append(
+                    f"rota ({s['pnl_pct']:+.1f}% hedeften uzak)")
+
+        leader = max(stats, key=lambda s: s["pnl_pct"]) if stats else None
+        for pid, reasons in new_ihtar.items():
+            s = next(x for x in stats if x["pid"] == pid)
+            total = s["ihtar"] + 1          # değerlendirme başına max +1 ihtar
+            reason_txt = "; ".join(reasons)
+            if total >= 2 and leader and leader["pid"] != pid:
+                # 🚫 KADRO DIŞI + kasa devri (initial üzerinden — recompute uyumlu)
+                devir = max(0.0, s["cur"])
+                conn.execute(
+                    "UPDATE paper_portfolio SET benched=1, ihtar_count=?, "
+                    "updated_at=? WHERE portfolio_id=?",
+                    (total, now.isoformat(), pid))
+                conn.execute(
+                    "UPDATE paper_portfolio SET initial_bankroll="
+                    "initial_bankroll - ?, updated_at=? WHERE portfolio_id=?",
+                    (devir, now.isoformat(), pid))
+                conn.execute(
+                    "UPDATE paper_portfolio SET initial_bankroll="
+                    "initial_bankroll + ?, updated_at=? WHERE portfolio_id=?",
+                    (devir, now.isoformat(), leader["pid"]))
+                _journal(conn, pid, "🚫 KADRO DIŞI",
+                         f"2. ihtar ({reason_txt}). Kalan kasa "
+                         f"{devir:.0f} TL lig lideri {leader['pid']}'e devredildi.")
+                _journal(conn, leader["pid"], "💰 KASA DEVRİ",
+                         f"Kadro dışı {pid}'den {devir:.0f} TL devraldı (lig lideri).")
+                print(f"[LIG] 🚫 {pid} KADRO DISI ({reason_txt}) -> "
+                      f"{devir:.0f} TL {leader['pid']}'e")
+            else:
+                conn.execute(
+                    "UPDATE paper_portfolio SET ihtar_count=?, updated_at=? "
+                    "WHERE portfolio_id=?", (total, now.isoformat(), pid))
+                _journal(conn, pid, f"⚠️ İHTAR {total}/2",
+                         f"Sözleşme ihlali: {reason_txt}. Bir ihtar daha = "
+                         f"kadro dışı + kasa lidere devir.")
+                print(f"[LIG] ⚠️ {pid} ihtar {total}/2 ({reason_txt})")
+
+        conn.execute("UPDATE paper_portfolio SET last_review=? "
+                     "WHERE portfolio_id='PAPER_V1'", (now.isoformat(),))
+        conn.commit()
+        # Devir sonrası sayaçları senkronla
+        try:
+            from recompute_portfolio import recompute
+            for s in stats:
+                recompute(s["pid"], verbose=False)
+        except Exception:
+            pass
+    finally:
+        conn.close()
 
 
 def _sort_key(prof: dict):
@@ -215,6 +394,10 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         print(f"{tag} 😴 sezon bekliyor (Agustos'ta aktive edilecek) -> PAS")
         return []
     conn = db.connect()
+    if _is_benched(conn, pid):
+        conn.close()
+        print(f"{tag} 🚫 KADRO DISI (sozlesme feshedildi) -> oynayamaz")
+        return []
     try:
         if _loss_streak(conn, pid, prof["loss_streak"]):
             print(f"{tag} {prof['loss_streak']} ardisik kayip -> PAS")
@@ -377,6 +560,14 @@ def run_profile(pid: str, place: bool = True) -> list[str]:
 
 
 def run_all(place: bool = True) -> dict:
+    print(f"[AGENTS] === run_all basladi ({len(PROFILES)} profil) ===")
+    # Sözleşme kolonlarını EN BAŞTA garanti et (eksik kolon → abort zinciri)
+    try:
+        conn = db.connect()
+        ensure_contract_columns(conn)
+        conn.close()
+    except Exception as e:
+        print(f"[AGENTS] kolon garanti hatasi: {e}")
     out = {}
     for pid in PROFILES:
         try:
@@ -384,6 +575,13 @@ def run_all(place: bool = True) -> dict:
         except Exception as e:
             print(f"[{pid}] HATA: {e}")
             out[pid] = []
+    n_total = sum(len(v) for v in out.values())
+    print(f"[AGENTS] === run_all bitti: {n_total} kupon ===")
+    # 📜 Sözleşme ligi — haftalık saat dolduysa değerlendir (dolmadıysa sessiz)
+    try:
+        review_league()
+    except Exception as e:
+        print(f"[LIG] REVIEW HATA: {e}")
     return out
 
 

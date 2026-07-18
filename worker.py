@@ -63,6 +63,13 @@ def job_fetch_program():
         print(f"[{_ts()}] FETCH_PROGRAM tamam")
     except Exception as e:
         print(f"[{_ts()}] FETCH_PROGRAM HATA: {e}")
+    # 🤖 Ajanlar taze programla TEKRAR degerlendirsin (gunde 2 pencere azdi —
+    # kickoff'lar gun icine dagiliyor; limitler zaten spam'i engeller)
+    try:
+        import agents
+        agents.run_all(place=True)
+    except Exception as e:
+        print(f"[{_ts()}] AGENTS(FETCH) HATA: {e}")
 
 
 def job_auto_settle():
