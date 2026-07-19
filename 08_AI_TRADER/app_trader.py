@@ -1198,6 +1198,10 @@ def get_system_health():
     h["upcoming"] = one("SELECT COUNT(*) AS n FROM matches_v2 WHERE is_settled=0 "
                         "AND kickoff_utc > ? AND closing_1 IS NOT NULL",
                         (now_iso,)).get("n") or 0
+    try:
+        h["agent_run"] = one("SELECT MAX(ts) AS v, SUM(coupons) AS c FROM agent_runs")
+    except Exception:
+        h["agent_run"] = {}
     return h
 
 
@@ -1234,9 +1238,15 @@ def render_system_health() -> None:
     per_c = "#10d48e" if pst == "active" else "#f59e0b"
     stray = h.get("stray") or 0
     stray_c = "#10d48e" if stray < 60 else "#f59e0b" if stray < 300 else "#ef4444"
+    ar = h.get("agent_run") or {}
+    ar_s, ar_h = _age_str(ar.get("v"))
+    ar_c = ("#10d48e" if (ar_h is not None and ar_h <= 4)
+            else "#f59e0b" if (ar_h is not None and ar_h <= 9) else "#ef4444")
     tiles = "".join([
         _clv_tile("⚙ Son Veri", fetch_s or "—", fetch_c, "worker fetch tazeliği"),
         _clv_tile("Son Kupon", cp_s or "—", cp_c, f"açık: {h.get('open_n', 0)}"),
+        _clv_tile("🤖 Son Ajan Koşusu", ar_s or "—", ar_c,
+                  "worker ajanları çalıştırıyor mu"),
         _clv_tile("Dönem", pst.upper(), per_c,
                   "bahis açılabilir" if pst == "active" else "kilit/duraklama"),
         _clv_tile("Motor Görüşü", f"{h.get('upcoming', 0)}", "#3b82f6", "oranlı upcoming maç"),
@@ -1337,9 +1347,9 @@ def get_agent_data(pid: str):
         except Exception:
             out["clv"] = None
         out["journal"] = _db_rows(
-            "SELECT entry_date, title, pnl FROM paper_journal "
-            "WHERE portfolio_id=? AND entry_type='RESULT' "
-            "ORDER BY created_at DESC LIMIT 6", (pid,))
+            "SELECT entry_date, entry_type, title, content, pnl "
+            "FROM paper_journal WHERE portfolio_id=? "
+            "ORDER BY created_at DESC LIMIT 8", (pid,))
     except Exception as e:
         out["error"] = str(e)
     return out
@@ -1495,6 +1505,29 @@ def _render_agent_page(pid: str) -> None:
             f'<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;padding:6px;">'
             f'<table style="width:100%;border-collapse:collapse;">{rows_h}</table></div>',
             unsafe_allow_html=True)
+
+    # ▸ AJAN JOURNAL'I — kendi kupon sonuçları + sözleşme kararları
+    jrn = d.get("journal") or []
+    if jrn:
+        st.markdown('<div class="sec-title"><div class="sec-title-main">▸ JOURNAL — '
+                    f'{meta["title"]}</div></div>', unsafe_allow_html=True)
+        for j in jrn:
+            title = j.get("title") or ""
+            pnl_j = j.get("pnl") or 0
+            etype = j.get("entry_type") or ""
+            won = "KAZANDI" in title or (etype == "RESULT" and pnl_j > 0)
+            tc = ("#10d48e" if won else "#ef4444") if etype == "RESULT" else "#f59e0b"
+            content = (j.get("content") or "")[:260].replace("\n", "<br>")
+            st.markdown(
+                f'<div style="background:#0b1120;border-left:3px solid {tc};border-radius:5px;'
+                f'padding:8px 12px;margin-bottom:6px;">'
+                f'<div style="display:flex;justify-content:space-between;">'
+                f'<span style="color:{tc};font-size:11px;font-weight:700;">{title}</span>'
+                f'<span style="color:#475569;font-size:10px;font-family:Consolas,monospace;">'
+                f'{j.get("entry_date","")}</span></div>'
+                f'<div style="color:#94a3b8;font-size:10px;line-height:1.55;'
+                f'font-family:Consolas,monospace;margin-top:3px;">{content}</div>'
+                f'</div>', unsafe_allow_html=True)
 
 
 def page_temkinli(portfolio: dict) -> None:
@@ -1654,6 +1687,24 @@ def page_score_table(portfolio: dict) -> None:
         '<td style="padding:4px 8px;text-align:right;">Açık</td>'
         '<td style="padding:4px 8px;text-align:right;">Dönem</td></tr>'
         f'{body}</table></div>', unsafe_allow_html=True)
+    # ── Oyuncu sayfasına hızlı geçiş ──────────────────────────
+    NAV_LABEL = {
+        "PAPER_V1": "Genel Bakış", "TEMKINLI_V1": "🛡 Temkinli",
+        "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
+        "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
+        "TRIVOX_V1": "🇹🇷 Trivox 😴", "EUVOX_V1": "🇪🇺 Euvox 😴",
+    }
+    st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+                'letter-spacing:0.08em;font-weight:700;margin:10px 0 4px 0;">'
+                '↗ OYUNCU SAYFASINA GİT</div>', unsafe_allow_html=True)
+    btn_cols = st.columns(len(rows))
+    for col, r in zip(btn_cols, rows):
+        with col:
+            if st.button(f'{r["icon"]} {r["title"]}', key=f'go_{r["pid"]}',
+                         use_container_width=True):
+                st.session_state["nav_page"] = NAV_LABEL.get(r["pid"], "Genel Bakış")
+                st.rerun()
+
     st.markdown(
         '<div style="color:#475569;font-size:10px;padding:8px 0;">'
         '🔬 DATA→MODEL→AGENT döngüsü: her ajan bir hipotezi test eder '
@@ -2783,14 +2834,30 @@ def page_journal(portfolio: dict) -> None:
     </div>
     """, unsafe_allow_html=True)
 
-    entries = _db_rows("""
-        SELECT entry_date, entry_type, title, content,
-               signal_name, market, pick, odds, actual_result, pnl,
-               tags, model_action
-        FROM paper_journal
-        WHERE portfolio_id=?
-        ORDER BY created_at DESC LIMIT 20
-    """, (PORTFOLIO_ID,))
+    # ── Oyuncu filtresi: konsolide görünüm (Tümü) veya tek ajan ──
+    _opts = ["🌐 Tümü (konsolide)"] + [
+        f'{m["icon"]} {m["title"]}' for m in AGENT_META.values()]
+    _label_to_pid = {f'{m["icon"]} {m["title"]}': apid
+                     for apid, m in AGENT_META.items()}
+    sel = st.selectbox("Oyuncu", _opts, key="journal_player",
+                       label_visibility="collapsed")
+    if sel in _label_to_pid:
+        entries = _db_rows("""
+            SELECT portfolio_id, entry_date, entry_type, title, content,
+                   signal_name, market, pick, odds, actual_result, pnl,
+                   tags, model_action
+            FROM paper_journal
+            WHERE portfolio_id=?
+            ORDER BY created_at DESC LIMIT 25
+        """, (_label_to_pid[sel],))
+    else:
+        entries = _db_rows("""
+            SELECT portfolio_id, entry_date, entry_type, title, content,
+                   signal_name, market, pick, odds, actual_result, pnl,
+                   tags, model_action
+            FROM paper_journal
+            ORDER BY created_at DESC LIMIT 30
+        """)
 
     TYPE_COLORS = {
         "PICK":               "#3b82f6",
@@ -2808,6 +2875,10 @@ def page_journal(portfolio: dict) -> None:
             econt     = j.get("content", "")
             pnl_j     = j.get("pnl") or 0
             model_act = j.get("model_action") or ""
+            _jm = AGENT_META.get(j.get("portfolio_id") or "")
+            pj_badge = (f'<span style="color:{_jm["renk"]};font-size:10px;font-weight:700;'
+                        f'font-family:Consolas,monospace;margin-right:10px;">'
+                        f'{_jm["icon"]} {_jm["title"]}</span>' if _jm else "")
 
             # ── RESULT entries: Meridian-style settlement card with chart ──
             if etype == "RESULT":
@@ -2927,7 +2998,8 @@ def page_journal(portfolio: dict) -> None:
                     f'<span style="background:{tc};color:#0a0d14;font-size:10px;font-weight:800;'
                     f'text-transform:uppercase;letter-spacing:0.08em;padding:2px 8px;border-radius:4px;">'
                     f'{badge_txt}</span>'
-                    f'<span style="color:#475569;font-size:11px;font-family:Consolas,monospace;">{edate}</span>'
+                    f'<span>{pj_badge}<span style="color:#475569;font-size:11px;'
+                    f'font-family:Consolas,monospace;">{edate}</span></span>'
                     f'</div>'
 
                     # title
@@ -2965,7 +3037,8 @@ def page_journal(portfolio: dict) -> None:
                     f'<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
                     f'<span style="color:{tc};font-size:10px;font-weight:700;'
                     f'text-transform:uppercase;letter-spacing:0.08em;">{etype}</span>'
-                    f'<span style="color:#475569;font-size:11px;font-family:Consolas,monospace;">{edate}</span>'
+                    f'<span>{pj_badge}<span style="color:#475569;font-size:11px;'
+                    f'font-family:Consolas,monospace;">{edate}</span></span>'
                     f'</div>'
                     f'<div style="color:#e2e8f0;font-weight:600;font-size:13px;margin-bottom:3px;">{etitle}</div>'
                     f'<div style="color:#94a3b8;font-size:12px;line-height:1.5;">{econt}</div>'

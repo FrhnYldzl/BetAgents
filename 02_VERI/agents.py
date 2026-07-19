@@ -577,6 +577,19 @@ def run_all(place: bool = True) -> dict:
             out[pid] = []
     n_total = sum(len(v) for v in out.values())
     print(f"[AGENTS] === run_all bitti: {n_total} kupon ===")
+    # 💓 HEARTBEAT: worker'ın ajanları gerçekten koşturduğunun DB kanıtı
+    # (UI Sistem Sağlığı 'Son Ajan Koşusu' bunu okur — log görünmese de iz kalır)
+    try:
+        conn = db.connect()
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_runs "
+                     "(ts TEXT, coupons INTEGER, detail TEXT)")
+        conn.execute("INSERT INTO agent_runs (ts, coupons, detail) VALUES (?,?,?)",
+                     (_now(), n_total,
+                      ",".join(f"{k.split('_')[0]}:{len(v)}" for k, v in out.items())))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[AGENTS] heartbeat yazilamadi: {e}")
     # 📜 Sözleşme ligi — haftalık saat dolduysa değerlendir (dolmadıysa sessiz)
     try:
         review_league()
