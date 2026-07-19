@@ -60,8 +60,12 @@ def run(no_fetch: bool = False, max_events: int = 40):
 
     # ── 2. Açık kupon limiti kontrolü ────────────────────────────
     conn = db.connect()
+    # FIX (coklu-ajan): limit SADECE kendi portfoyunun acik kuponlarina
+    # bakmali — eskisi TUM portfoyleri sayiyordu, ajanlarin kuponlari
+    # KURUCU'yu blokluyordu (16>=12 -> surekli PAS).
     open_n = conn.execute(
-        "SELECT COUNT(*) FROM paper_coupons WHERE status='open'"
+        "SELECT COUNT(*) FROM paper_coupons WHERE status='open' "
+        "AND portfolio_id='KURUCU_V2'"
     ).fetchone()[0]
     bankroll = conn.execute(
         "SELECT current_bankroll FROM paper_portfolio WHERE portfolio_id='KURUCU_V2'"
