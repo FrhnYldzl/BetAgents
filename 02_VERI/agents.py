@@ -102,6 +102,22 @@ PROFILES: dict[str, dict] = {
         "sort": "value",
         "mode": "value", "value_min_edge": 0.06,
     },
+    "POPULER_V1": {
+        # 🔥 POPÜLER: iddaa.com'un GERÇEK yazarları (contentv2 editors, track
+        # record'lu) + KONSENSÜS (aynı pick'e ≥2 yazar = kalabalık bilgeliği
+        # vekili) + SHARP teyidi (currentOdd < pick oranı = piyasa da o yöne).
+        # Not: gerçek oynanma-%'si API'de yok; konsensüs+sharp en dürüst vekil.
+        # Yazar seçimi hipotezi gereği KG dahil tüm desteklenen pazarlar açık.
+        "name": "POPÜLER (yazar + konsensüs)",
+        "stop_pct": -0.20,
+        "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
+        "min_mp": 0.0, "min_odds": 1.25,
+        "combo_cap": 3.50, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 4,
+        "tek_stake": 0.05, "k3_stake": 0.04,
+        "sort": "pop",
+        "mode": "popular", "pop_min_score": 0.45,
+    },
     # ── 😴 SEZON AJANLARI: kayıtlı ama UYKUDA (Ağustos'ta aktive edilecek) ──
     # MODEL_REGISTRY'de 13 model var; iki amiral gemisi burada ajan olarak
     # açıldı ki UNUTULMASIN. dormant=True → kasa hazır, kupon OYNAMAZ.
@@ -375,6 +391,170 @@ def review_league() -> None:
         conn.close()
 
 
+# ════════════════════════════════════════════════════════════════
+# 🔥 POPÜLER aday kaynağı — yazar pick'leri + konsensüs + sharp
+# ════════════════════════════════════════════════════════════════
+
+def _vig_strip(odds_list):
+    inv = [1.0 / o for o in odds_list if o and o > 1.0]
+    if len(inv) != len(odds_list) or not inv:
+        return None
+    t = sum(inv)
+    return [x / t for x in inv]
+
+
+def _popular_candidates(prof: dict, tag: str) -> list[dict]:
+    from datetime import datetime as _dt, timedelta as _td
+    import json as _json
+
+    # 1) Taze ingest (2 saatte bir; iddaa contentv2 — Railway'den erişilebilir)
+    try:
+        scr = str(THIS_DIR / "scrapers")
+        if scr not in sys.path:
+            sys.path.insert(0, scr)
+        conn = db.connect()
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tipster_picks ("
+            "tipster_id TEXT, tipster_name TEXT, source TEXT, posted_at TEXT, "
+            "kickoff_iso TEXT, home_team TEXT, away_team TEXT, market TEXT, "
+            "selection TEXT, pick_odd REAL, stake_units REAL, confidence REAL, "
+            "settled INTEGER, won INTEGER, inserted_at TEXT, raw_json TEXT)")
+        conn.commit()
+        last = conn.execute(
+            "SELECT MAX(inserted_at) FROM tipster_picks").fetchone()[0]
+        conn.close()
+        stale = True
+        if last:
+            try:
+                stale = (_dt.utcnow() - _dt.fromisoformat(str(last)[:19])) > _td(hours=2)
+            except Exception:
+                stale = True
+        if stale:
+            from iddaa_tipster_scraper import ingest_all_editors
+            res = ingest_all_editors(delay=0.3)
+            print(f"{tag} yazar taramasi: {res}")
+    except Exception as e:
+        print(f"{tag} yazar taramasi atlandi: {str(e)[:70]}")
+
+    # 2) Bekleyen pick'ler + yazar kalitesi (Wilson alt sınırı)
+    now19 = _now()[:19]
+    conn = db.connect()
+    try:
+        pend = [dict(r) for r in conn.execute(
+            "SELECT tipster_id, tipster_name, market, selection, pick_odd, "
+            "kickoff_iso, raw_json, inserted_at FROM tipster_picks "
+            "WHERE settled=0").fetchall()]
+        qual_rows = conn.execute(
+            "SELECT tipster_id, SUM(won), COUNT(*) FROM tipster_picks "
+            "WHERE settled=1 GROUP BY tipster_id").fetchall()
+    finally:
+        conn.close()
+    try:
+        from iddaa_tipster_scraper import wilson_interval
+    except Exception:
+        def wilson_interval(w, n, z=1.96):
+            return ((w / n) if n else 0.0, 1.0)
+    quality = {}
+    for tid, w, n in qual_rows:
+        w, n = int(w or 0), int(n or 0)
+        quality[tid] = wilson_interval(w, n)[0] if n >= 10 else 0.42
+
+    # 3) Pazar eşleme + eventId ile matches_v2 join + konsensüs gruplama
+    def _map(mkt, sel):
+        s = (sel or "").strip()
+        if mkt == "1X2" and s in ("1", "X", "2", "0"):
+            return ("1X2", "X" if s in ("X", "0") else s)
+        if mkt in ("OU2.5", "OU2,5"):
+            if "st" in s.lower():          # Üst/Ust
+                return ("UST_25", "UST")
+            if "lt" in s.lower():          # Alt
+                return ("ALT_25", "ALT")
+        if mkt == "BTTS":
+            if s.lower().startswith("var"):
+                return ("KG_VAR", "VAR")
+            if s.lower().startswith("yok"):
+                return ("KG_YOK", "YOK")
+        return None
+
+    ODDS_COL = {("1X2", "1"): "closing_1", ("1X2", "X"): "closing_X",
+                ("1X2", "2"): "closing_2", ("UST_25", "UST"): "closing_over25",
+                ("ALT_25", "ALT"): "closing_under25",
+                ("KG_VAR", "VAR"): "closing_btts_yes",
+                ("KG_YOK", "YOK"): "closing_btts_no"}
+
+    groups: dict = {}
+    for p in pend:
+        ko = str(p.get("kickoff_iso") or "")[:19]
+        if not ko or ko <= now19:
+            continue
+        mapped = _map(p.get("market"), p.get("selection"))
+        if not mapped:
+            continue
+        try:
+            raw = _json.loads(p.get("raw_json") or "{}")
+        except Exception:
+            raw = {}
+        eid = raw.get("eventId")
+        if not eid:
+            continue
+        key = (str(eid),) + mapped
+        g = groups.setdefault(key, {"editors": set(), "sharp": [], "q": []})
+        g["editors"].add(p.get("tipster_id"))
+        g["q"].append(quality.get(p.get("tipster_id"), 0.42))
+        odd, cur = raw.get("odd"), raw.get("currentOdd")
+        if odd and cur:
+            g["sharp"].append(1.0 if float(cur) < float(odd) else 0.0)
+
+    conn = db.connect()
+    picks: list[dict] = []
+    try:
+        for (eid, mkt, sel), g in groups.items():
+            m = conn.execute(
+                "SELECT * FROM matches_v2 WHERE external_id_iddaa=? "
+                "AND is_settled=0 AND kickoff_utc > ?",
+                (eid, now19)).fetchone()
+            if m is None:
+                continue
+            m = dict(m)
+            odds = m.get(ODDS_COL[(mkt, sel)]) or m.get(ODDS_COL[(mkt, sel)].lower())
+            try:
+                odds = float(odds)
+            except (TypeError, ValueError):
+                continue
+            if odds < prof["min_odds"]:
+                continue
+            # vig'siz olasılık (dürüst model_prob)
+            if mkt == "1X2":
+                probs = _vig_strip([m.get("closing_1"), m.get("closing_X"),
+                                    m.get("closing_2")])
+                mp = probs[{"1": 0, "X": 1, "2": 2}[sel]] if probs else None
+            elif mkt in ("UST_25", "ALT_25"):
+                probs = _vig_strip([m.get("closing_over25"), m.get("closing_under25")])
+                mp = probs[0 if mkt == "UST_25" else 1] if probs else None
+            else:
+                probs = _vig_strip([m.get("closing_btts_yes"), m.get("closing_btts_no")])
+                mp = probs[0 if mkt == "KG_VAR" else 1] if probs else None
+            if mp is None:
+                mp = 1.0 / odds
+            n_ed = len(g["editors"])
+            best_q = max(g["q"]) if g["q"] else 0.42
+            sharp = (sum(g["sharp"]) / len(g["sharp"])) if g["sharp"] else 0.0
+            score = 0.45 * best_q + 0.30 * sharp + 0.25 * (1.0 if n_ed >= 2 else 0.4)
+            if score < prof.get("pop_min_score", 0.45):
+                continue
+            picks.append({
+                "market": mkt, "pick": sel, "odds": odds,
+                "implied_prob": 1.0 / odds, "model_prob": mp,
+                "edge": mp - 1.0 / odds,
+                "signal_name": f"POP_{n_ed}Y" + ("_SHARP" if sharp >= 0.5 else ""),
+                "signal_score": round(score, 3), "_match": m,
+            })
+    finally:
+        conn.close()
+    print(f"{tag} popüler aday: {len(groups)} grup -> {len(picks)} kural-geçen pick")
+    return picks
+
+
 def _sort_key(prof: dict):
     mode = prof["sort"]
     if mode == "hunt":
@@ -384,6 +564,8 @@ def _sort_key(prof: dict):
         return lambda s: (s.get("signal_score") or 0, s.get("model_prob") or 0)
     if mode == "value":
         return lambda s: (s.get("_dev") or -9, s.get("odds") or 0)
+    if mode == "pop":
+        return lambda s: (s.get("signal_score") or 0, s.get("odds") or 0)
     return lambda s: (s.get("model_prob") or 0, s.get("signal_score") or 0)
 
 
@@ -434,8 +616,14 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         return []
     bankroll = per["period_start_bankroll"]
 
-    # Model modu (HOCA/SIMYACI): bağımsız Poisson gol modelini yükle
+    # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
     mode = prof.get("mode")
+    if mode == "popular":
+        picks = _popular_candidates(prof, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # Model modu (HOCA/SIMYACI): bağımsız Poisson gol modelini yükle
     ratings = None
     if mode in ("confirm", "value"):
         try:
@@ -485,9 +673,15 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             picks.append(s)
 
     picks.sort(key=_sort_key(prof), reverse=True)
+    return _assemble_coupons(prof, bankroll, picks)
+
+
+def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[dict]:
+    """Aday pick'lerden MBS-uyumlu kupon montajı (TEK öncelik + tavanlı K3).
+    Hem sinyal-motorlu ajanlar hem 🔥 POPÜLER aynı montajı kullanır."""
     coupons: list[dict] = []
     used: set = set()
-    slots = prof["max_daily"] - 0
+    slots = prof["max_daily"]
 
     # 1) TEK'ler (MBS=1) — kanıt: 1-2 ayak ezici üstün
     n_tek = 0

@@ -1299,6 +1299,16 @@ AGENT_META = {
                   "oran ≥1.40 · tavan 4.00 · küçük stake (%3-4) · stop −%25. "
                   "DÜRÜST NOT: backtest bu hipoteze −%8 dedi — SİMYACI canlı "
                   "KONTROL deneyidir; kazanırsa hipotez ayağa kalkar.")},
+    "POPULER_V1": {
+        "icon": "🔥", "title": "POPÜLER", "renk": "#fb7185",
+        "sub": "YAZAR + KONSENSÜS (iddaa.com)",
+        "rules": ("iddaa.com'un GERÇEK yazarlarının (track-record'lu, Wilson alt "
+                  "sınırı) bekleyen pick'leri · KONSENSÜS: aynı pick'e ≥2 yazar = "
+                  "kalabalık bilgeliği · SHARP teyidi: oran pick'ten beri DÜŞTÜYSE "
+                  "piyasa da aynı yönde · skor = 0.45 yazar + 0.30 sharp + 0.25 "
+                  "konsensüs · oran ≥1.25 · tavan 3.50 · günde max 2 · stop −%20. "
+                  "Not: gerçek oynanma-%'si API'de yok; konsensüs+sharp en dürüst "
+                  "vekildir. Yazar-takip hipotezi gereği KG dahil tüm pazarlar açık.")},
     "TRIVOX_V1": {
         "icon": "🇹🇷", "title": "TRIVOX", "renk": "#e11d48", "dormant": True,
         "sub": "😴 SEZON BEKLİYOR (AĞUSTOS) · T1 UZMANI",
@@ -1550,6 +1560,10 @@ def page_simyaci(portfolio: dict) -> None:
     _render_agent_page("SIMYACI_V1")
 
 
+def page_populer(portfolio: dict) -> None:
+    _render_agent_page("POPULER_V1")
+
+
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
 
@@ -1692,6 +1706,7 @@ def page_score_table(portfolio: dict) -> None:
         "PAPER_V1": "Genel Bakış", "TEMKINLI_V1": "🛡 Temkinli",
         "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
         "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
+        "POPULER_V1": "🔥 Popüler",
         "TRIVOX_V1": "🇹🇷 Trivox 😴", "EUVOX_V1": "🇪🇺 Euvox 😴",
     }
     st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'

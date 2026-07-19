@@ -134,6 +134,13 @@ def write_picks(editor: dict, comments: list[dict]) -> int:
         now = datetime.utcnow().isoformat()
         tipster_id = f"iddaa:{editor.get('editorId')}"
         tipster_name = editor.get("editorName")
+        # İdempotent: editorDetails her seferinde TAM geçmişi döner →
+        # eski satırları sil, tazesini yaz (mükerrer birikimi önler)
+        try:
+            conn.execute("DELETE FROM tipster_picks WHERE tipster_id=?",
+                         (tipster_id,))
+        except Exception:
+            conn.rollback()
         n = 0
         for c in comments:
             try:
@@ -260,8 +267,14 @@ def update_editor_stats(editor_id: int, editor_name: str,
             score = wilson_lower * math.log(settled_n + 1) * (1.0 + roi_clip)
 
         now = datetime.utcnow().isoformat()
+        # PG-uyumlu upsert: OR REPLACE çevrilemiyor → sil + ekle
+        try:
+            conn.execute("DELETE FROM tipster_stats WHERE tipster_id=?",
+                         (tipster_id,))
+        except Exception:
+            conn.rollback()
         conn.execute("""
-            INSERT OR REPLACE INTO tipster_stats(
+            INSERT INTO tipster_stats(
                 tipster_id, tipster_name, source,
                 total_picks, settled_picks, wins,
                 win_rate, avg_odd, roi, recent_form_50,
