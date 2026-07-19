@@ -102,6 +102,24 @@ PROFILES: dict[str, dict] = {
         "sort": "value",
         "mode": "value", "value_min_edge": 0.06,
     },
+    "ERKENKUS_V1": {
+        # ⏰ ERKENKUŞ: Era-1 arşiv madenciliğinin (315 bahis) tek pozitif cebi:
+        # kickoff'a >48 saat kala girilen bahisler %80 isabet / +1.3% flatROI
+        # (n=44); 6-18sa penceresi -%26 (ölüm penceresi). Mantık: erken pazar
+        # gevşek — kitap bilgiyi sindirmemiş; CLV>0 yakalama şansı en yüksek
+        # (CLV>0 bahisler %73/-7.6 vs CLV<=0 %66/-14.5). Avrupa saat bandı
+        # filtresi de kanıttan (12-24 UTC: -9%; Asya sabahı: -20%).
+        "name": "ERKENKUŞ (erken pazar avcısı)",
+        "stop_pct": -0.20,
+        "markets": {"KG_YOK", "UST_25", "ALT_25"},
+        "fav_min": 0.65,
+        "min_mp": 0.62, "min_odds": 1.20,
+        "combo_cap": 3.00, "max_daily": 2, "max_open": 5,
+        "max_tek": 1, "loss_streak": 4,
+        "tek_stake": 0.05, "k3_stake": 0.04,
+        "sort": "safety",
+        "min_lead_h": 48, "kick_hours": (12, 24),
+    },
     "POPULER_V1": {
         # 🔥 POPÜLER: iddaa.com'un GERÇEK yazarları (contentv2 editors, track
         # record'lu) + KONSENSÜS (aynı pick'e ≥2 yazar = kalabalık bilgeliği
@@ -638,6 +656,20 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
 
     picks: list[dict] = []
     for m in matches:
+        # ⏰ Zaman filtreleri (ERKENKUŞ): erken-giriş penceresi + saat bandı
+        if prof.get("min_lead_h") or prof.get("kick_hours"):
+            from datetime import datetime as _dt
+            ko = str(m.get("kickoff_utc") or "")[:19]
+            try:
+                lead_h = (_dt.fromisoformat(ko) - _dt.utcnow()).total_seconds() / 3600
+                ko_hour = int(ko[11:13])
+            except Exception:
+                continue
+            if prof.get("min_lead_h") and lead_h < prof["min_lead_h"]:
+                continue
+            kh = prof.get("kick_hours")
+            if kh and not (kh[0] <= ko_hour < kh[1]):
+                continue
         try:
             sigs = eng.evaluate_match(m)
         except Exception:

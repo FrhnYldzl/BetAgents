@@ -1309,6 +1309,16 @@ AGENT_META = {
                   "oran ≥1.40 · tavan 4.00 · küçük stake (%3-4) · stop −%25. "
                   "DÜRÜST NOT: backtest bu hipoteze −%8 dedi — SİMYACI canlı "
                   "KONTROL deneyidir; kazanırsa hipotez ayağa kalkar.")},
+    "ERKENKUS_V1": {
+        "icon": "⏰", "title": "ERKENKUŞ", "renk": "#22d3ee",
+        "sub": "ERKEN PAZAR AVCISI (KICKOFF'A ≥48 SAAT)",
+        "rules": ("Era-1 arşiv madenciliğinin (315 bahis) TEK pozitif cebi: "
+                  ">48 saat erken girilen bahisler %80 isabet / +1.3% ROI (n=44); "
+                  "6-18 saat penceresi −%26 (yasak bölge). Mantık: erken pazar "
+                  "gevşek, çizgiyi yenme (CLV>0) şansı en yüksek. Filtreler: "
+                  "kickoff'a ≥48 sa · Avrupa saat bandı (12-24 UTC; Asya sabahı "
+                  "−%20'ydi) · KG_YOK/ÜST/ALT + FAV(≥%65) · tavan 3.00 · "
+                  "günde max 2 · stop −%20.")},
     "POPULER_V1": {
         "icon": "🔥", "title": "POPÜLER", "renk": "#fb7185",
         "sub": "YAZAR + KONSENSÜS (iddaa.com)",
@@ -1574,6 +1584,10 @@ def page_populer(portfolio: dict) -> None:
     _render_agent_page("POPULER_V1")
 
 
+def page_erkenkus(portfolio: dict) -> None:
+    _render_agent_page("ERKENKUS_V1")
+
+
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
 
@@ -1719,7 +1733,7 @@ def page_score_table(portfolio: dict) -> None:
         "KURUCU_V2": "Genel Bakış", "PAPER_V1": "Journal", "TEMKINLI_V1": "🛡 Temkinli",
         "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
         "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
-        "POPULER_V1": "🔥 Popüler",
+        "POPULER_V1": "🔥 Popüler", "ERKENKUS_V1": "⏰ Erkenkuş",
         "TRIVOX_V1": "🇹🇷 Trivox 😴", "EUVOX_V1": "🇪🇺 Euvox 😴",
     }
     st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
