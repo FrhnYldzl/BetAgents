@@ -1321,14 +1321,14 @@ AGENT_META = {
                   "vekildir. Yazar-takip hipotezi gereği KG dahil tüm pazarlar açık.")},
     "TRIVOX_V1": {
         "icon": "🇹🇷", "title": "TRIVOX", "renk": "#e11d48", "dormant": True,
-        "sub": "😴 SEZON BEKLİYOR (AĞUSTOS) · T1 UZMANI",
+        "sub": "😴 UYANIŞ: 10 AĞU 2026 · SEZON: 14 AĞU · T1 UZMANI",
         "rules": ("Türkiye Süper Lig konsensüs modeli (TRIVOX v1.2 — kayıt "
                   "defterindeki 13 modelin T1 amirali). Kasa hazır, T1 açılınca "
                   "aktive edilecek: lig eşleme + model sinyal hattı bağlanacak. "
                   "Alt-modeller (MONOVOX/DUOVOX/BTTS-*) filtre olarak katılır.")},
     "EUVOX_V1": {
         "icon": "🇪🇺", "title": "EUVOX", "renk": "#6366f1", "dormant": True,
-        "sub": "😴 SEZON BEKLİYOR (AĞUSTOS) · AVRUPA DC",
+        "sub": "😴 UYANIŞ: 10 AĞU 2026 · LİGLER: 14-23 AĞU · AVRUPA DC",
         "rules": ("Avrupa ligleri Dixon-Coles modeli (EUVOX v1.1 — SP1/I1/F1 "
                   "lig-ayarlı). Kasa hazır, Avrupa ligleri açılınca aktive "
                   "edilecek. OU25-*/BTTS-* alt-modelleri bacak filtresi olur.")},
