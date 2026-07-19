@@ -64,7 +64,7 @@ def run(no_fetch: bool = False, max_events: int = 40):
         "SELECT COUNT(*) FROM paper_coupons WHERE status='open'"
     ).fetchone()[0]
     bankroll = conn.execute(
-        "SELECT current_bankroll FROM paper_portfolio WHERE portfolio_id='PAPER_V1'"
+        "SELECT current_bankroll FROM paper_portfolio WHERE portfolio_id='KURUCU_V2'"
     ).fetchone()
     bankroll = bankroll[0] if bankroll else 0
     conn.close()
@@ -81,7 +81,7 @@ def run(no_fetch: bool = False, max_events: int = 40):
     # ── 3. Modeli değerlendir, kupon oluştur ─────────────────────
     try:
         from paper_engine import PaperEngine
-        engine = PaperEngine("PAPER_V1")
+        engine = PaperEngine("KURUCU_V2")
 
         # Hedefli dönem durumu
         per = engine.manage_period()
@@ -112,7 +112,7 @@ def run(no_fetch: bool = False, max_events: int = 40):
 
         # DB'ye yaz (gerçek paper bet)
         ids = engine.place_coupons(coupons, dry_run=False)
-        log(f"KUPON OLUŞTURULDU: {len(ids)} adet 5000 TL paper hesaba kaydedildi.")
+        log(f"KUPON OLUŞTURULDU: {len(ids)} adet KURUCU_V2 (Era-2) hesabina kaydedildi.")
 
     except Exception as e:
         log(f"RUN HATA: {e}")

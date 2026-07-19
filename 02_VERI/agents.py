@@ -295,8 +295,10 @@ def review_league() -> None:
             return
 
         print("[LIG] 📜 HAFTALIK SOZLESME DEGERLENDIRMESI")
-        field = [p for p in PROFILES
-                 if not PROFILES[p].get("dormant") and not _is_benched(conn, p)]
+        # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler
+        field = [p for p in list(PROFILES) + ["KURUCU_V2"]
+                 if not PROFILES.get(p, {}).get("dormant")
+                 and not _is_benched(conn, p)]
         stats = []
         for pid in field:
             row = conn.execute(

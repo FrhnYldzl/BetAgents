@@ -28,8 +28,8 @@ YAZILIM  = THIS_DIR.parent
 DB_PATH  = YAZILIM / "02_VERI" / "bahis_agent.db"
 sys.path.insert(0, str(YAZILIM / "02_VERI"))
 
-PORTFOLIO_ID = "PAPER_V1"
-INITIAL_BANKROLL = 5_000.0
+PORTFOLIO_ID = "KURUCU_V2"   # Era-2: yarışa dahil (Era-1 arşivi = PAPER_V1)
+INITIAL_BANKROLL = 1_000.0   # Era-2 yarış kasası (Era-1: 5.000 TL, arşivde)
 IDDAA_URL = "https://www.iddaa.com/program/futbol-mac-onceski"
 
 
@@ -1263,10 +1263,20 @@ def render_system_health() -> None:
 AGENT_META = {
     # 👑 KURUCU = ana sistem (PAPER_V1) — o da bir oyuncu; ligde görünür,
     # kendi sayfası zaten tüm ana dashboard'dur.
-    "PAPER_V1": {
+    "KURUCU_V2": {
         "icon": "👑", "title": "KURUCU", "renk": "#a78bfa",
-        "sub": "ANA SİSTEM (5.000 TL)",
-        "rules": "Ana motor: MBS-aware TEK+K3 · tüm sinyal aileleri · dönem hedefi +%20"},
+        "sub": "ERA-2 · YARIŞTA (1.000 TL, ajanlarla aynı şartlar)",
+        "rules": ("Ana motor (MBS-aware TEK+K3, tüm sinyal aileleri) Era-2'de "
+                  "yarışa dahil: 1.000 TL · hedef 2.500 · Sözleşme Ligi kuralları "
+                  "ona da işler (ihtar/kadro dışı/kasa devri). Era-1 (5.000 TL) "
+                  "arşivde — 📦 KURUCU-ARŞİV.")},
+    "PAPER_V1": {
+        "icon": "📦", "title": "KURUCU-ARŞİV", "renk": "#64748b", "archived": True,
+        "sub": "ERA-1 ARŞİVİ (5.000 TL dönemi — salt okunur)",
+        "rules": ("KURUCU'nun Era-1 tarihçesi: tüm kuponlar/bahisler/journal "
+                  "kalıcı olarak burada. Yeni kupon OYNAMAZ. Ders: off-season "
+                  "düşük-lig gürültüsünde frensiz oyun −%55 götürdü — Era-2 bu "
+                  "yüzden lig kurallarına bağlı.")},
     "TEMKINLI_V1": {
         "icon": "🛡", "title": "TEMKİNLİ", "renk": "#10d48e",
         "sub": "DÜŞÜK RİSK",
@@ -1617,6 +1627,7 @@ def get_score_table():
             "open": agg.get("o") or 0,
             "period": p.get("period_status") or "?",
             "dormant": bool(meta.get("dormant")),
+            "archived": bool(meta.get("archived")),
             "ihtar": p.get("ihtar_count") or 0,
             "benched": bool(p.get("benched")),
         })
@@ -1663,7 +1674,9 @@ def page_score_table(portfolio: dict) -> None:
         hit_txt = f"%{r['hit']:.0f}" if r["hit"] is not None else "—"
         roi_txt = f"{r['roi']:+.1f}%" if r["roi"] is not None else "—"
         roi_c = "#10d48e" if (r["roi"] or 0) > 0 else "#ef4444" if (r["roi"] or 0) < 0 else "#94a3b8"
-        if r.get("benched"):
+        if r.get("archived"):
+            per_disp, per_c = "📦 ARŞİV", "#64748b"
+        elif r.get("benched"):
             per_disp, per_c = "🚫 KADRO DIŞI", "#ef4444"
         elif r.get("dormant"):
             per_disp, per_c = "😴 SEZON", "#f59e0b"
@@ -1703,7 +1716,7 @@ def page_score_table(portfolio: dict) -> None:
         f'{body}</table></div>', unsafe_allow_html=True)
     # ── Oyuncu sayfasına hızlı geçiş ──────────────────────────
     NAV_LABEL = {
-        "PAPER_V1": "Genel Bakış", "TEMKINLI_V1": "🛡 Temkinli",
+        "KURUCU_V2": "Genel Bakış", "PAPER_V1": "Journal", "TEMKINLI_V1": "🛡 Temkinli",
         "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
         "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
         "POPULER_V1": "🔥 Popüler",
@@ -1821,7 +1834,7 @@ def page_overview(portfolio: dict) -> None:
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;
                  display:flex;align-items:center;justify-content:center;
                  font-family:Consolas,monospace;font-size:12px;font-weight:700;color:#e2e8f0;">
-              {cur:,.0f} / {tgt:,.0f} TL  ·  %{prog:.0f} (hedef +%20)
+              {cur:,.0f} / {tgt:,.0f} TL  ·  %{prog:.0f} (hedef +%{(tgt/ps-1)*100:.0f})
             </div>
           </div>
         </div>
