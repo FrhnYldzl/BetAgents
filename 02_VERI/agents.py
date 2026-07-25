@@ -85,7 +85,8 @@ PROFILES: dict[str, dict] = {
         "max_tek": 1, "loss_streak": 3,
         "tek_stake": 0.05, "k3_stake": 0.04,
         "sort": "safety",
-        "mode": "confirm", "confirm_max_dev": 0.05,
+        "mode": "confirm", "confirm_max_dev": 0.07,
+        "pas_tolerance_days": 10,
     },
     "SIMYACI_V1": {
         # DEĞER hipotezi (KONTROL DENEYİ): model piyasadan >= +6p yüksek
@@ -95,12 +96,13 @@ PROFILES: dict[str, dict] = {
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.50,
-        "min_mp": 0.50, "min_odds": 1.40,
+        "min_mp": 0.50, "min_odds": 1.35,
         "combo_cap": 4.00, "max_daily": 2, "max_open": 4,
         "max_tek": 2, "loss_streak": 4,
         "tek_stake": 0.04, "k3_stake": 0.03,
         "sort": "value",
-        "mode": "value", "value_min_edge": 0.06,
+        "mode": "value", "value_min_edge": 0.05,
+        "pas_tolerance_days": 10,
     },
     "ERKENKUS_V1": {
         # ⏰ ERKENKUŞ: Era-1 arşiv madenciliğinin (315 bahis) tek pozitif cebi:
@@ -119,6 +121,7 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.05, "k3_stake": 0.04,
         "sort": "safety",
         "min_lead_h": 48, "kick_hours": (12, 24),
+        "pas_tolerance_days": 10,
     },
     "POPULER_V1": {
         # 🔥 POPÜLER: iddaa.com'un GERÇEK yazarları (contentv2 editors, track
@@ -180,6 +183,17 @@ def _get_ratings():
 
 def _now():
     return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+
+
+# 🌉 AĞUSTOS'A KÖPRÜ MODU — sezon başlangıcına (10 Ağu aktivasyon) kadar:
+#   • tüm ajanlarda stake ×0.5 (off-season gürültüsüne para yakma)
+#   • saat bandı zorunlu 12-24 UTC (Asya-sabah −%19.7 / gece −%16.5 kanıtı)
+# 2026-08-10'da OTOMATİK kalkar (tarih bazlı — unutma riski yok).
+BRIDGE_UNTIL = "2026-08-10"
+
+
+def bridge_active() -> bool:
+    return _now()[:10] < BRIDGE_UNTIL
 
 
 def ensure_portfolio(pid: str) -> None:
@@ -334,14 +348,17 @@ def review_league() -> None:
                 "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
                 "AND status IN ('won','lost')", (pid,)).fetchone()[0]
             from datetime import timedelta as _td
-            n_7g = conn.execute(
+            # Hipotez ajanlarına (HOCA/SIMYACI/ERKENKUS) geniş pasiflik
+            # penceresi: PAS onların meşru davranışı (pas_tolerance_days).
+            tol = PROFILES.get(pid, {}).get("pas_tolerance_days", 7)
+            n_win = conn.execute(
                 "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
                 "AND created_at > ?",
-                (pid, (now - _td(days=7)).isoformat())).fetchone()[0]
+                (pid, (now - _td(days=tol)).isoformat())).fetchone()[0]
             stats.append({"pid": pid, "cur": cur, "init": init,
                           "pnl_pct": (cur - init) / init * 100,
-                          "age": age_d, "n_dec": n_dec, "n_7g": n_7g,
-                          "ihtar": ihtar})
+                          "age": age_d, "n_dec": n_dec, "n_win": n_win,
+                          "tol": tol, "ihtar": ihtar})
 
         new_ihtar: dict[str, list] = {}
         # A) performans: en kötü negatif (n_dec>=5)
@@ -351,10 +368,11 @@ def review_league() -> None:
             worst = min(perf, key=lambda s: s["pnl_pct"])
             new_ihtar.setdefault(worst["pid"], []).append(
                 f"performans (lig sonuncusu, {worst['pnl_pct']:+.1f}%)")
-        # B) pasiflik: 7 günde 0 kupon
+        # B) pasiflik: tolerans penceresinde 0 kupon (ajan yaşı pencereyi doldurmuşsa)
         for s in stats:
-            if s["age"] >= 5 and s["n_7g"] == 0:
-                new_ihtar.setdefault(s["pid"], []).append("pasiflik (7 günde 0 kupon)")
+            if s["age"] >= s["tol"] and s["n_win"] == 0:
+                new_ihtar.setdefault(s["pid"], []).append(
+                    f"pasiflik ({s['tol']} günde 0 kupon)")
         # C) rota: 14+ gün ve <= -10%
         for s in stats:
             if s["age"] >= 14 and s["pnl_pct"] <= -10:
@@ -475,9 +493,13 @@ def _popular_candidates(prof: dict, tag: str) -> list[dict]:
         def wilson_interval(w, n, z=1.96):
             return ((w / n) if n else 0.0, 1.0)
     quality = {}
+    n_mature = 0
     for tid, w, n in qual_rows:
         w, n = int(w or 0), int(n or 0)
         quality[tid] = wilson_interval(w, n)[0] if n >= 10 else 0.42
+        if n >= 10:
+            n_mature += 1
+    mature = n_mature >= 3   # ≥3 yazarın gerçek track-record'u oluşana dek KORUMA
 
     # 3) Pazar eşleme + eventId ile matches_v2 join + konsensüs gruplama
     def _map(mkt, sel):
@@ -559,6 +581,16 @@ def _popular_candidates(prof: dict, tag: str) -> list[dict]:
             n_ed = len(g["editors"])
             best_q = max(g["q"]) if g["q"] else 0.42
             sharp = (sum(g["sharp"]) / len(g["sharp"])) if g["sharp"] else 0.0
+            # 🌉 köprü: Avrupa saat bandı herkese
+            if bridge_active():
+                try:
+                    if not (12 <= int(str(m.get("kickoff_utc"))[11:13]) < 24):
+                        continue
+                except Exception:
+                    continue
+            # KORUMA: karne olgunlaşmadan yalnız SHARP-teyitli pick oyna
+            if not mature and sharp < 0.5:
+                continue
             score = 0.45 * best_q + 0.30 * sharp + 0.25 * (1.0 if n_ed >= 2 else 0.4)
             if score < prof.get("pop_min_score", 0.45):
                 continue
@@ -657,7 +689,8 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     picks: list[dict] = []
     for m in matches:
         # ⏰ Zaman filtreleri (ERKENKUŞ): erken-giriş penceresi + saat bandı
-        if prof.get("min_lead_h") or prof.get("kick_hours"):
+        kh_eff = prof.get("kick_hours") or ((12, 24) if bridge_active() else None)
+        if prof.get("min_lead_h") or kh_eff:
             from datetime import datetime as _dt
             ko = str(m.get("kickoff_utc") or "")[:19]
             try:
@@ -667,8 +700,7 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
                 continue
             if prof.get("min_lead_h") and lead_h < prof["min_lead_h"]:
                 continue
-            kh = prof.get("kick_hours")
-            if kh and not (kh[0] <= ko_hour < kh[1]):
+            if kh_eff and not (kh_eff[0] <= ko_hour < kh_eff[1]):
                 continue
         try:
             sigs = eng.evaluate_match(m)
@@ -716,6 +748,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
     coupons: list[dict] = []
     used: set = set()
     slots = prof["max_daily"]
+    smult = 0.5 if bridge_active() else 1.0   # 🌉 köprü: stake ×0.5
 
     # 1) TEK'ler (MBS=1) — kanıt: 1-2 ayak ezici üstün
     n_tek = 0
@@ -725,7 +758,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
         m = s["_match"]
         if _mbs(m) != 1 or m.get("match_id") in used:
             continue
-        stake = round(bankroll * prof["tek_stake"], 2)
+        stake = round(bankroll * prof["tek_stake"] * smult, 2)
         coupons.append({
             "coupon_type": "A_TEK", "picks": [s], "stake": stake,
             "combined_odds": round(s["odds"], 3),
@@ -755,7 +788,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
         co = 1.0
         for p in sel:
             co *= p["odds"]
-        stake = round(bankroll * prof["k3_stake"], 2)
+        stake = round(bankroll * prof["k3_stake"] * smult, 2)
         coupons.append({
             "coupon_type": "A_K3", "picks": sel, "stake": stake,
             "combined_odds": round(co, 3),

@@ -75,6 +75,22 @@ def run(no_fetch: bool = False, max_events: int = 40):
 
     log(f"Mevcut açık kupon: {open_n}  |  Bankroll: {bankroll:,.0f} TL")
 
+    # 🌉 AĞUSTOS'A KÖPRÜ (10 Ağu'da otomatik kalkar): KURUCU_V2 için
+    # günlük max 2 kupon + stake ×0.5 + Avrupa saat bandı (12-24 UTC).
+    # Gerekçe: haftalık özet — off-season'da 36 kupon/hafta israftı.
+    bridge = datetime.utcnow().date().isoformat() < "2026-08-10"
+    if bridge:
+        conn_b = db.connect()
+        n_today = conn_b.execute(
+            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id='KURUCU_V2' "
+            "AND session_date=?", (datetime.utcnow().date().isoformat(),)
+        ).fetchone()[0]
+        conn_b.close()
+        if n_today >= 2:
+            log(f"🌉 Köprü modu: bugün {n_today}/2 kupon — yeni kurulmadı.")
+            log("=== AUTO PLAY BITTI ===\n")
+            return
+
     # Açık kupon çok fazlaysa yeni oluşturma (risk kontrolü)
     MAX_OPEN = 12
     if open_n >= MAX_OPEN:
@@ -113,6 +129,27 @@ def run(no_fetch: bool = False, max_events: int = 40):
             )
             log(f"  {c['coupon_type']}  oran:{c['combined_odds']:.2f}  "
                 f"stake:{c['stake']:.0f}TL  → {picks_str}")
+
+        # 🌉 Köprü filtreleri: Avrupa saat bandı + yarım stake + max 2
+        if bridge:
+            def _eu(c):
+                for pck in c["picks"]:
+                    ko = str(pck.get("_match", {}).get("kickoff_utc") or "")
+                    try:
+                        if not (12 <= int(ko[11:13]) < 24):
+                            return False
+                    except Exception:
+                        return False
+                return True
+            before = len(coupons)
+            coupons = [c for c in coupons if _eu(c)][:2]
+            for c in coupons:
+                c["stake"] = round(c["stake"] * 0.5, 2)
+                c["potential_return"] = round(c["stake"] * c["combined_odds"], 2)
+            log(f"🌉 Köprü: {before}→{len(coupons)} kupon (saat bandı) · stake ×0.5")
+            if not coupons:
+                log("=== AUTO PLAY BITTI ===\n")
+                return
 
         # DB'ye yaz (gerçek paper bet)
         ids = engine.place_coupons(coupons, dry_run=False)

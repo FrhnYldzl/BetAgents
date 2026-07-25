@@ -1202,6 +1202,7 @@ def get_system_health():
         h["agent_run"] = one("SELECT MAX(ts) AS v, SUM(coupons) AS c FROM agent_runs")
     except Exception:
         h["agent_run"] = {}
+    h["bridge"] = datetime.utcnow().date().isoformat() < "2026-08-10"
     return h
 
 
@@ -1247,6 +1248,10 @@ def render_system_health() -> None:
         _clv_tile("Son Kupon", cp_s or "—", cp_c, f"açık: {h.get('open_n', 0)}"),
         _clv_tile("🤖 Son Ajan Koşusu", ar_s or "—", ar_c,
                   "worker ajanları çalıştırıyor mu"),
+        _clv_tile("🌉 Köprü Modu", "AÇIK" if h.get("bridge") else "KAPALI",
+                  "#f59e0b" if h.get("bridge") else "#10d48e",
+                  "stake ×0.5 · 12-24 UTC · 10 Ağu'ya dek"
+                  if h.get("bridge") else "sezon modu"),
         _clv_tile("Dönem", pst.upper(), per_c,
                   "bahis açılabilir" if pst == "active" else "kilit/duraklama"),
         _clv_tile("Motor Görüşü", f"{h.get('upcoming', 0)}", "#3b82f6", "oranlı upcoming maç"),
