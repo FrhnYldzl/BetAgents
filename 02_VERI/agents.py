@@ -326,6 +326,20 @@ def review_league() -> None:
         except Exception:
             return
 
+        # 🌉 SEZON ÖNCESİ AF: köprü modunda ihtar DAĞITILMAZ ve mevcut ihtarlar
+        # silinir. Gerekçe: köprü bilerek az oynatıyor (stake ×0.5, dar saat
+        # bandı) — aynı anda pasiflik/performans cezası kesmek çelişkidir.
+        # Gerçek sözleşme baskısı sezonla (10 Ağu sonrası) başlar.
+        if bridge_active():
+            conn.execute("UPDATE paper_portfolio SET ihtar_count=0 "
+                         "WHERE COALESCE(benched,0)=0")
+            conn.execute("UPDATE paper_portfolio SET last_review=? "
+                         "WHERE portfolio_id='PAPER_V1'", (now.isoformat(),))
+            conn.commit()
+            print("[LIG] 🌉 sezon öncesi af — ihtarlar sıfırlandı, "
+                  "değerlendirme sezona ertelendi")
+            return
+
         print("[LIG] 📜 HAFTALIK SOZLESME DEGERLENDIRMESI")
         # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler
         field = [p for p in list(PROFILES) + ["KURUCU_V2"]
