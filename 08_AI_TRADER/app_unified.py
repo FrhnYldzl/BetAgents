@@ -98,6 +98,8 @@ TRADER_PAGES = {
     "🧪 Simyacı":         T.page_simyaci,
     "🔥 Popüler":         T.page_populer,
     "⏰ Erkenkuş":         T.page_erkenkus,
+    "🦁 Cesur":            T.page_cesur,
+    "🃏 Joker":            T.page_joker,
     "🇹🇷 Trivox 😴":       T.page_trivox,
     "🇪🇺 Euvox 😴":        T.page_euvox,
     "Kupon Analizi":      T.page_coupon_analysis,

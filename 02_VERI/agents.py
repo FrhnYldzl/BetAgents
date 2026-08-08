@@ -42,9 +42,9 @@ PROFILES: dict[str, dict] = {
     "TEMKINLI_V1": {
         "name": "TEMKİNLİ (düşük risk)",
         "stop_pct": -0.15,
-        "markets": {"KG_YOK", "UST_25"},   # + 1X2 (fav_min ile)
-        "fav_min": 0.72,                    # 1X2 asgari piyasa olasılığı
-        "min_mp": 0.66, "min_odds": 1.18,
+        "markets": {"KG_YOK", "UST_25", "ALT_25"},
+        "fav_min": 0.68,
+        "min_mp": 0.63, "min_odds": 1.18,
         "combo_cap": 2.60, "max_daily": 2, "max_open": 4,
         "max_tek": 1, "loss_streak": 3,
         "tek_stake": 0.05, "k3_stake": 0.04,
@@ -79,13 +79,13 @@ PROFILES: dict[str, dict] = {
         "name": "HOCA (Poisson çift-onay)",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
-        "fav_min": 0.62,
-        "min_mp": 0.62, "min_odds": 1.22,
+        "fav_min": 0.58,
+        "min_mp": 0.58, "min_odds": 1.20,
         "combo_cap": 2.80, "max_daily": 2, "max_open": 4,
         "max_tek": 1, "loss_streak": 3,
         "tek_stake": 0.05, "k3_stake": 0.04,
         "sort": "safety",
-        "mode": "confirm", "confirm_max_dev": 0.07,
+        "mode": "confirm", "confirm_max_dev": 0.10,
         "pas_tolerance_days": 10,
     },
     "SIMYACI_V1": {
@@ -96,12 +96,12 @@ PROFILES: dict[str, dict] = {
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.50,
-        "min_mp": 0.50, "min_odds": 1.35,
+        "min_mp": 0.50, "min_odds": 1.30,
         "combo_cap": 4.00, "max_daily": 2, "max_open": 4,
         "max_tek": 2, "loss_streak": 4,
         "tek_stake": 0.04, "k3_stake": 0.03,
         "sort": "value",
-        "mode": "value", "value_min_edge": 0.05,
+        "mode": "value", "value_min_edge": 0.03,
         "pas_tolerance_days": 10,
     },
     "ERKENKUS_V1": {
@@ -120,7 +120,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 1, "loss_streak": 4,
         "tek_stake": 0.05, "k3_stake": 0.04,
         "sort": "safety",
-        "min_lead_h": 48, "kick_hours": (12, 24),
+        "min_lead_h": 40, "kick_hours": None,
         "pas_tolerance_days": 10,
     },
     "POPULER_V1": {
@@ -129,8 +129,8 @@ PROFILES: dict[str, dict] = {
         # vekili) + SHARP teyidi (currentOdd < pick oranı = piyasa da o yöne).
         # Not: gerçek oynanma-%'si API'de yok; konsensüs+sharp en dürüst vekil.
         # Yazar seçimi hipotezi gereği KG dahil tüm desteklenen pazarlar açık.
-        "name": "POPÜLER (yazar + konsensüs)",
-        "stop_pct": -0.20,
+        "name": "POPÜLER (yazar + konsensüs) — sezona kadar uykuda",
+        "stop_pct": -0.20, "dormant": True,
         "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
         "min_mp": 0.0, "min_odds": 1.25,
         "combo_cap": 3.50, "max_daily": 2, "max_open": 5,
@@ -138,6 +138,34 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.05, "k3_stake": 0.04,
         "sort": "pop",
         "mode": "popular", "pop_min_score": 0.45,
+    },
+    "CESUR_V1": {
+        # 🦁 CESUR: 30-gün piyasa taramasının (2.129 maç) ana bulgusu:
+        # iddaa marjı ORTA-ORAN (1.60-2.00) favorilerde en ince: −%2.6
+        # (sıfıra en yakın bölge, n=449). Tüm eski ajanlar en pahalı bölgede
+        # (1.10-1.40: −14/−22) kümelenmişti. CESUR tek başına bu bölgeyi oynar.
+        "name": "CESUR (orta-oran avcısı 1.60-2.00)",
+        "stop_pct": -0.25,
+        "markets": {"UST_25", "ALT_25", "KG_YOK"},
+        "fav_min": 0.50,
+        "min_mp": 0.48, "min_odds": 1.60, "max_odds": 2.00,
+        "combo_cap": 4.50, "max_daily": 3, "max_open": 6,
+        "max_tek": 2, "loss_streak": 5,
+        "tek_stake": 0.05, "k3_stake": 0.035,
+        "sort": "score", "mode": "midband",
+    },
+    "JOKER_V1": {
+        # 🃏 JOKER: KONTROL AJANI — deterministik-rastgele seçim (şans çizgisi).
+        # Bilimsel amaç: her ajanın geçmesi gereken taban; JOKER'i yenemeyen
+        # "beceri" iddia edemez. Beklenen ROI ≈ −marj (dürüst referans).
+        "name": "JOKER (rastgele kontrol)",
+        "stop_pct": -0.30,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 1.50, "max_odds": 2.20,
+        "combo_cap": 5.00, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.03, "k3_stake": 0.025,
+        "sort": "score", "mode": "joker",
     },
     # ── 😴 SEZON AJANLARI: kayıtlı ama UYKUDA (Ağustos'ta aktive edilecek) ──
     # MODEL_REGISTRY'de 13 model var; iki amiral gemisi burada ajan olarak
@@ -621,6 +649,80 @@ def _popular_candidates(prof: dict, tag: str) -> list[dict]:
     return picks
 
 
+def _midband_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]:
+    """🦁 CESUR aday kaynağı: 2-yollu pazarlarda 1.60-2.00 bandındaki tarafı
+    vig'siz olasılığıyla değerlendir, maç başına EN OLASI adayı al. Sinyal
+    motoru bu bandda yapısal olarak sessiz (eşikleri düşük-oran için) —
+    bu yüzden kendi kaynağı var."""
+    picks: list[dict] = []
+    for m in matches:
+        opts = []
+        for pair, legs in (
+            (("closing_over25", "closing_under25"),
+             (("UST_25", "UST"), ("ALT_25", "ALT"))),
+            (("closing_btts_yes", "closing_btts_no"),
+             (("KG_VAR", "VAR"), ("KG_YOK", "YOK"))),
+        ):
+            try:
+                o_a = float(m.get(pair[0]) or m.get(pair[0].lower()) or 0)
+                o_b = float(m.get(pair[1]) or m.get(pair[1].lower()) or 0)
+            except (TypeError, ValueError):
+                continue
+            probs = _vig_strip([o_a, o_b])
+            if not probs:
+                continue
+            for (mkt, pick), o, mp in ((legs[0], o_a, probs[0]),
+                                       (legs[1], o_b, probs[1])):
+                if mkt == "KG_VAR":
+                    continue          # kanıt yasağı CESUR'da da geçerli
+                if prof["min_odds"] <= o <= prof.get("max_odds", 99) \
+                        and mp >= prof["min_mp"]:
+                    opts.append((mkt, pick, o, mp))
+        if not opts:
+            continue
+        mkt, pick, o, mp = max(opts, key=lambda x: x[3])
+        picks.append({
+            "market": mkt, "pick": pick, "odds": o,
+            "implied_prob": 1.0 / o, "model_prob": mp,
+            "edge": mp - 1.0 / o, "signal_name": "MIDBAND",
+            "signal_score": mp, "_match": m,
+        })
+    print(f"{tag} 🦁 orta-band aday: {len(picks)}")
+    return picks
+
+
+def _joker_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]:
+    """🃏 Deterministik-rastgele kontrol seçimi: maç kimliğinden hash ile
+    pazar seç (tekrarlanabilir — Date.now/random yok). Şans çizgisi üretir."""
+    picks: list[dict] = []
+    for m in matches:
+        opts = []
+        for mkt, pick, col in (("1X2", "1", "closing_1"), ("1X2", "2", "closing_2"),
+                               ("UST_25", "UST", "closing_over25"),
+                               ("ALT_25", "ALT", "closing_under25"),
+                               ("KG_VAR", "VAR", "closing_btts_yes"),
+                               ("KG_YOK", "YOK", "closing_btts_no")):
+            o = m.get(col) or m.get(col.lower())
+            try:
+                o = float(o)
+            except (TypeError, ValueError):
+                continue
+            if prof["min_odds"] <= o <= prof.get("max_odds", 99):
+                opts.append((mkt, pick, o))
+        if not opts:
+            continue
+        h = (int(m.get("match_id") or 0) * 2654435761) % (2 ** 32)
+        mkt, pick, o = opts[h % len(opts)]
+        picks.append({
+            "market": mkt, "pick": pick, "odds": o,
+            "implied_prob": 1.0 / o, "model_prob": 1.0 / o,
+            "edge": 0.0, "signal_name": "JOKER",
+            "signal_score": (h % 1000) / 1000.0, "_match": m,
+        })
+    print(f"{tag} 🃏 rastgele aday: {len(picks)}")
+    return picks
+
+
 def _sort_key(prof: dict):
     mode = prof["sort"]
     if mode == "hunt":
@@ -682,8 +784,20 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         return []
     bankroll = per["period_start_bankroll"]
 
-    # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
+    # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
     mode = prof.get("mode")
+    if mode == "midband":
+        picks = _midband_candidates(prof, tag, matches)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
+    if mode == "joker":
+        picks = _joker_candidates(prof, tag, matches)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
     if mode == "popular":
         picks = _popular_candidates(prof, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
@@ -703,7 +817,7 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     picks: list[dict] = []
     for m in matches:
         # ⏰ Zaman filtreleri (ERKENKUŞ): erken-giriş penceresi + saat bandı
-        kh_eff = prof.get("kick_hours") or ((12, 24) if bridge_active() else None)
+        kh_eff = prof.get("kick_hours")   # saat kısıtı yalnız profil bazlı (30g veri global yasağı desteklemedi)
         if prof.get("min_lead_h") or kh_eff:
             from datetime import datetime as _dt
             ko = str(m.get("kickoff_utc") or "")[:19]
@@ -732,6 +846,8 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             elif mkt not in prof["markets"]:
                 continue
             if mp < prof["min_mp"] or (s.get("odds") or 0) < prof["min_odds"]:
+                continue
+            if prof.get("max_odds") and (s.get("odds") or 0) > prof["max_odds"]:
                 continue
             # ── MODEL FİLTRESİ (HOCA=çift-onay · SIMYACI=değer) ──
             if ratings is not None:
