@@ -154,6 +154,25 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.05, "k3_stake": 0.035,
         "sort": "score", "mode": "midband",
     },
+    "KALECI_V1": {
+        # 🧤 KALECİ: 546-bahis örüntü analizinin "kazanan kesişimi" — iki
+        # dönemde de tekrarlayan ÜÇ örüntüyü tek gövdede birleştirir:
+        #   1) KG_YOK tek pozitif pazar (+8.0%, %80 isabet; Era-1'de de +)
+        #   2) 1.30-1.55 bandı = en dar fiyat uçurumu (−5p vs kısa oranda −17p)
+        #   3) U-zamanlama: 6-40sa ÖLÜM PENCERESİ yasak (iki dönemde −26/−31);
+        #      yalnız çok-erken (>40sa) veya geç (<6sa) girer.
+        "name": "KALECİ (düşük-gol kesişim uzmanı)",
+        "stop_pct": -0.20,
+        "markets": {"KG_YOK", "ALT_25"},
+        "fav_min": 1.01,                    # 1X2 kapalı — saf düşük-gol ailesi
+        "min_mp": 0.60, "min_odds": 1.30, "max_odds": 1.55,
+        "combo_cap": 3.20, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 4,
+        "tek_stake": 0.05, "k3_stake": 0.04,
+        "sort": "safety",
+        "lead_forbid": (6, 40),             # ölüm penceresi yasağı
+        "pas_tolerance_days": 10,
+    },
     "JOKER_V1": {
         # 🃏 JOKER: KONTROL AJANI — deterministik-rastgele seçim (şans çizgisi).
         # Bilimsel amaç: her ajanın geçmesi gereken taban; JOKER'i yenemeyen
@@ -818,7 +837,7 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     for m in matches:
         # ⏰ Zaman filtreleri (ERKENKUŞ): erken-giriş penceresi + saat bandı
         kh_eff = prof.get("kick_hours")   # saat kısıtı yalnız profil bazlı (30g veri global yasağı desteklemedi)
-        if prof.get("min_lead_h") or kh_eff:
+        if prof.get("min_lead_h") or kh_eff or prof.get("lead_forbid"):
             from datetime import datetime as _dt
             ko = str(m.get("kickoff_utc") or "")[:19]
             try:
@@ -827,6 +846,9 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             except Exception:
                 continue
             if prof.get("min_lead_h") and lead_h < prof["min_lead_h"]:
+                continue
+            lf = prof.get("lead_forbid")
+            if lf and lf[0] <= lead_h < lf[1]:   # 🧤 ölüm penceresi (6-40sa)
                 continue
             if kh_eff and not (kh_eff[0] <= ko_hour < kh_eff[1]):
                 continue

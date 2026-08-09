@@ -1332,6 +1332,15 @@ AGENT_META = {
                   "n=449); eski ajanların oynadığı 1.10-1.40 bölgesi −%14/−22. "
                   "CESUR yalnız 1.60-2.00 bandında ÜST/ALT/KG_YOK oynar · günde "
                   "max 3 · stop −%25.")},
+    "KALECI_V1": {
+        "icon": "🧤", "title": "KALECİ", "renk": "#84cc16",
+        "sub": "DÜŞÜK-GOL KESİŞİM UZMANI",
+        "rules": ("546-bahis örüntü analizinin 'kazanan kesişimi' — iki dönemde "
+                  "de tekrarlayan 3 örüntü tek gövdede: ① KG_YOK/ALT (tek pozitif "
+                  "aile: +8.0%, %80 isabet) ② 1.30-1.55 bandı (en dar fiyat "
+                  "uçurumu: −5p vs kısa oranda −17p) ③ U-zamanlama: 6-40sa ölüm "
+                  "penceresi YASAK (iki dönemde −26/−31), yalnız >40sa erken veya "
+                  "<6sa geç girer · 1X2 kapalı · günde max 2 · stop −%20.")},
     "JOKER_V1": {
         "icon": "🃏", "title": "JOKER", "renk": "#94a3b8",
         "sub": "RASTGELE KONTROL (ŞANS ÇİZGİSİ)",
@@ -1616,6 +1625,10 @@ def page_joker(portfolio: dict) -> None:
     _render_agent_page("JOKER_V1")
 
 
+def page_kaleci(portfolio: dict) -> None:
+    _render_agent_page("KALECI_V1")
+
+
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
 
@@ -1762,7 +1775,7 @@ def page_score_table(portfolio: dict) -> None:
         "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
         "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
         "POPULER_V1": "🔥 Popüler", "ERKENKUS_V1": "⏰ Erkenkuş",
-        "CESUR_V1": "🦁 Cesur", "JOKER_V1": "🃏 Joker",
+        "CESUR_V1": "🦁 Cesur", "JOKER_V1": "🃏 Joker", "KALECI_V1": "🧤 Kaleci",
         "TRIVOX_V1": "🇹🇷 Trivox 😴", "EUVOX_V1": "🇪🇺 Euvox 😴",
     }
     st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
