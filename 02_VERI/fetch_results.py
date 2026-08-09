@@ -110,6 +110,22 @@ def fetch_results(only_open: bool = True, verbose: bool = True,
         finished  = (st in FINISHED_STATUS) or (minute >= 90)
         has_score = hs is not None and as_ is not None
 
+        # ⚠️ UZATMA/PENALTI (st=12 AET, st=13 pen): API'nin 'sc' alanı uzatma
+        # DAHİL skordur; iddaa 90 DAKİKA sonucuyla settle eder. 90dk skoru
+        # güvenilir şekilde ayrıştırılamıyorsa YANLIŞ settle etmektense VOID
+        # (iade) — nadir durum, veri bütünlüğü önce gelir.
+        if finished and st in (12, 13):
+            conn.execute("""
+                UPDATE matches_v2
+                SET is_settled=1, status='VOID', refreshed_at=?
+                WHERE match_id=?
+            """, (now.isoformat(), r["match_id"]))
+            voided += 1
+            if verbose:
+                print(f"  [VOID ⏱] {r['home_team']} vs {r['away_team']} "
+                      f"(st={st} uzatma/pen — 90dk skoru belirsiz → iade)")
+            continue
+
         if finished and has_score:
             conn.execute("""
                 UPDATE matches_v2
