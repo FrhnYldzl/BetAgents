@@ -101,6 +101,7 @@ TRADER_PAGES = {
     "🦁 Cesur":            T.page_cesur,
     "🃏 Joker":            T.page_joker,
     "🧤 Kaleci":           T.page_kaleci,
+    "🏛 Konsey":           T.page_konsey,
     "🇹🇷 Trivox 😴":       T.page_trivox,
     "🇪🇺 Euvox 😴":        T.page_euvox,
     "Kupon Analizi":      T.page_coupon_analysis,

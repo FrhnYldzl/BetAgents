@@ -186,6 +186,22 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.03, "k3_stake": 0.025,
         "sort": "score", "mode": "joker",
     },
+    "KONSEY_V1": {
+        # 🏛 KONSEY: iç-Polymarket — 8 seçmen ajanın filtrelerini aynı maça
+        # uygular; SERVET-AĞIRLIKLI oy (kasa/1000, 0.25-2.0 aralığı) + quorum
+        # (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak: motor/model/band) sağlayan
+        # pick'leri oynar. Fayda VARSAYILMAZ: ligde yarışır, skor ölçer.
+        "name": "KONSEY (ajan heyeti — iç-Polymarket)",
+        "stop_pct": -0.20,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 1.18,
+        "combo_cap": 3.50, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 4,
+        "tek_stake": 0.05, "k3_stake": 0.04,
+        "sort": "score",
+        "mode": "council", "quorum": 3, "min_families": 2,
+        "pas_tolerance_days": 10,
+    },
     # ── 😴 SEZON AJANLARI: kayıtlı ama UYKUDA (Ağustos'ta aktive edilecek) ──
     # MODEL_REGISTRY'de 13 model var; iki amiral gemisi burada ajan olarak
     # açıldı ki UNUTULMASIN. dormant=True → kasa hazır, kupon OYNAMAZ.
@@ -742,86 +758,11 @@ def _joker_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]:
     return picks
 
 
-def _sort_key(prof: dict):
-    mode = prof["sort"]
-    if mode == "hunt":
-        return lambda s: (1 if "SHARP" in (s.get("signal_name") or "") else 0,
-                          s.get("edge") or -9, s.get("odds") or 0)
-    if mode == "score":
-        return lambda s: (s.get("signal_score") or 0, s.get("model_prob") or 0)
-    if mode == "value":
-        return lambda s: (s.get("_dev") or -9, s.get("odds") or 0)
-    if mode == "pop":
-        return lambda s: (s.get("signal_score") or 0, s.get("odds") or 0)
-    return lambda s: (s.get("model_prob") or 0, s.get("signal_score") or 0)
-
-
-def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
-    prof = PROFILES[pid]
-    tag = f"[{pid.split('_')[0]}]"
-    if prof.get("dormant"):
-        print(f"{tag} 😴 sezon bekliyor (Agustos'ta aktive edilecek) -> PAS")
-        return []
-    conn = db.connect()
-    if _is_benched(conn, pid):
-        conn.close()
-        print(f"{tag} 🚫 KADRO DISI (sozlesme feshedildi) -> oynayamaz")
-        return []
-    try:
-        if _loss_streak(conn, pid, prof["loss_streak"]):
-            print(f"{tag} {prof['loss_streak']} ardisik kayip -> PAS")
-            return []
-        today = _now()[:10]
-        n_today = conn.execute(
-            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND session_date=?",
-            (pid, today)).fetchone()[0]
-        n_open = conn.execute(
-            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND status='open'",
-            (pid,)).fetchone()[0]
-        if n_today >= prof["max_daily"] or n_open >= prof["max_open"]:
-            print(f"{tag} limit (bugun {n_today}/{prof['max_daily']}, "
-                  f"acik {n_open}/{prof['max_open']}) -> PAS")
-            return []
-        rows = conn.execute(
-            """
-            SELECT * FROM matches_v2
-            WHERE is_settled=0 AND kickoff_utc > ? AND closing_1 IS NOT NULL
-              AND match_id NOT IN (
-                  SELECT pb.match_id FROM paper_bets pb
-                  JOIN paper_coupons pc ON pb.coupon_id=pc.coupon_id
-                  WHERE pc.status='open' AND pc.portfolio_id=?
-                    AND pb.match_id IS NOT NULL)
-            ORDER BY kickoff_utc ASC LIMIT 200
-            """, (_now(), pid)).fetchall()
-        matches = [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-    per = eng.manage_period(pid)
-    if not per["can_bet"]:
-        print(f"{tag} donem kilidi ({per['status']}) -> PAS")
-        return []
-    bankroll = per["period_start_bankroll"]
-
-    # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
+def _engine_candidates(prof: dict, tag: str, matches: list[dict],
+                       eng: PaperEngine) -> list[dict]:
+    """Sinyal-motoru aday aşaması (profil filtreleriyle). build_coupons ve
+    🏛 KONSEY oylaması aynı fonksiyonu kullanır."""
     mode = prof.get("mode")
-    if mode == "midband":
-        picks = _midband_candidates(prof, tag, matches)
-        picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
-
-    # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
-    if mode == "joker":
-        picks = _joker_candidates(prof, tag, matches)
-        picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
-
-    # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
-    if mode == "popular":
-        picks = _popular_candidates(prof, tag)
-        picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
-
     # Model modu (HOCA/SIMYACI): bağımsız Poisson gol modelini yükle
     ratings = None
     if mode in ("confirm", "value"):
@@ -890,6 +831,152 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
                     continue
             picks.append(s)
 
+    return picks
+
+
+# ════════════════════════════════════════════════════════════════
+# 🏛 KONSEY — iç-Polymarket: ajan heyeti oylaması
+# ════════════════════════════════════════════════════════════════
+# Oy hakkı olan aileler (JOKER=şans, POPULER=uykuda, sezon ajanları hariç):
+COUNCIL_VOTERS = {
+    "TEMKINLI_V1": "motor", "MEMUR_V1": "motor", "AVCI_V1": "motor",
+    "ERKENKUS_V1": "motor", "KALECI_V1": "motor",
+    "HOCA_V1": "model", "SIMYACI_V1": "model",
+    "CESUR_V1": "band",
+}
+
+
+def _council_candidates(prof: dict, tag: str, matches: list[dict],
+                        eng: PaperEngine) -> list[dict]:
+    """Her seçmen ajanın filtrelerini aynı maç havuzuna uygula, oyları
+    SERVET-AĞIRLIKLI topla (Polymarket mantığı: kasası büyüyenin sözü ağır),
+    quorum (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak ailesi — yankı odası
+    engeli) sağlayan pick'ler KURUL KARARI olur."""
+    conn = db.connect()
+    banks = {r[0]: (r[1] or 1000.0) for r in conn.execute(
+        "SELECT portfolio_id, current_bankroll FROM paper_portfolio").fetchall()}
+    conn.close()
+    votes: dict = {}
+    for vpid, fam in COUNCIL_VOTERS.items():
+        vprof = PROFILES.get(vpid)
+        if not vprof or vprof.get("dormant"):
+            continue
+        vtag = f"[KURUL·{vpid.split('_')[0]}]"
+        try:
+            if vprof.get("mode") == "midband":
+                vp = _midband_candidates(vprof, vtag, matches)
+            else:
+                vp = _engine_candidates(vprof, vtag, matches, eng)
+        except Exception:
+            continue
+        w = max(0.25, min(2.0, banks.get(vpid, 1000.0) / 1000.0))
+        for x in vp:
+            key = (x["_match"].get("match_id"), x["market"], x["pick"])
+            v = votes.setdefault(key, {"w": 0.0, "voters": set(),
+                                       "fams": set(), "s": x})
+            v["w"] += w
+            v["voters"].add(vpid)
+            v["fams"].add(fam)
+    picks: list[dict] = []
+    for key, v in votes.items():
+        if len(v["voters"]) >= prof.get("quorum", 3)                 and len(v["fams"]) >= prof.get("min_families", 2):
+            x = dict(v["s"])
+            x["signal_name"] = f"KURUL_{len(v['voters'])}oy"
+            x["signal_score"] = round(v["w"], 2)
+            picks.append(x)
+    print(f"{tag} 🏛 oylama: {len(votes)} aday pick -> {len(picks)} kurul kararı "
+          f"(quorum≥{prof.get('quorum',3)}, aile≥{prof.get('min_families',2)}, "
+          f"servet-ağırlıklı)")
+    return picks
+
+
+def _sort_key(prof: dict):
+    mode = prof["sort"]
+    if mode == "hunt":
+        return lambda s: (1 if "SHARP" in (s.get("signal_name") or "") else 0,
+                          s.get("edge") or -9, s.get("odds") or 0)
+    if mode == "score":
+        return lambda s: (s.get("signal_score") or 0, s.get("model_prob") or 0)
+    if mode == "value":
+        return lambda s: (s.get("_dev") or -9, s.get("odds") or 0)
+    if mode == "pop":
+        return lambda s: (s.get("signal_score") or 0, s.get("odds") or 0)
+    return lambda s: (s.get("model_prob") or 0, s.get("signal_score") or 0)
+
+
+def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
+    prof = PROFILES[pid]
+    tag = f"[{pid.split('_')[0]}]"
+    if prof.get("dormant"):
+        print(f"{tag} 😴 sezon bekliyor (Agustos'ta aktive edilecek) -> PAS")
+        return []
+    conn = db.connect()
+    if _is_benched(conn, pid):
+        conn.close()
+        print(f"{tag} 🚫 KADRO DISI (sozlesme feshedildi) -> oynayamaz")
+        return []
+    try:
+        if _loss_streak(conn, pid, prof["loss_streak"]):
+            print(f"{tag} {prof['loss_streak']} ardisik kayip -> PAS")
+            return []
+        today = _now()[:10]
+        n_today = conn.execute(
+            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND session_date=?",
+            (pid, today)).fetchone()[0]
+        n_open = conn.execute(
+            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND status='open'",
+            (pid,)).fetchone()[0]
+        if n_today >= prof["max_daily"] or n_open >= prof["max_open"]:
+            print(f"{tag} limit (bugun {n_today}/{prof['max_daily']}, "
+                  f"acik {n_open}/{prof['max_open']}) -> PAS")
+            return []
+        rows = conn.execute(
+            """
+            SELECT * FROM matches_v2
+            WHERE is_settled=0 AND kickoff_utc > ? AND closing_1 IS NOT NULL
+              AND match_id NOT IN (
+                  SELECT pb.match_id FROM paper_bets pb
+                  JOIN paper_coupons pc ON pb.coupon_id=pc.coupon_id
+                  WHERE pc.status='open' AND pc.portfolio_id=?
+                    AND pb.match_id IS NOT NULL)
+            ORDER BY kickoff_utc ASC LIMIT 200
+            """, (_now(), pid)).fetchall()
+        matches = [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+    per = eng.manage_period(pid)
+    if not per["can_bet"]:
+        print(f"{tag} donem kilidi ({per['status']}) -> PAS")
+        return []
+    bankroll = per["period_start_bankroll"]
+
+    mode = prof.get("mode")
+    # 🏛 KONSEY modu: ajan heyeti oylaması (iç-Polymarket)
+    if mode == "council":
+        picks = _council_candidates(prof, tag, matches, eng)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
+    if mode == "midband":
+        picks = _midband_candidates(prof, tag, matches)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
+    if mode == "joker":
+        picks = _joker_candidates(prof, tag, matches)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
+    if mode == "popular":
+        picks = _popular_candidates(prof, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
+    picks = _engine_candidates(prof, tag, matches, eng)
     picks.sort(key=_sort_key(prof), reverse=True)
     return _assemble_coupons(prof, bankroll, picks)
 
