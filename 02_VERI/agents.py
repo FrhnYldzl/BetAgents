@@ -144,15 +144,34 @@ PROFILES: dict[str, dict] = {
         # iddaa marjı ORTA-ORAN (1.60-2.00) favorilerde en ince: −%2.6
         # (sıfıra en yakın bölge, n=449). Tüm eski ajanlar en pahalı bölgede
         # (1.10-1.40: −14/−22) kümelenmişti. CESUR tek başına bu bölgeyi oynar.
-        "name": "CESUR (orta-oran avcısı 1.60-2.00)",
+        "name": "CESUR (orta-oran avcısı 1.60-2.00) v1.1",
+        # v1.1 (canlı veri, 2026-08-14): ALT bacağı atıldı (%38/−39.5 sızıntı);
+        # UST %75/+21.9 · KG_YOK %71/+16 · TEK +27.4 vs K3 −5.5 → TEK ağırlık.
         "stop_pct": -0.25,
-        "markets": {"UST_25", "ALT_25", "KG_YOK"},
+        "markets": {"UST_25", "KG_YOK"},
         "fav_min": 0.50,
         "min_mp": 0.48, "min_odds": 1.60, "max_odds": 2.00,
         "combo_cap": 4.50, "max_daily": 3, "max_open": 6,
-        "max_tek": 2, "loss_streak": 5,
+        "max_tek": 3, "loss_streak": 5,
         "tek_stake": 0.05, "k3_stake": 0.035,
         "sort": "score", "mode": "midband",
+    },
+    "TERS_V1": {
+        # 🪞 TERS: yazar-tersleme hipotezi. Ampirik: yazar sinyallerinin
+        # KARŞI tarafı %88 isabet / +73.8% ROI (n=16 — küçük örneklem!).
+        # Kontrast: KURUCU'yu terslemek ÇALIŞMIYOR (−7.7%) → bu "her kötüyü
+        # tersle" değil; yalnız marjdan-daha-kötü kaynak terslenir. Yazarlar
+        # off-season'da −%76'ydı; sezonda değişebilir → küçük stake deneyi.
+        # Yazar KG_VAR'ı terslerken KG_YOK oynanır vb. (hipotez bütünlüğü).
+        "name": "TERS (yazar-tersleme deneyi)",
+        "stop_pct": -0.25,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 1.30, "max_odds": 2.10,
+        "combo_cap": 4.00, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 4,
+        "tek_stake": 0.04, "k3_stake": 0.03,
+        "sort": "score", "mode": "fade",
+        "pas_tolerance_days": 10,
     },
     "KALECI_V1": {
         # 🧤 KALECİ: 546-bahis örüntü analizinin "kazanan kesişimi" — iki
@@ -710,6 +729,8 @@ def _midband_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]
                                        (legs[1], o_b, probs[1])):
                 if mkt == "KG_VAR":
                     continue          # kanıt yasağı CESUR'da da geçerli
+                if mkt not in prof.get("markets", {mkt}):
+                    continue          # v1.1: profil pazar seti (ALT atıldı)
                 if prof["min_odds"] <= o <= prof.get("max_odds", 99) \
                         and mp >= prof["min_mp"]:
                     opts.append((mkt, pick, o, mp))
@@ -724,6 +745,104 @@ def _midband_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]
         })
     print(f"{tag} 🦁 orta-band aday: {len(picks)}")
     return picks
+
+
+def _fade_candidates(prof: dict, tag: str) -> list[dict]:
+    """🪞 TERS: iddaa yazarlarının BEKLEYEN 2-yollu pick'lerinin KARŞI tarafı.
+    Aynı maçta yazarlar iki zıt taraftaysa çelişki → maç atlanır."""
+    from datetime import datetime as _dt, timedelta as _td
+    import json as _json
+    # Yazar taraması taze mi (POPULER uykuda olsa da tersleme akışı canlı kalır)
+    try:
+        scr = str(THIS_DIR / "scrapers")
+        if scr not in sys.path:
+            sys.path.insert(0, scr)
+        conn = db.connect()
+        last = conn.execute("SELECT MAX(inserted_at) FROM tipster_picks").fetchone()[0]
+        conn.close()
+        stale = True
+        if last:
+            try:
+                stale = (_dt.utcnow() - _dt.fromisoformat(str(last)[:19])) > _td(hours=2)
+            except Exception:
+                pass
+        if stale:
+            from iddaa_tipster_scraper import ingest_all_editors
+            ingest_all_editors(delay=0.3)
+    except Exception as e:
+        print(f"{tag} yazar taramasi atlandi: {str(e)[:60]}")
+
+    OPP = {("OU2.5", "u"): ("ALT_25", "ALT", "closing_under25"),
+           ("OU2.5", "a"): ("UST_25", "UST", "closing_over25"),
+           ("BTTS", "v"):  ("KG_YOK", "YOK", "closing_btts_no"),
+           ("BTTS", "y"):  ("KG_VAR", "VAR", "closing_btts_yes")}
+    now19 = _now()[:19]
+    conn = db.connect()
+    try:
+        pend = [dict(r) for r in conn.execute(
+            "SELECT market, selection, raw_json, kickoff_iso, tipster_id "
+            "FROM tipster_picks WHERE settled=0").fetchall()]
+        groups: dict = {}
+        for pck in pend:
+            ko = str(pck.get("kickoff_iso") or "")[:19]
+            if not ko or ko <= now19:
+                continue
+            mkt = pck.get("market"); sel = (pck.get("selection") or "").lower()
+            if mkt in ("OU2.5", "OU2,5"):
+                side = "u" if ("st" in sel) else ("a" if "lt" in sel else None)
+                key0 = ("OU2.5", side)
+            elif mkt == "BTTS":
+                side = "v" if sel.startswith("var") else ("y" if sel.startswith("yok") else None)
+                key0 = ("BTTS", side)
+            else:
+                continue
+            if not side or key0 not in OPP:
+                continue
+            try:
+                eid = _json.loads(pck.get("raw_json") or "{}").get("eventId")
+            except Exception:
+                eid = None
+            if not eid:
+                continue
+            g = groups.setdefault((str(eid), key0[0]), {})
+            g.setdefault(side, set()).add(pck.get("tipster_id"))
+        picks: list[dict] = []
+        for (eid, fam), sides in groups.items():
+            if len(sides) > 1:
+                continue                      # yazarlar çelişiyor → atla
+            side = next(iter(sides))
+            n_y = len(sides[side])
+            omkt, opick, ocol = OPP[(fam, side)]
+            m = conn.execute(
+                "SELECT * FROM matches_v2 WHERE external_id_iddaa=? "
+                "AND is_settled=0 AND kickoff_utc > ?", (eid, now19)).fetchone()
+            if m is None:
+                continue
+            m = dict(m)
+            o = m.get(ocol) or m.get(ocol.lower())
+            try:
+                o = float(o)
+            except (TypeError, ValueError):
+                continue
+            if not (prof["min_odds"] <= o <= prof.get("max_odds", 99)):
+                continue
+            pair = {"ALT_25": ("closing_over25", "closing_under25", 1),
+                    "UST_25": ("closing_over25", "closing_under25", 0),
+                    "KG_YOK": ("closing_btts_yes", "closing_btts_no", 1),
+                    "KG_VAR": ("closing_btts_yes", "closing_btts_no", 0)}[omkt]
+            probs = _vig_strip([m.get(pair[0]), m.get(pair[1])])
+            mp = probs[pair[2]] if probs else 1.0 / o
+            picks.append({
+                "market": omkt, "pick": opick, "odds": o,
+                "implied_prob": 1.0 / o, "model_prob": mp,
+                "edge": mp - 1.0 / o,
+                "signal_name": f"TERS_{n_y}Y", "signal_score": float(n_y),
+                "_match": m,
+            })
+        print(f"{tag} 🪞 yazar-ters aday: {len(groups)} pick grubu -> {len(picks)}")
+        return picks
+    finally:
+        conn.close()
 
 
 def _joker_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]:
@@ -846,7 +965,7 @@ COUNCIL_VOTERS = {
     "TEMKINLI_V1": "motor", "MEMUR_V1": "motor", "AVCI_V1": "motor",
     "ERKENKUS_V1": "motor", "KALECI_V1": "motor",
     "HOCA_V1": "model", "SIMYACI_V1": "model",
-    "CESUR_V1": "band",
+    "CESUR_V1": "band", "TERS_V1": "fade",
 }
 
 
@@ -968,6 +1087,12 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks)
 
+    # 🪞 TERS modu: yazar pick'lerinin karşı tarafı
+    if mode == "fade":
+        picks = _fade_candidates(prof, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks)
+
     # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
     if mode == "joker":
         picks = _joker_candidates(prof, tag, matches)
@@ -1008,6 +1133,33 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
             "potential_return": round(stake * s["odds"], 2)})
         used.add(m.get("match_id"))
         n_tek += 1
+
+    # 1.5) K2 (MBS<=2 çiftler) — arşiv hücresi: 2-ayak 7/7 kazanç +43.9%
+    if len(coupons) < slots:
+        pair = []
+        for x in picks:
+            mid = x["_match"].get("match_id")
+            if mid in used or any(p["_match"].get("match_id") == mid for p in pair):
+                continue
+            if _mbs(x["_match"]) > 2:
+                continue
+            co = 1.0
+            for p in pair + [x]:
+                co *= p["odds"]
+            if co > prof["combo_cap"]:
+                continue
+            pair.append(x)
+            if len(pair) == 2:
+                break
+        if len(pair) == 2:
+            co = pair[0]["odds"] * pair[1]["odds"]
+            stake = round(bankroll * prof["k3_stake"] * smult, 2)
+            coupons.append({
+                "coupon_type": "A_K2", "picks": pair, "stake": stake,
+                "combined_odds": round(co, 3),
+                "potential_return": round(stake * co, 2)})
+            for p in pair:
+                used.add(p["_match"].get("match_id"))
 
     # 2) Kalan slotlara sıkı-filtreli 3'lüler (kombine tavanlı)
     while len(coupons) < slots:

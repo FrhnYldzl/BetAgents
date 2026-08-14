@@ -1341,6 +1341,16 @@ AGENT_META = {
                   "≥2 farklı bilgi ailesi (motor/model/band — yankı odası "
                   "engeli) · JOKER oy kullanamaz · fayda varsayılmaz: KONSEY "
                   "ligde yarışır, değeri skor tablosu ölçer.")},
+    "TERS_V1": {
+        "icon": "🪞", "title": "TERS", "renk": "#f87171",
+        "sub": "YAZAR-TERSLEME DENEYİ",
+        "rules": ("Ampirik bulgu: iddaa yazarlarının 2-yollu pick'lerinin KARŞI "
+                  "tarafı %88 isabet / +%73.8 ROI (n=16 — KÜÇÜK örneklem!). "
+                  "Kontrast: KURUCU'yu terslemek çalışmıyor (−7.7%) — yalnız "
+                  "marjdan-daha-kötü kaynak terslenir. Yazarlar çelişiyorsa maç "
+                  "atlanır · yazar KG_YOK derse KG_VAR oynanır (hipotez "
+                  "bütünlüğü) · küçük stake (%3-4) · stop −%25 · sezonda yazar "
+                  "formu değişirse hipotez düşebilir — lig ölçecek.")},
     "KALECI_V1": {
         "icon": "🧤", "title": "KALECİ", "renk": "#84cc16",
         "sub": "DÜŞÜK-GOL KESİŞİM UZMANI",
@@ -1642,6 +1652,10 @@ def page_konsey(portfolio: dict) -> None:
     _render_agent_page("KONSEY_V1")
 
 
+def page_ters(portfolio: dict) -> None:
+    _render_agent_page("TERS_V1")
+
+
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
 
@@ -1788,7 +1802,7 @@ def page_score_table(portfolio: dict) -> None:
         "AVCI_V1": "🎯 Avcı", "MEMUR_V1": "📋 Memur",
         "HOCA_V1": "🧮 Hoca", "SIMYACI_V1": "🧪 Simyacı",
         "POPULER_V1": "🔥 Popüler", "ERKENKUS_V1": "⏰ Erkenkuş",
-        "CESUR_V1": "🦁 Cesur", "JOKER_V1": "🃏 Joker", "KALECI_V1": "🧤 Kaleci", "KONSEY_V1": "🏛 Konsey",
+        "CESUR_V1": "🦁 Cesur", "JOKER_V1": "🃏 Joker", "KALECI_V1": "🧤 Kaleci", "KONSEY_V1": "🏛 Konsey", "TERS_V1": "🪞 Ters",
         "TRIVOX_V1": "🇹🇷 Trivox 😴", "EUVOX_V1": "🇪🇺 Euvox 😴",
     }
     st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
