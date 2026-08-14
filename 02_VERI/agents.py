@@ -209,8 +209,8 @@ PROFILES: dict[str, dict] = {
     # model sinyal hattını bağla. Alt-modeller (MONOVOX/DUOVOX/BTTS-*/OU25-*)
     # aktivasyonda filtre/bacak olarak bunlara bağlanır.
     "TRIVOX_V1": {
-        "name": "TRIVOX (T1 uzmanı — sezon bekliyor)",
-        "stop_pct": -0.15, "dormant": True,
+        "name": "TRIVOX (T1 uzmanı — SEZONDA, motor-v1)",
+        "stop_pct": -0.15, "leagues": {"T1"},
         "markets": {"KG_YOK", "UST_25"}, "fav_min": 0.72,
         "min_mp": 0.66, "min_odds": 1.20,
         "combo_cap": 3.00, "max_daily": 2, "max_open": 4,
@@ -218,8 +218,8 @@ PROFILES: dict[str, dict] = {
         "tek_stake": 0.05, "k3_stake": 0.04, "sort": "safety",
     },
     "EUVOX_V1": {
-        "name": "EUVOX (Avrupa DC — sezon bekliyor)",
-        "stop_pct": -0.15, "dormant": True,
+        "name": "EUVOX (Avrupa uzmanı — SEZONDA, motor-v1)",
+        "stop_pct": -0.15, "leagues": {"SP1", "I1", "F1", "D1", "E0"},
         "markets": {"KG_YOK", "UST_25", "ALT_25"}, "fav_min": 0.68,
         "min_mp": 0.64, "min_odds": 1.22,
         "combo_cap": 3.00, "max_daily": 2, "max_open": 4,
@@ -775,7 +775,11 @@ def _engine_candidates(prof: dict, tag: str, matches: list[dict],
     _probs_cache: dict = {}
 
     picks: list[dict] = []
+    lgs = prof.get("leagues")
     for m in matches:
+        # 🏟 Lig-scope (TRIVOX=T1, EUVOX=Avrupa): yalnız kendi ligleri
+        if lgs and (m.get("league_code") not in lgs):
+            continue
         # ⏰ Zaman filtreleri (ERKENKUŞ): erken-giriş penceresi + saat bandı
         kh_eff = prof.get("kick_hours")   # saat kısıtı yalnız profil bazlı (30g veri global yasağı desteklemedi)
         if prof.get("min_lead_h") or kh_eff or prof.get("lead_forbid"):

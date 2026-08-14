@@ -96,6 +96,56 @@ def map_league_by_name(cn: str) -> str | None:
     return None
 
 
+# ── SEZON-KANITLI LİG TESPİTİ: takım adından ci öğren (2026-08) ──
+# ci numaraları her sezon değişir; bunun yerine her fetch'te ünlü takım
+# adlarından ci→lig eşlemesi ÖĞRENİLİR (çoğunluk oyu) ve tüm event'lere
+# uygulanır. Elle ci güncellemesi bir daha gerekmez.
+TEAM_MARKERS = {
+    "T1": ["galatasaray","fenerbah","beşiktaş","trabzonspor","başakşehir",
+           "kasımpaşa","alanyaspor","antalyaspor","konyaspor","kayserispor",
+           "rizespor","samsunspor","göztepe","eyüpspor","gaziantep",
+           "kocaelispor","gençlerbirliği","karagümrük"],
+    "E0": ["manchester city","manchester utd","liverpool","chelsea","arsenal",
+           "tottenham","everton","newcastle","aston villa","west ham",
+           "brighton","fulham","brentford","crystal palace","wolverhampton",
+           "nottingham forest","sunderland","leeds","burnley","bournemouth"],
+    "SP1":["real madrid","barcelona","atletico madrid","sevilla","villarreal",
+           "real betis","athletic bilbao","real sociedad","valencia","getafe",
+           "osasuna","celta vigo","mallorca","alaves","espanyol","girona"],
+    "I1": ["juventus","inter","milan","napoli","roma","lazio","atalanta",
+           "fiorentina","torino","bologna","udinese","genoa","cagliari",
+           "como","lecce","sassuolo","parma"],
+    "D1": ["bayern münih","borussia dortmund","leverkusen","rb leipzig",
+           "eintracht frankfurt","stuttgart","wolfsburg","freiburg",
+           "union berlin","mönchengladbach","mainz","augsburg","hoffenheim",
+           "werder bremen","köln","hamburg"],
+    "F1": ["paris sg","paris saint","marsilya","marseille","olympique lyon",
+           "monaco","lille","nice","rennes","lens","toulouse","strasbourg",
+           "nantes","brest","auxerre"],
+}
+
+
+def learn_ci_leagues(events: list) -> dict:
+    """events listesinden ci→league_code eşlemesini çoğunluk oyuyla öğren."""
+    from collections import Counter
+    votes: dict = {}
+    for ev in events:
+        nm = ((ev.get("hn") or ev.get("eh") or "") + " " +
+              (ev.get("an") or ev.get("ea") or "")).lower()
+        ci = ev.get("ci")
+        if ci is None:
+            continue
+        for lg, markers in TEAM_MARKERS.items():
+            if any(m in nm for m in markers):
+                votes.setdefault(ci, Counter())[lg] += 1
+    learned = {}
+    for ci, ctr in votes.items():
+        lg, n = ctr.most_common(1)[0]
+        if n >= 2:                      # tek maçlık tesadüf eşleşmeyi eleme
+            learned[ci] = lg
+    return learned
+
+
 def map_iddaa_league(event: dict) -> str | None:
     """iddia event → canonical league_code: önce ci eşlemesi, sonra lig adı (cn)."""
     ci = event.get("ci")
@@ -166,6 +216,19 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
     if not events:
         print("  Boş — iddia.com'da bugün/yakın maç yok veya endpoint değişti")
         return
+
+    # 1.5) Sezon-kanıtlı lig öğrenme: ci→lig (takım adlarından, her fetch'te)
+    learned = {}
+    try:
+        learned = learn_ci_leagues(events)
+        if learned:
+            print(f"  Lig tespiti: {len(learned)} ci öğrenildi -> {learned}")
+        for ev in events:
+            lg = learned.get(ev.get("ci"))
+            if lg and "_league_code" not in ev:
+                ev["_league_code"] = lg
+    except Exception as e:
+        print(f"  lig öğrenme atlandı: {e}")
 
     # 2) Filter target leagues via competition_id (ci)
     if only_target_leagues:
@@ -292,7 +355,8 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                     # UPDATE odds
                     conn.execute("""
                         UPDATE matches_v2
-                        SET closing_1=?, closing_X=?, closing_2=?,
+                        SET league_code=CASE WHEN ? != 'ALL' THEN ? ELSE league_code END,
+                            closing_1=?, closing_X=?, closing_2=?,
                             closing_over25=?, closing_under25=?,
                             closing_btts_yes=?, closing_btts_no=?,
                             closing_source='iddaa',
@@ -301,6 +365,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             refreshed_at=?
                         WHERE match_id=?
                     """, (
+                        lg, lg,
                         odds.get("1"), odds.get("X"), odds.get("2"),
                         odds.get("over25"), odds.get("under25"),
                         odds.get("btts_yes"), odds.get("btts_no"),

@@ -75,6 +75,23 @@ def run(no_fetch: bool = False, max_events: int = 40):
 
     log(f"Mevcut açık kupon: {open_n}  |  Bankroll: {bankroll:,.0f} TL")
 
+    # 🛑 TABAN FRENİ (Era-1 dersi): kasa başlangıcın %50'sinin altına inerse
+    # KORUMA MODU — yeni kupon yok (açıklar settle olur). Stop-reset döngüsü
+    # felaketi Era-2'de tekrarlayamaz.
+    init_row = None
+    try:
+        conn_f = db.connect()
+        init_row = conn_f.execute(
+            "SELECT initial_bankroll FROM paper_portfolio "
+            "WHERE portfolio_id='KURUCU_V2'").fetchone()
+        conn_f.close()
+    except Exception:
+        pass
+    if init_row and bankroll < (init_row[0] or 1000) * 0.50:
+        log(f"🛑 TABAN FRENİ: {bankroll:,.0f} < %50 taban — KORUMA MODU, yeni kupon yok.")
+        log("=== AUTO PLAY BITTI ===\n")
+        return
+
     # 🌉 AĞUSTOS'A KÖPRÜ (10 Ağu'da otomatik kalkar): KURUCU_V2 için
     # günlük max 2 kupon + stake ×0.5 + Avrupa saat bandı (12-24 UTC).
     # Gerekçe: haftalık özet — off-season'da 36 kupon/hafta israftı.
