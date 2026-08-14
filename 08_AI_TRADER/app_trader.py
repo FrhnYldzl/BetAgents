@@ -1816,6 +1816,41 @@ def page_score_table(portfolio: dict) -> None:
                 st.session_state["nav_page"] = NAV_LABEL.get(r["pid"], "Genel Bakış")
                 st.rerun()
 
+    # 🩺 GÜNLÜK TIKANIKLIK PANELİ — her sessizliğin nedeni kayıtlı
+    try:
+        diag_rows = _db_rows(
+            "SELECT ts, pid, status, detail FROM agent_diag "
+            "ORDER BY ts DESC LIMIT 60")
+        seen, latest = set(), []
+        for d in diag_rows:
+            if d["pid"] not in seen:
+                seen.add(d["pid"]); latest.append(d)
+        if latest:
+            body = ""
+            for d in sorted(latest, key=lambda x: x["status"]):
+                meta_d = AGENT_META.get(d["pid"], {})
+                stc = ("#ef4444" if "🔴" in d["status"] else
+                       "#f59e0b" if ("🟠" in d["status"] or "⏸" in d["status"]) else
+                       "#10d48e" if "🟢" in d["status"] else "#64748b")
+                body += (
+                    f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:11px;">'
+                    f'<td style="padding:4px 8px;color:#e2e8f0;white-space:nowrap;">'
+                    f'{meta_d.get("icon","")} {meta_d.get("title",d["pid"])}</td>'
+                    f'<td style="padding:4px 8px;color:{stc};font-weight:700;white-space:nowrap;">{d["status"]}</td>'
+                    f'<td style="padding:4px 8px;color:#94a3b8;">{d["detail"]}</td>'
+                    f'<td style="padding:4px 8px;color:#475569;text-align:right;white-space:nowrap;">{d["ts"][5:16].replace("T"," ")}</td></tr>')
+            st.markdown(
+                '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:10px;'
+                'padding:6px;margin:12px 0;">'
+                '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+                'letter-spacing:0.08em;font-weight:700;padding:4px 8px;">'
+                '🩺 GÜNLÜK TIKANIKLIK TEŞHİSİ — her sessizliğin nedeni '
+                '(filtrelere dokunulmaz, sadece ölçülür)</div>'
+                f'<table style="width:100%;border-collapse:collapse;">{body}</table></div>',
+                unsafe_allow_html=True)
+    except Exception:
+        pass
+
     st.markdown(
         '<div style="color:#475569;font-size:10px;padding:8px 0;">'
         '🔬 DATA→MODEL→AGENT döngüsü: her ajan bir hipotezi test eder '

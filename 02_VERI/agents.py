@@ -1215,6 +1215,90 @@ def run_profile(pid: str, place: bool = True) -> list[str]:
     return ids
 
 
+def diagnose_all() -> list[dict]:
+    """🩺 GÜNLÜK TIKANIKLIK TEŞHİSİ — her ajan için: neden oynamıyor?
+    Filtrelere DOKUNMAZ; sadece huniyi ölçer ve nedeni kayda geçirir:
+    😴 dormant · 🚫 kadro dışı · 🧊 mola · ⏸ limit · 🔒 dönem ·
+    ⚪ meşru PAS (0 aday) · 🟠 montaj engeli (aday var, MBS/tavan kesti) ·
+    🟢 oynadı/oynayabilir · 🔴 TIKANIKLIK (hata)."""
+    eng = PaperEngine("KURUCU_V2")
+    conn = db.connect()
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_diag "
+                     "(ts TEXT, pid TEXT, status TEXT, detail TEXT)")
+        conn.commit()
+        matches = [dict(r) for r in conn.execute(
+            "SELECT * FROM matches_v2 WHERE is_settled=0 AND kickoff_utc > ? "
+            "AND closing_1 IS NOT NULL ORDER BY kickoff_utc ASC LIMIT 300",
+            (_now(),)).fetchall()]
+        today = _now()[:10]
+        out = []
+        for pid, prof in PROFILES.items():
+            tag = f"[DIAG·{pid.split('_')[0]}]"
+            status, detail = "", ""
+            try:
+                if prof.get("dormant"):
+                    status, detail = "😴 DORMANT", "sezona kadar bilinçli uyku"
+                elif _is_benched(conn, pid):
+                    status, detail = "🚫 KADRO DIŞI", "sözleşme feshi"
+                elif _loss_streak(conn, pid, prof["loss_streak"]):
+                    status, detail = "🧊 MOLA", f"{prof['loss_streak']} ardışık kayıp (48sa)"
+                else:
+                    n_today = conn.execute(
+                        "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+                        "AND session_date=?", (pid, today)).fetchone()[0]
+                    n_open = conn.execute(
+                        "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+                        "AND status='open'", (pid,)).fetchone()[0]
+                    if n_today >= prof["max_daily"]:
+                        status, detail = "🟢 OYNADI", f"bugün {n_today}/{prof['max_daily']} kupon"
+                    elif n_open >= prof["max_open"]:
+                        status, detail = "⏸ AÇIK LİMİT", f"açık {n_open}/{prof['max_open']}"
+                    else:
+                        per = PaperEngine(pid).manage_period(pid)
+                        if not per["can_bet"]:
+                            status, detail = "🔒 DÖNEM", per["status"]
+                        else:
+                            mode = prof.get("mode")
+                            if mode == "council":
+                                picks = _council_candidates(prof, tag, matches, eng)
+                            elif mode == "midband":
+                                picks = _midband_candidates(prof, tag, matches)
+                            elif mode == "joker":
+                                picks = _joker_candidates(prof, tag, matches)
+                            elif mode == "fade":
+                                picks = _fade_candidates(prof, tag)
+                            elif mode == "popular":
+                                picks = _popular_candidates(prof, tag)
+                            else:
+                                picks = _engine_candidates(prof, tag, matches, eng)
+                            if not picks:
+                                status = "⚪ MEŞRU PAS"
+                                detail = f"{len(matches)} maç tarandı, 0 profil-geçen aday"
+                            else:
+                                picks.sort(key=_sort_key(prof), reverse=True)
+                                cps = _assemble_coupons(
+                                    prof, per["period_start_bankroll"], picks)
+                                if cps:
+                                    status = "🟢 OYNAYABİLİR"
+                                    detail = (f"{len(picks)} aday → {len(cps)} kupon "
+                                              f"kurar (bugün {n_today}/{prof['max_daily']})")
+                                else:
+                                    status = "🟠 MONTAJ ENGELİ"
+                                    detail = (f"{len(picks)} aday var ama kupon "
+                                              f"kurulamadı (MBS/kombine tavanı)")
+            except Exception as e:
+                status, detail = "🔴 TIKANIKLIK", str(e)[:120]
+            conn.execute("INSERT INTO agent_diag (ts, pid, status, detail) "
+                         "VALUES (?,?,?,?)", (_now(), pid, status, detail))
+            out.append({"pid": pid, "status": status, "detail": detail})
+            print(f"{tag} {status} — {detail}")
+        conn.commit()
+        return out
+    finally:
+        conn.close()
+
+
 def run_all(place: bool = True) -> dict:
     print(f"[AGENTS] === run_all basladi ({len(PROFILES)} profil) ===")
     # Sözleşme kolonlarını EN BAŞTA garanti et (eksik kolon → abort zinciri)
@@ -1246,6 +1330,25 @@ def run_all(place: bool = True) -> dict:
         conn.close()
     except Exception as e:
         print(f"[AGENTS] heartbeat yazilamadi: {e}")
+    # 🩺 Günlük tıkanıklık teşhisi (20 saatte bir — filtrelere dokunmaz, ölçer)
+    try:
+        conn = db.connect()
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_diag "
+                     "(ts TEXT, pid TEXT, status TEXT, detail TEXT)")
+        last = conn.execute("SELECT MAX(ts) FROM agent_diag").fetchone()[0]
+        conn.close()
+        from datetime import datetime as _dt, timedelta as _td
+        due = True
+        if last:
+            try:
+                due = (_dt.utcnow() - _dt.fromisoformat(str(last)[:19])) > _td(hours=20)
+            except Exception:
+                pass
+        if due:
+            diagnose_all()
+    except Exception as e:
+        print(f"[DIAG] HATA: {e}")
+
     # 📜 Sözleşme ligi — haftalık saat dolduysa değerlendir (dolmadıysa sessiz)
     try:
         review_league()
