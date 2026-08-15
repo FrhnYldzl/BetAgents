@@ -1697,7 +1697,28 @@ def get_score_table():
         w = agg.get("w") or 0
         stk = agg.get("stk") or 0
         ret = agg.get("ret") or 0
+        # 🎯 FLAT BECERİ — bidding'den arınmış seçim kalitesi: her karar
+        # kuponu SABİT 100 TL ile yeniden hesaplanır. LCB = ort − 1σ/√n
+        # (şans cezası). Lisans eşikleri agents.LICENSE_TIERS ile aynı.
+        fl = _db_rows("SELECT status, combined_odds FROM paper_coupons "
+                      "WHERE portfolio_id=? AND status IN ('won','lost')", (apid,))
+        fp = [((x["combined_odds"] or 1) - 1) if x["status"] == "won" else -1.0
+              for x in fl]
+        fn = len(fp)
+        fmean = (sum(fp) / fn) if fn else None
+        lcb = None
+        if fn >= 5:
+            fstd = (sum((x - fmean) ** 2 for x in fp) / fn) ** 0.5
+            lcb = fmean - fstd / (fn ** 0.5)
+        lic = ("🥇 1000" if (fn >= 60 and lcb is not None and lcb > 0.05) else
+               "🥈 500" if (fn >= 30 and lcb is not None and lcb > 0.0) else
+               "🎫 100")
         rows.append({
+            "flat_n": fn,
+            "flat_roi": (fmean * 100) if fmean is not None else None,
+            "flat_pnl": (sum(fp) * 100) if fn else None,
+            "lcb": (lcb * 100) if lcb is not None else None,
+            "lic": lic,
             "pid": apid, "icon": meta["icon"], "title": meta["title"],
             "sub": meta["sub"], "renk": meta["renk"],
             "init": init, "cur": cur, "pnl": cur - init,
@@ -1721,7 +1742,7 @@ def page_score_table(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
       <div class="sec-title-main">🏆 AGENTS SCORE TABLE</div>
-      <div class="sec-title-meta">TÜM OYUNCULAR · ORTAK METRİKLER · GETİRİ %'YE GÖRE SIRALI</div>
+      <div class="sec-title-meta">TÜM OYUNCULAR · SABİT 100 TL BIDDING · VARSAYILAN SIRA: BECERİ (FLAT-LCB)</div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(
@@ -1730,7 +1751,7 @@ def page_score_table(portfolio: dict) -> None:
         'ℹ️ Kasalar farklı (👑 KURUCU 5.000 · ajanlar 1.000) → adil kıyas <b style="color:#e2e8f0;">Getiri %</b> '
         'üzerinden. <b style="color:#e2e8f0;">CLV</b> gerçek beceri göstergesidir (şans değil); '
         '<b style="color:#e2e8f0;">İsabet</b> tek başına yanıltır (düşük oranla şişer). '
-        'Az kuponlu ajanlarda tüm metrikler GÜRÜLTÜDÜR — 1 ay dolmadan şampiyon ilan etme.'
+        '<b style="color:#e2e8f0;">Beceri (flat)</b> = her kupon SABİT 100 TL ile yeniden hesaplanır (bidding politikasından arınmış saf seçim becerisi) · <b style="color:#e2e8f0;">LCB</b> = ortalama − 1σ/√n şans cezası (varsayılan sıralama budur — az kuponla şişen şansı indirir). <b style="color:#e2e8f0;">🎫 Lisans</b>: herkes 100 TL sabit oynar; kanıtlanan beceri 500 TL (n≥30, LCB>0) ve 1000 TL (n≥60, LCB>+5p) stake İZNİ kazandırır — terfide kasa tahsisi yapılır. Kasa/Getiri stake POLİTİKASININ sonucudur; beceriyle bilerek ayrı ölçülür. Az kuponlu ajanlarda tüm metrikler GÜRÜLTÜDÜR — 1 ay dolmadan şampiyon ilan etme.'
         '</div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="background:#1a1410;border:1px solid #3a2d1a;border-left:3px solid #f59e0b;'
@@ -1743,10 +1764,24 @@ def page_score_table(portfolio: dict) -> None:
         'Yeni ajanlara 5 gün hoşgörü. Kararlar journal\'a yazılır.'
         '</div>', unsafe_allow_html=True)
 
-    rows = get_score_table()
+    rows = list(get_score_table())
     if not rows:
         st.info("Henüz oyuncu verisi yok.")
         return
+
+    # 🎯 SIRALAMA — başarı tanımı seçilebilir; varsayılan: Beceri (Flat-LCB)
+    SORTS = {
+        "🎯 Beceri (Flat-LCB) — önerilen": lambda r: (
+            r["lcb"] if r["lcb"] is not None else -999),
+        "Flat ROI (sabit 100 TL)": lambda r: (
+            r["flat_roi"] if r["flat_roi"] is not None else -999),
+        "Getiri % (kasa/politika)": lambda r: r["pnl_pct"],
+        "CLV": lambda r: (r["clv"] if r["clv"] is not None else -9),
+        "Kupon sayısı": lambda r: r["n"],
+    }
+    sel_sort = st.selectbox("Sıralama ölçütü", list(SORTS.keys()),
+                            key="score_sort")
+    rows.sort(key=SORTS[sel_sort], reverse=True)
     medals = {0: "🥇", 1: "🥈", 2: "🥉"}
     body = ""
     for i, r in enumerate(rows):
@@ -1767,6 +1802,17 @@ def page_score_table(portfolio: dict) -> None:
             per_c = "#10d48e" if r["period"] == "active" else "#f59e0b"
         if r.get("ihtar") and not r.get("benched"):
             per_disp += f' <span style="color:#f59e0b;">⚠️×{r["ihtar"]}</span>'
+        fr, lc = r.get("flat_roi"), r.get("lcb")
+        fr_c = ("#10d48e" if (fr or 0) > 0 else
+                "#ef4444" if (fr or 0) < 0 else "#64748b")
+        skill_cell = (
+            f'<td style="padding:8px;text-align:right;white-space:nowrap;">'
+            f'<span style="color:{fr_c};font-weight:700;">'
+            f'{f"{fr:+.1f}%" if fr is not None else "—"}</span><br>'
+            f'<span style="color:{"#10d48e" if (lc or -1) > 0 else "#64748b"};font-size:10px;">'
+            f'LCB {f"{lc:+.1f}%" if lc is not None else "n&lt;5"}</span></td>')
+        lic_cell = (f'<td style="padding:8px;text-align:right;color:#e2e8f0;'
+                    f'font-size:10px;white-space:nowrap;">{r.get("lic", "🎫 100")}</td>')
         body += (
             f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
             f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '
@@ -1776,6 +1822,7 @@ def page_score_table(portfolio: dict) -> None:
             f'<span style="color:#475569;font-size:9px;">başl. {r["init"]:,.0f}</span></td>'
             f'<td style="padding:8px;text-align:right;color:{pc};font-weight:700;">{r["pnl"]:+,.0f} TL<br>'
             f'<span style="font-size:11px;">{r["pnl_pct"]:+.1f}%</span></td>'
+            f'{skill_cell}{lic_cell}'
             f'<td style="padding:8px;text-align:right;color:#94a3b8;">{r["w"]}/{r["n"]}</td>'
             f'<td style="padding:8px;text-align:right;color:#e2e8f0;">{hit_txt}</td>'
             f'<td style="padding:8px;text-align:right;color:{roi_c};">{roi_txt}</td>'
@@ -1789,6 +1836,8 @@ def page_score_table(portfolio: dict) -> None:
         '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
         '<td style="padding:4px 8px;">Oyuncu</td><td style="padding:4px 8px;text-align:right;">Kasa</td>'
         '<td style="padding:4px 8px;text-align:right;">PnL / Getiri</td>'
+        '<td style="padding:4px 8px;text-align:right;">Beceri (flat)</td>'
+        '<td style="padding:4px 8px;text-align:right;">Lisans</td>'
         '<td style="padding:4px 8px;text-align:right;">Kupon W/N</td>'
         '<td style="padding:4px 8px;text-align:right;">İsabet</td>'
         '<td style="padding:4px 8px;text-align:right;">ROI</td>'

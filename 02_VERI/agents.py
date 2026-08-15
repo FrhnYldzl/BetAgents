@@ -1027,6 +1027,90 @@ def _sort_key(prof: dict):
     return lambda s: (s.get("model_prob") or 0, s.get("signal_score") or 0)
 
 
+# ════════════════════════════════════════════════════════════════
+# 🎫 LİSANS SİSTEMİ — SABİT BIDDING (prop-firm modeli)
+# ────────────────────────────────────────────────────────────────
+# İlke (finansal matematik): SEÇİM becerisi (alpha) ile BOYUTLANDIRMA
+# (sizing) asla aynı metrikte karışmaz. Herkes SABİT 100 TL/kupon oynar →
+# ROI/karşılaştırma stake politikasından arınır. Kanıtlanmış beceri
+# (flat-LCB = ortalama birim-kâr − 1σ/√n şans cezası) daha büyük sabit
+# stake İZNİ kazandırır; terfide kasa tahsisi initial_bankroll'a eklenir
+# (kâr sayılmaz — recompute ile tutarlı). Beceri bozulursa stake izni
+# otomatik 100'e döner (tahsis edilen kasa kalır).
+LICENSE_TIERS = [
+    # (isim, sabit stake, kasa tabanı, min karar kuponu, min flat-LCB)
+    ("🥇 EFSANE", 1000.0, 10000.0, 60, 0.05),
+    ("🥈 USTA",    500.0,  5000.0, 30, 0.00),
+    ("🎫 ÇAYLAK",  100.0,     0.0,  0, None),
+]
+
+
+def flat_skill(conn, pid: str):
+    """Karar kuponlarından stake-bağımsız beceri: (n, ortalama birim-kâr, LCB).
+    Her kupon 1 birim sabit stake ile yeniden hesaplanır: won → oran−1, lost → −1."""
+    rows = conn.execute(
+        "SELECT status, combined_odds FROM paper_coupons "
+        "WHERE portfolio_id=? AND status IN ('won','lost')", (pid,)).fetchall()
+    fp = [((r[1] or 1) - 1) if r[0] == 'won' else -1.0 for r in rows]
+    n = len(fp)
+    if not n:
+        return 0, None, None
+    mean = sum(fp) / n
+    if n < 5:
+        return n, mean, None
+    std = (sum((x - mean) ** 2 for x in fp) / n) ** 0.5
+    return n, mean, mean - std / (n ** 0.5)
+
+
+def license_for(conn, pid: str):
+    """Ajanın GÜNCEL lisansı: (isim, sabit stake, kasa tabanı)."""
+    n, _mean, lcb = flat_skill(conn, pid)
+    for name, unit, floor, min_n, min_lcb in LICENSE_TIERS:
+        if min_lcb is None:
+            return name, unit, floor
+        if n >= min_n and lcb is not None and lcb > min_lcb:
+            return name, unit, floor
+    return LICENSE_TIERS[-1][:3]
+
+
+def manage_licenses():
+    """Terfi kontrolü: hak eden ajana kalıcı lisans kaydı + kasa tahsisi."""
+    conn = db.connect()
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS agent_license "
+                     "(pid TEXT PRIMARY KEY, tier TEXT, unit REAL, granted_ts TEXT)")
+        for pid in list(PROFILES.keys()) + ["KURUCU_V2"]:
+            tier, unit, floor = license_for(conn, pid)
+            row = conn.execute(
+                "SELECT unit FROM agent_license WHERE pid=?", (pid,)).fetchone()
+            if row is None:
+                conn.execute(
+                    "INSERT INTO agent_license (pid, tier, unit, granted_ts) "
+                    "VALUES (?,?,?,?)", (pid, tier, unit, _now()))
+                continue
+            if unit > (row[0] or 100.0):
+                delta = 0.0
+                pr = conn.execute(
+                    "SELECT initial_bankroll FROM paper_portfolio "
+                    "WHERE portfolio_id=?", (pid,)).fetchone()
+                if pr:
+                    delta = max(0.0, floor - (pr[0] or 0.0))
+                    if delta > 0:
+                        conn.execute(
+                            "UPDATE paper_portfolio SET "
+                            "initial_bankroll=initial_bankroll+?, "
+                            "current_bankroll=current_bankroll+? "
+                            "WHERE portfolio_id=?", (delta, delta, pid))
+                conn.execute(
+                    "UPDATE agent_license SET tier=?, unit=?, granted_ts=? "
+                    "WHERE pid=?", (tier, unit, _now(), pid))
+                print(f"[LISANS] 🎉 {pid}: {tier} terfisi — "
+                      f"sabit stake {unit:.0f} TL, kasa tahsisi +{delta:.0f} TL")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     prof = PROFILES[pid]
     tag = f"[{pid.split('_')[0]}]"
@@ -1074,49 +1158,59 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         return []
     bankroll = per["period_start_bankroll"]
 
+    # 🎫 SABİT BIDDING: stake = lisans birimi (varsayılan 100 TL)
+    try:
+        conn_l = db.connect()
+        _tier, unit, _fl = license_for(conn_l, pid)
+        conn_l.close()
+    except Exception:
+        unit = 100.0
+
     mode = prof.get("mode")
     # 🏛 KONSEY modu: ajan heyeti oylaması (iç-Polymarket)
     if mode == "council":
         picks = _council_candidates(prof, tag, matches, eng)
         picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
+        return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
     if mode == "midband":
         picks = _midband_candidates(prof, tag, matches)
         picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
+        return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🪞 TERS modu: yazar pick'lerinin karşı tarafı
     if mode == "fade":
         picks = _fade_candidates(prof, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
+        return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
     if mode == "joker":
         picks = _joker_candidates(prof, tag, matches)
         picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
+        return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
     if mode == "popular":
         picks = _popular_candidates(prof, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
-        return _assemble_coupons(prof, bankroll, picks)
+        return _assemble_coupons(prof, bankroll, picks, unit)
 
     picks = _engine_candidates(prof, tag, matches, eng)
     picks.sort(key=_sort_key(prof), reverse=True)
-    return _assemble_coupons(prof, bankroll, picks)
+    return _assemble_coupons(prof, bankroll, picks, unit)
 
 
-def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[dict]:
+def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict],
+                      unit: float = 100.0) -> list[dict]:
     """Aday pick'lerden MBS-uyumlu kupon montajı (TEK öncelik + tavanlı K3).
-    Hem sinyal-motorlu ajanlar hem 🔥 POPÜLER aynı montajı kullanır."""
+    Hem sinyal-motorlu ajanlar hem 🔥 POPÜLER aynı montajı kullanır.
+    🎫 SABİT BIDDING: her kupon lisans birimi kadar (varsayılan 100 TL) —
+    beceri ölçümü stake politikasından arınır; % stake tarihe karıştı."""
     coupons: list[dict] = []
     used: set = set()
     slots = prof["max_daily"]
-    smult = 0.5 if bridge_active() else 1.0   # 🌉 köprü: stake ×0.5
 
     # 1) TEK'ler (MBS=1) — kanıt: 1-2 ayak ezici üstün
     n_tek = 0
@@ -1126,7 +1220,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
         m = s["_match"]
         if _mbs(m) != 1 or m.get("match_id") in used:
             continue
-        stake = round(bankroll * prof["tek_stake"] * smult, 2)
+        stake = round(unit, 2)
         coupons.append({
             "coupon_type": "A_TEK", "picks": [s], "stake": stake,
             "combined_odds": round(s["odds"], 3),
@@ -1153,7 +1247,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
                 break
         if len(pair) == 2:
             co = pair[0]["odds"] * pair[1]["odds"]
-            stake = round(bankroll * prof["k3_stake"] * smult, 2)
+            stake = round(unit, 2)
             coupons.append({
                 "coupon_type": "A_K2", "picks": pair, "stake": stake,
                 "combined_odds": round(co, 3),
@@ -1183,7 +1277,7 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict]) -> list[di
         co = 1.0
         for p in sel:
             co *= p["odds"]
-        stake = round(bankroll * prof["k3_stake"] * smult, 2)
+        stake = round(unit, 2)
         coupons.append({
             "coupon_type": "A_K3", "picks": sel, "stake": stake,
             "combined_odds": round(co, 3),
@@ -1330,6 +1424,11 @@ def run_all(place: bool = True) -> dict:
         conn.close()
     except Exception as e:
         print(f"[AGENTS] heartbeat yazilamadi: {e}")
+    # 🎫 Lisans terfi kontrolü: flat-LCB kanıtı → 500/1000 TL stake izni
+    try:
+        manage_licenses()
+    except Exception as e:
+        print(f"[LISANS] HATA: {e}")
     # 🩺 Günlük tıkanıklık teşhisi (20 saatte bir — filtrelere dokunmaz, ölçer)
     try:
         conn = db.connect()

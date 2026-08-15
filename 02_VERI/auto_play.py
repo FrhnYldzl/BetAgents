@@ -147,6 +147,19 @@ def run(no_fetch: bool = False, max_events: int = 40):
             log(f"  {c['coupon_type']}  oran:{c['combined_odds']:.2f}  "
                 f"stake:{c['stake']:.0f}TL  → {picks_str}")
 
+        # 🎫 SABİT BIDDING: KURUCU da lige sabit birimle oynar (kıyas adil)
+        try:
+            import agents as _ag
+            conn_l = db.connect()
+            _tier, _unit, _f = _ag.license_for(conn_l, "KURUCU_V2")
+            conn_l.close()
+        except Exception:
+            _tier, _unit = "🎫 ÇAYLAK", 100.0
+        for c in coupons:
+            c["stake"] = round(_unit, 2)
+            c["potential_return"] = round(_unit * c["combined_odds"], 2)
+        log(f"🎫 Lisans: {_tier} — sabit stake {_unit:.0f} TL/kupon")
+
         # 🌉 Köprü filtreleri: Avrupa saat bandı + yarım stake + max 2
         if bridge:
             def _eu(c):
