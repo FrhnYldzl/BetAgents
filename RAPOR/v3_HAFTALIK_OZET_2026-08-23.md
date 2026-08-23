@@ -121,3 +121,44 @@ genişletilmesi gerekiyor.
 > sandığın şeyi bozar. Bu hafta ceza sistemimiz bug'ı tembellik sandı ve
 > 5.823 TL'yi yanlış ajana verdi. Teşhis katmanı olmasaydı bunu asla
 > göremezdik.
+
+---
+
+# 🗓 EK — AYNI GÜN ALINAN KARAR: ERA-2 BAŞLADI
+
+Telafi (para iadesi) yerine **Era-2** seçildi. Gerekçe: iade kasayı düzeltir,
+**kıyası düzeltmez**. Era-1'de kimi ajan %-stake ile, kimi köprü yarım stake ile,
+kimi de çöken motorla "oynamamış" sayılarak yarıştı — bu veriden hangi yöntemin
+işe yaradığı çıkarılamaz. Era-2'de **15 oyuncu aynı gün, 1.000 TL kasa, sabit
+100 TL bahis** ile başladı; Era-1 kuponları/journal arşivde aynen duruyor.
+
+**Arşivlenen Era-1 karneleri (flat ROI):** KURUCU 103 kupon −23,5% · CESUR 39
+−11,5% · POPÜLER 26 −71,4% · JOKER 25 −17,4% · TERS 17 −0,6% · AVCI 12 +5,2% ·
+MEMUR 8 −67,6% · TEMKİNLİ 4 −26,3% · KONSEY 2 +30,0% · SİMYACI 2 +33,5% ·
+HOCA 1 +36,0% · ERKENKUŞ/KALECİ/TRIVOX/EUVOX 0.
+
+## Tıkanıklık kalkanı (kalıcı)
+
+| Katman | Ne yapar |
+|---|---|
+| `preflight()` | Her koşuda **ve worker açılışında** tüm ajanların aday üretebildiğini kuru koşuyla doğrular |
+| Fail-loud `run_profile` | Çöken ajan sessiz kalamaz → anında `🔴 TIKANIKLIK` satırı |
+| `selftest_agents.py` | **Railway SLIM taklidi** (scipy/sklearn/lightgbm import edilemez) — deploy öncesi zorunlu test |
+| Ölçüm şartlı lig | Pasiflik ihtarı yalnız teşhis `🟢 OYNAYABİLİR` derse |
+| Era-farkındalı limitler | Önceki eranın kuponları yeni eranın günlük/açık limitini ve mola sayacını yiyemez |
+| UI alarmı | Sistem Sağlığı'nda **🩺 Tıkalı Ajan** kutusu (24 saatlik teknik çöküş sayısı) |
+
+## Era-2 ilk gün — tam kadro sahada
+
+22 kupon kuruldu; teşhis paneli: 9 ajan 🟢 OYNADI (TEMKİNLİ 2 · MEMUR 2 · AVCI 3 ·
+POPÜLER 2 · CESUR 3 · TERS 2 · KALECİ 2 · JOKER 2 · EUVOX 2), HOCA/ERKENKUŞ/KONSEY
+🟢 oynayabilir (limit içinde), TRIVOX ⚪ meşru PAS, SİMYACI 🟠 montaj engeli
+(2 adayın da MBS=3 → iddaa kuralı 3 ayak istiyor, 2 aday var: yapısal), KURUCU
+⚪ auto_play penceresinde. **🔴 tıkanıklık: 0.**
+
+## Düzeltme: P4 yanlış teşhisti
+
+`ALL` etiketli 146 maç veri hatası değil — Danimarka 2. lig, U19, Kanada,
+El Salvador gibi küçük/egzotik ligler. Büyük ligler doğru tanınıyor
+(I1 66 · E0 44 · USA1 43 · SP1 28 · T1 27 · BRA1 20 · D1 20 · F1 8).
+TRIVOX'un boş dönmesi eşik meselesi, etiket meselesi değil.

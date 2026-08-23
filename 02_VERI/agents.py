@@ -326,10 +326,13 @@ def _loss_streak(conn, pid: str, n: int) -> bool:
     ajan tekrar oynayabilir (eskisi süresiz kilitliyordu: hiç oynamayınca
     son n hep 'lost' kalır → sonsuz PAS)."""
     from datetime import datetime as _dt
+    # 🗓 ERA: önceki eranın kayıpları yeni erada mola tetikleyemez
+    era = era_start(conn, pid)
     rows = conn.execute(
         "SELECT status, settled_at FROM paper_coupons WHERE portfolio_id=? "
-        "AND status IN ('won','lost') ORDER BY settled_at DESC LIMIT ?",
-        (pid, n)).fetchall()
+        "AND status IN ('won','lost')" + (" AND created_at >= ?" if era else "")
+        + " ORDER BY settled_at DESC LIMIT ?",
+        (pid,) + ((era,) if era else ()) + (n,)).fetchall()
     if len(rows) < n or not all(r[0] == "lost" for r in rows):
         return False
     try:
@@ -1173,12 +1176,16 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             print(f"{tag} {prof['loss_streak']} ardisik kayip -> PAS")
             return []
         today = _now()[:10]
+        # 🗓 ERA: önceki eranın kuponları yeni eranın günlük/açık limitini yemez
+        _era = era_start(conn, pid)
+        _ec = " AND created_at >= ?" if _era else ""
+        _ep = (_era,) if _era else ()
         n_today = conn.execute(
-            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND session_date=?",
-            (pid, today)).fetchone()[0]
+            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+            "AND session_date=?" + _ec, (pid, today) + _ep).fetchone()[0]
         n_open = conn.execute(
-            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? AND status='open'",
-            (pid,)).fetchone()[0]
+            "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
+            "AND status='open'" + _ec, (pid,) + _ep).fetchone()[0]
         if n_today >= prof["max_daily"] or n_open >= prof["max_open"]:
             print(f"{tag} limit (bugun {n_today}/{prof['max_daily']}, "
                   f"acik {n_open}/{prof['max_open']}) -> PAS")
@@ -1407,12 +1414,16 @@ def diagnose_all() -> list[dict]:
                 elif _loss_streak(conn, pid, prof["loss_streak"]):
                     status, detail = "🧊 MOLA", f"{prof['loss_streak']} ardışık kayıp (48sa)"
                 else:
+                    _era = era_start(conn, pid)
+                    _ec = " AND created_at >= ?" if _era else ""
+                    _ep = (_era,) if _era else ()
                     n_today = conn.execute(
                         "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
-                        "AND session_date=?", (pid, today)).fetchone()[0]
+                        "AND session_date=?" + _ec,
+                        (pid, _now()[:10]) + _ep).fetchone()[0]
                     n_open = conn.execute(
                         "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
-                        "AND status='open'", (pid,)).fetchone()[0]
+                        "AND status='open'" + _ec, (pid,) + _ep).fetchone()[0]
                     if n_today >= prof["max_daily"]:
                         status, detail = "🟢 OYNADI", f"bugün {n_today}/{prof['max_daily']} kupon"
                     elif n_open >= prof["max_open"]:
@@ -1448,14 +1459,45 @@ def diagnose_all() -> list[dict]:
                                               f"kurar (bugün {n_today}/{prof['max_daily']})")
                                 else:
                                     status = "🟠 MONTAJ ENGELİ"
-                                    detail = (f"{len(picks)} aday var ama kupon "
-                                              f"kurulamadı (MBS/kombine tavanı)")
+                                    # sebebi somutlaştır: MBS dağılımı + tavan
+                                    mbss = sorted(_mbs(x["_match"]) for x in picks)
+                                    tek_ok = sum(1 for v in mbss if v == 1)
+                                    detail = (
+                                        f"{len(picks)} aday (MBS {mbss[:6]}) · "
+                                        f"tek oynanabilir {tek_ok} · "
+                                        f"kombine tavanı {prof['combo_cap']:.2f} — "
+                                        f"iddaa MBS kuralı yeterli ayak vermiyor")
             except Exception as e:
                 status, detail = "🔴 TIKANIKLIK", str(e)[:120]
             conn.execute("INSERT INTO agent_diag (ts, pid, status, detail) "
                          "VALUES (?,?,?,?)", (_now(), pid, status, detail))
             out.append({"pid": pid, "status": status, "detail": detail})
             print(f"{tag} {status} — {detail}")
+
+        # 👑 KURUCU (kendi auto_play hattı — PROFILES'da yok ama ligde yarışıyor)
+        try:
+            k_era = era_start(conn, "KURUCU_V2")
+            k_ec = " AND created_at >= ?" if k_era else ""
+            k_ep = (k_era,) if k_era else ()
+            k_today = conn.execute(
+                "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id='KURUCU_V2' "
+                "AND session_date=?" + k_ec, (_now()[:10],) + k_ep).fetchone()[0]
+            kb = conn.execute(
+                "SELECT current_bankroll, initial_bankroll FROM paper_portfolio "
+                "WHERE portfolio_id='KURUCU_V2'").fetchone()
+            if kb and (kb[0] or 0) < (kb[1] or 1) * 0.50:
+                k_st, k_dt = "🛑 TABAN FRENİ", f"kasa {kb[0]:.0f} < %50 taban — koruma modu"
+            elif k_today:
+                k_st, k_dt = "🟢 OYNADI", f"bugün {k_today} kupon (auto_play hattı)"
+            else:
+                k_st, k_dt = "⚪ BEKLEMEDE", "auto_play penceresi (06:00/15:00 UTC)"
+            conn.execute("INSERT INTO agent_diag (ts, pid, status, detail) "
+                         "VALUES (?,?,?,?)", (_now(), "KURUCU_V2", k_st, k_dt))
+            out.append({"pid": "KURUCU_V2", "status": k_st, "detail": k_dt})
+            print(f"[DIAG·KURUCU] {k_st} — {k_dt}")
+        except Exception as e:
+            conn.rollback()
+            print(f"[DIAG·KURUCU] okunamadı: {e}")
         conn.commit()
         return out
     finally:
@@ -1527,7 +1569,8 @@ def start_era(era_no: int = 2, bankroll: float = 1000.0,
         print(f"[ERA] 🗓 ERA-{era_no} başlıyor — {len(field)} oyuncu, "
               f"{bankroll:.0f} TL, sabit 100 TL bahis")
         for pid in field:
-            ensure_portfolio(pid)
+            if pid in PROFILES:          # KURUCU_V2'nin profili yok (kendi hattı)
+                ensure_portfolio(pid)
             n, mean, lcb = flat_skill(conn, pid, era=era_start(conn, pid))
             row = conn.execute(
                 "SELECT current_bankroll, initial_bankroll FROM paper_portfolio "
