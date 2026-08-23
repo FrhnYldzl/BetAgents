@@ -94,6 +94,14 @@ def main():
 
     # Açılışta: önce settle/temizlik, sonra taze program (deploy sonrası
     # sistem dakikalar içinde güncel olsun)
+    # 🛡 AÇILIŞ KALKANI: deploy sonrası ilk iş — ajanlar çöküyor mu?
+    # (Bir bağımlılık/şema kırılması haftalarca 'pasiflik' sanılmasın.)
+    try:
+        import agents as _agents
+        _agents.preflight()
+    except Exception as e:
+        print(f"[{_ts()}] PREFLIGHT HATA: {e}")
+
     job_auto_settle()
     job_fetch_program()
 

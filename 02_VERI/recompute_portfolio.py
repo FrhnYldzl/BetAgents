@@ -34,6 +34,21 @@ def recompute(portfolio_id: str = "PAPER_V1", verbose: bool = True) -> dict:
         init = row[0] or 0.0
         peak0 = row[1]
 
+        # 🗓 ERA SINIRI: sayaçlar YALNIZ yürürlükteki eranın kuponlarından
+        # türetilir. Era-1 kuponları arşivde durur (journal/analiz görür) ama
+        # kasayı ve skoru etkilemez — yoksa era sıfırlaması ilk recompute'ta
+        # geri alınırdı. era_start yoksa davranış eskisi gibi (tüm tarih).
+        era = None
+        try:
+            r_era = conn.execute(
+                "SELECT era_start FROM paper_portfolio WHERE portfolio_id=?",
+                (portfolio_id,)).fetchone()
+            era = r_era[0] if r_era else None
+        except Exception:
+            conn.rollback()
+        era_cl = " AND created_at >= ?" if era else ""
+        era_pr = (era,) if era else ()
+
         # Void kuponları normalize et: pnl=0, iade (push)
         conn.execute(
             "UPDATE paper_coupons SET pnl=0, actual_return=stake "
@@ -41,24 +56,25 @@ def recompute(portfolio_id: str = "PAPER_V1", verbose: bool = True) -> dict:
 
         wl = conn.execute(
             "SELECT status, stake, actual_return, pnl FROM paper_coupons "
-            "WHERE status IN ('won','lost') AND portfolio_id=?",
-            (portfolio_id,)).fetchall()
+            "WHERE status IN ('won','lost') AND portfolio_id=?" + era_cl,
+            (portfolio_id,) + era_pr).fetchall()
         staked = sum((r["stake"] or 0) for r in wl)
         ret    = sum((r["actual_return"] or 0) for r in wl)
         pnl    = sum((r["pnl"] or 0) for r in wl)
         won    = sum(1 for r in wl if r["status"] == "won")
         played = len(wl)
         voids = conn.execute(
-            "SELECT COUNT(*) FROM paper_coupons WHERE status='void' AND portfolio_id=?",
-            (portfolio_id,)).fetchone()[0]
+            "SELECT COUNT(*) FROM paper_coupons WHERE status='void' "
+            "AND portfolio_id=?" + era_cl, (portfolio_id,) + era_pr).fetchone()[0]
 
         # DİKKAT: kazanma durumu pb.STATUS'ta ('won'/'lost'/'void');
         # pb.result skor stringidir ("2-1") — eski script bunu karıştırıyordu.
         bets = conn.execute(
             "SELECT pb.status FROM paper_bets pb "
             "JOIN paper_coupons pc ON pb.coupon_id = pc.coupon_id "
-            "WHERE pc.status IN ('won','lost') AND pc.portfolio_id=?",
-            (portfolio_id,)).fetchall()
+            "WHERE pc.status IN ('won','lost') AND pc.portfolio_id=?"
+            + (" AND pc.created_at >= ?" if era else ""),
+            (portfolio_id,) + era_pr).fetchall()
         total_bets = sum(1 for b in bets if b["status"] in ("won", "lost"))
         total_wins = sum(1 for b in bets if b["status"] == "won")
 

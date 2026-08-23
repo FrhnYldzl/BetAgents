@@ -1202,6 +1202,15 @@ def get_system_health():
         h["agent_run"] = one("SELECT MAX(ts) AS v, SUM(coupons) AS c FROM agent_runs")
     except Exception:
         h["agent_run"] = {}
+    # 🔴 TIKANIKLIK ALARMI: son 24 saatte kaç ajan teknik nedenle çöktü?
+    try:
+        from datetime import timedelta as _td24
+        h["blocked"] = one(
+            "SELECT COUNT(DISTINCT pid) AS n FROM agent_diag "
+            "WHERE status LIKE '%TIKANIKLIK%' AND ts > ?",
+            ((datetime.utcnow() - _td24(hours=24)).isoformat(),)).get("n") or 0
+    except Exception:
+        h["blocked"] = 0
     h["bridge"] = datetime.utcnow().date().isoformat() < "2026-08-10"
     return h
 
@@ -1256,6 +1265,10 @@ def render_system_health() -> None:
                   "bahis açılabilir" if pst == "active" else "kilit/duraklama"),
         _clv_tile("Motor Görüşü", f"{h.get('upcoming', 0)}", "#3b82f6", "oranlı upcoming maç"),
         _clv_tile("Bekleyen Sonuçsuz", f"{stray}", stray_c, "yüksek = tıkanma riski"),
+        _clv_tile("🩺 Tıkalı Ajan", f"{h.get('blocked', 0)}",
+                  "#10d48e" if not h.get("blocked") else "#ef4444",
+                  "24 saatte teknik çöküş" if not h.get("blocked")
+                  else "ACİL: ceza kesilmez, ölçüm geçersiz"),
     ])
     st.markdown(f'<div style="display:flex;gap:10px;margin:0 0 12px 0;">{tiles}</div>',
                 unsafe_allow_html=True)
@@ -1676,13 +1689,24 @@ def get_score_table():
         if not p:
             continue
         p = p[0]
+        # 🗓 ERA SINIRI: skor YALNIZ yürürlükteki eranın kuponlarından.
+        # Era-1 kuponları arşivde (ajan sayfasında ayrı gösterilir).
+        era = p.get("era_start")
+        ecl = " AND created_at >= ?" if era else ""
+        epr = (era,) if era else ()
         agg = _db_rows(
             "SELECT SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
             "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
             "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o, "
             "SUM(CASE WHEN status IN ('won','lost') THEN stake ELSE 0 END) stk, "
             "SUM(CASE WHEN status IN ('won','lost') THEN actual_return ELSE 0 END) ret "
-            "FROM paper_coupons WHERE portfolio_id=?", (apid,))[0]
+            "FROM paper_coupons WHERE portfolio_id=?" + ecl, (apid,) + epr)[0]
+        arch_n = 0
+        if era:
+            arch_n = (_db_rows(
+                "SELECT COUNT(*) c FROM paper_coupons WHERE portfolio_id=? "
+                "AND status IN ('won','lost') AND created_at < ?",
+                (apid, era))[0].get("c") or 0)
         clv_mean = clv_n = None
         try:
             import clv as _clv
@@ -1701,7 +1725,8 @@ def get_score_table():
         # kuponu SABİT 100 TL ile yeniden hesaplanır. LCB = ort − 1σ/√n
         # (şans cezası). Lisans eşikleri agents.LICENSE_TIERS ile aynı.
         fl = _db_rows("SELECT status, combined_odds FROM paper_coupons "
-                      "WHERE portfolio_id=? AND status IN ('won','lost')", (apid,))
+                      "WHERE portfolio_id=? AND status IN ('won','lost')" + ecl,
+                      (apid,) + epr)
         fp = [((x["combined_odds"] or 1) - 1) if x["status"] == "won" else -1.0
               for x in fl]
         fn = len(fp)
@@ -1714,6 +1739,8 @@ def get_score_table():
                "🥈 500" if (fn >= 30 and lcb is not None and lcb > 0.0) else
                "🎫 100")
         rows.append({
+            "era_no": p.get("era_no") or 1,
+            "arch_n": arch_n,
             "flat_n": fn,
             "flat_roi": (fmean * 100) if fmean is not None else None,
             "flat_pnl": (sum(fp) * 100) if fn else None,
@@ -1742,7 +1769,7 @@ def page_score_table(portfolio: dict) -> None:
     st.markdown("""
     <div class="sec-title">
       <div class="sec-title-main">🏆 AGENTS SCORE TABLE</div>
-      <div class="sec-title-meta">TÜM OYUNCULAR · SABİT 100 TL BIDDING · VARSAYILAN SIRA: BECERİ (FLAT-LCB)</div>
+      <div class="sec-title-meta">SEZON LİGİ · HERKES AYNI GÜN · AYNI KASA · SABİT 100 TL · SIRA: BECERİ (FLAT-LCB)</div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(
@@ -1817,7 +1844,9 @@ def page_score_table(portfolio: dict) -> None:
             f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
             f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '
             f'{r["icon"]} <b>{r["title"]}</b><br>'
-            f'<span style="color:#475569;font-size:9px;">{r["sub"]}</span></td>'
+            f'<span style="color:#475569;font-size:9px;">{r["sub"]}'
+            + (f' · 📦 era-{r["era_no"]-1}: {r["arch_n"]} kupon' if r.get("arch_n") else '')
+            + f'</span></td>'
             f'<td style="padding:8px;text-align:right;color:#e2e8f0;">{r["cur"]:,.0f}<br>'
             f'<span style="color:#475569;font-size:9px;">başl. {r["init"]:,.0f}</span></td>'
             f'<td style="padding:8px;text-align:right;color:{pc};font-weight:700;">{r["pnl"]:+,.0f} TL<br>'

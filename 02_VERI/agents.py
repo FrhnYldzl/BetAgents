@@ -129,8 +129,11 @@ PROFILES: dict[str, dict] = {
         # vekili) + SHARP teyidi (currentOdd < pick oranı = piyasa da o yöne).
         # Not: gerçek oynanma-%'si API'de yok; konsensüs+sharp en dürüst vekil.
         # Yazar seçimi hipotezi gereği KG dahil tüm desteklenen pazarlar açık.
-        "name": "POPÜLER (yazar + konsensüs) — sezona kadar uykuda",
-        "stop_pct": -0.20, "dormant": True,
+        # 🗓 ERA-2 (23 Ağu 2026): sezon geldi → UYANDIRILDI. Off-season'daki
+        # −%71 karnesi arşivde kaldı; yazar picks'i sezonda gerçek maçlara
+        # dayanıyor, hipotez temiz sayfayla yeniden ölçülüyor.
+        "name": "POPÜLER (yazar + konsensüs)",
+        "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
         "min_mp": 0.0, "min_odds": 1.25,
         "combo_cap": 3.50, "max_daily": 2, "max_open": 5,
@@ -348,7 +351,8 @@ def _loss_streak(conn, pid: str, n: int) -> bool:
 
 def ensure_contract_columns(conn) -> None:
     for col, typ in (("ihtar_count", "INTEGER"), ("benched", "INTEGER"),
-                     ("last_review", "TEXT")):
+                     ("last_review", "TEXT"), ("era_start", "TEXT"),
+                     ("era_no", "INTEGER")):
         try:
             conn.execute(f"ALTER TABLE paper_portfolio ADD COLUMN {col} {typ}")
             conn.commit()
@@ -1068,12 +1072,31 @@ LICENSE_TIERS = [
 ]
 
 
-def flat_skill(conn, pid: str):
+def era_start(conn, pid: str):
+    """Yürürlükteki eranın başlangıcı (yoksa None → tüm tarih)."""
+    try:
+        r = conn.execute("SELECT era_start FROM paper_portfolio WHERE portfolio_id=?",
+                         (pid,)).fetchone()
+        return r[0] if r and r[0] else None
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def flat_skill(conn, pid: str, era: str | None = "auto"):
     """Karar kuponlarından stake-bağımsız beceri: (n, ortalama birim-kâr, LCB).
-    Her kupon 1 birim sabit stake ile yeniden hesaplanır: won → oran−1, lost → −1."""
+    Her kupon 1 birim sabit stake ile yeniden hesaplanır: won → oran−1, lost → −1.
+    Varsayılan olarak YALNIZ yürürlükteki era ölçülür (era=None → tüm tarih)."""
+    if era == "auto":
+        era = era_start(conn, pid)
     rows = conn.execute(
         "SELECT status, combined_odds FROM paper_coupons "
-        "WHERE portfolio_id=? AND status IN ('won','lost')", (pid,)).fetchall()
+        "WHERE portfolio_id=? AND status IN ('won','lost')"
+        + (" AND created_at >= ?" if era else ""),
+        (pid,) + ((era,) if era else ())).fetchall()
     fp = [((r[1] or 1) - 1) if r[0] == 'won' else -1.0 for r in rows]
     n = len(fp)
     if not n:
@@ -1311,11 +1334,34 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict],
     return coupons[:slots]
 
 
+def _diag_write(pid: str, status: str, detail: str) -> None:
+    """Teşhis satırı yaz (bağımsız bağlantı — çağıranın transaction'ını bozmaz)."""
+    try:
+        c = db.connect()
+        c.execute("CREATE TABLE IF NOT EXISTS agent_diag "
+                  "(ts TEXT, pid TEXT, status TEXT, detail TEXT)")
+        c.execute("INSERT INTO agent_diag (ts, pid, status, detail) VALUES (?,?,?,?)",
+                  (_now(), pid, status, detail[:300]))
+        c.commit()
+        c.close()
+    except Exception:
+        pass
+
+
 def run_profile(pid: str, place: bool = True) -> list[str]:
     ensure_portfolio(pid)
     eng = PaperEngine(pid)
-    coupons = build_coupons(pid, eng)
     tag = f"[{pid.split('_')[0]}]"
+    # 🛡 FAIL-LOUD: çöken ajan SESSİZ kalmaz — teşhis tablosuna 🔴 yazılır.
+    # (2026-08 dersi: scipy çöküşü haftalarca 'pasiflik' sanıldı.)
+    try:
+        coupons = build_coupons(pid, eng)
+    except Exception as e:
+        import traceback
+        print(f"{tag} 🔴 TIKANIKLIK: {e}")
+        traceback.print_exc()
+        _diag_write(pid, "🔴 TIKANIKLIK", f"{type(e).__name__}: {e}")
+        return []
     if not coupons:
         print(f"{tag} uygun sinyal yok -> PAS")
         return []
@@ -1416,6 +1462,107 @@ def diagnose_all() -> list[dict]:
         conn.close()
 
 
+def preflight() -> list[str]:
+    """🛡 KALKAN: her koşudan önce tüm ajanların aday üretebildiğini doğrula.
+    Import/bağımlılık/şema kaynaklı çöküşü İLK koşuda yakalar ve 🔴 yazar.
+    Filtrelere dokunmaz — sadece 'çöküyor mu?' sorusunu yanıtlar."""
+    problems: list[str] = []
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM matches_v2 WHERE is_settled=0 AND kickoff_utc > ? "
+            "AND closing_1 IS NOT NULL ORDER BY kickoff_utc LIMIT 60",
+            (_now(),)).fetchall()
+        matches = [dict(r) for r in rows]
+    except Exception as e:
+        conn.rollback()
+        matches = []
+        problems.append(f"maç sorgusu: {e}")
+    finally:
+        conn.close()
+
+    for pid, prof in PROFILES.items():
+        if prof.get("dormant"):
+            continue
+        try:
+            eng = PaperEngine(pid)
+            mode = prof.get("mode")
+            if mode == "council":
+                _council_candidates(prof, f"[pre:{pid}]", matches, eng)
+            elif mode == "midband":
+                _midband_candidates(prof, f"[pre:{pid}]", matches)
+            elif mode == "joker":
+                _joker_candidates(prof, f"[pre:{pid}]", matches)
+            elif mode == "fade":
+                _fade_candidates(prof, f"[pre:{pid}]")
+            elif mode == "popular":
+                _popular_candidates(prof, f"[pre:{pid}]")
+            else:
+                _engine_candidates(prof, f"[pre:{pid}]", matches, eng)
+        except Exception as e:
+            msg = f"{type(e).__name__}: {e}"
+            problems.append(f"{pid} → {msg}")
+            _diag_write(pid, "🔴 TIKANIKLIK", f"preflight: {msg}")
+            print(f"[PREFLIGHT] 🔴 {pid}: {msg}")
+    if problems:
+        print(f"[PREFLIGHT] 🔴 {len(problems)} ajan TIKALI — düzeltilmeden "
+              f"ceza kesilmez, ölçüm geçersizdir.")
+    else:
+        print(f"[PREFLIGHT] ✅ {len(PROFILES)} profil temiz — tıkanıklık yok.")
+    return problems
+
+
+def start_era(era_no: int = 2, bankroll: float = 1000.0,
+              include_kurucu: bool = True) -> None:
+    """🗓 YENİ ERA: mevcut karne ARŞİVLENİR (kuponlar/journal aynen kalır),
+    herkes aynı gün · aynı kasa · aynı sabit bahisle yeniden yarışır.
+    Gerekçe: Era-1 kıyası kirli — kimi ajan %-stake, kimi köprü yarım stake,
+    kimi de çöken motorla 'oynamamış' sayıldı. Kontrollü deney ancak ortak
+    başlangıçla mümkün."""
+    conn = db.connect()
+    try:
+        ensure_contract_columns(conn)
+        now = _now()
+        field = list(PROFILES) + (["KURUCU_V2"] if include_kurucu else [])
+        print(f"[ERA] 🗓 ERA-{era_no} başlıyor — {len(field)} oyuncu, "
+              f"{bankroll:.0f} TL, sabit 100 TL bahis")
+        for pid in field:
+            ensure_portfolio(pid)
+            n, mean, lcb = flat_skill(conn, pid, era=era_start(conn, pid))
+            row = conn.execute(
+                "SELECT current_bankroll, initial_bankroll FROM paper_portfolio "
+                "WHERE portfolio_id=?", (pid,)).fetchone()
+            cur = (row[0] or 0) if row else 0
+            init = (row[1] or 0) if row else 0
+            karne = (f"{n} karar kuponu · flat ROI "
+                     f"{(mean*100):+.1f}%" if mean is not None else
+                     f"{n} karar kuponu")
+            _journal(conn, pid, f"📦 ERA-{era_no - 1} ARŞİVLENDİ",
+                     f"Kapanış: kasa {cur:.0f}/{init:.0f} TL · {karne}. "
+                     f"Kuponlar ve journal arşivde kalır; skor/kasa sıfırlanır. "
+                     f"ERA-{era_no}: herkes {bankroll:.0f} TL + sabit 100 TL "
+                     f"bahisle aynı gün başlar (kontrollü yarış).")
+            conn.execute(
+                "UPDATE paper_portfolio SET initial_bankroll=?, current_bankroll=?, "
+                "peak_bankroll=?, total_staked=0, total_return=0, total_coupons=0, "
+                "won_coupons=0, total_bets=0, total_wins=0, benched=0, ihtar_count=0, "
+                "era_start=?, era_no=?, updated_at=? WHERE portfolio_id=?",
+                (bankroll, bankroll, bankroll, now, era_no, now, pid))
+            print(f"[ERA]   {pid:12s} arşiv: {karne} → sıfırlandı")
+        # lisanslar da sıfırdan (beceri yeni erada kanıtlanır)
+        try:
+            conn.execute("DELETE FROM agent_license")
+        except Exception:
+            conn.rollback()
+        # lig saati yeniden başlasın (ilk değerlendirme 7 gün sonra)
+        conn.execute("UPDATE paper_portfolio SET last_review=? "
+                     "WHERE portfolio_id='PAPER_V1'", (now,))
+        conn.commit()
+        print(f"[ERA] ✅ ERA-{era_no} kuruldu. İlk lig değerlendirmesi 7 gün sonra.")
+    finally:
+        conn.close()
+
+
 def run_all(place: bool = True) -> dict:
     print(f"[AGENTS] === run_all basladi ({len(PROFILES)} profil) ===")
     # Sözleşme kolonlarını EN BAŞTA garanti et (eksik kolon → abort zinciri)
@@ -1425,6 +1572,11 @@ def run_all(place: bool = True) -> dict:
         conn.close()
     except Exception as e:
         print(f"[AGENTS] kolon garanti hatasi: {e}")
+    # 🛡 Kalkan: koşudan önce tıkanıklık taraması (sessiz çökme imkânsız)
+    try:
+        preflight()
+    except Exception as e:
+        print(f"[PREFLIGHT] HATA: {e}")
     out = {}
     for pid in PROFILES:
         try:
