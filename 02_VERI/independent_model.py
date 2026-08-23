@@ -22,7 +22,27 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 import numpy as np
-from scipy.stats import poisson
+
+# Poisson (scipy'siz — Railway slim runtime'da scipy YOK; scipy importu tüm
+# motor ailesini ModuleNotFoundError ile düşürüyordu). numpy ile birebir aynı:
+#   pmf(k;λ) = e^-λ λ^k / k!   ·   cdf(k;λ) = Σ_{i<=k} pmf(i)
+
+
+class _Poisson:
+    @staticmethod
+    def pmf(k, lam):
+        k = np.asarray(k, dtype=float)
+        logf = np.cumsum(np.log(np.maximum(np.arange(1, k.max() + 2), 1.0)))
+        logfact = np.concatenate(([0.0], logf))[k.astype(int)]
+        return np.exp(-lam + k * np.log(lam) - logfact)
+
+    @staticmethod
+    def cdf(k, lam):
+        ks = np.arange(0, int(k) + 1)
+        return float(_Poisson.pmf(ks, lam).sum())
+
+
+poisson = _Poisson()
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import db

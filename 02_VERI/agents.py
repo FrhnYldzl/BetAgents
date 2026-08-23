@@ -422,6 +422,7 @@ def review_league() -> None:
                   "değerlendirme sezona ertelendi")
             return
 
+        from datetime import timedelta as _td
         print("[LIG] 📜 HAFTALIK SOZLESME DEGERLENDIRMESI")
         # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler
         field = [p for p in list(PROFILES) + ["KURUCU_V2"]
@@ -464,9 +465,27 @@ def review_league() -> None:
             worst = min(perf, key=lambda s: s["pnl_pct"])
             new_ihtar.setdefault(worst["pid"], []).append(
                 f"performans (lig sonuncusu, {worst['pnl_pct']:+.1f}%)")
-        # B) pasiflik: tolerans penceresinde 0 kupon (ajan yaşı pencereyi doldurmuşsa)
+        # B) pasiflik — 🩺 ÖLÇÜM ŞARTI: ceza YALNIZCA teşhis "oynayabilirdin"
+        # dediğinde. Sessizliğin nedeni teknik tıkanıklık (🔴), meşru PAS (⚪),
+        # limit/dönem/uyku ise ajan suçlu değildir; sistem suçludur.
+        # (2026-08 dersi: scipy çöküşü 9 ajanı haksız kadro dışı bıraktı.)
+        try:
+            conn.execute("CREATE TABLE IF NOT EXISTS agent_diag "
+                         "(ts TEXT, pid TEXT, status TEXT, detail TEXT)")
+            drows = conn.execute(
+                "SELECT pid, status FROM agent_diag WHERE ts > ?",
+                ((now - _td(days=7)).isoformat(),)).fetchall()
+        except Exception:
+            conn.rollback()
+            drows = []
+        could_play = {r[0] for r in drows if "OYNAYAB" in (r[1] or "")}
+        diag_seen = {r[0] for r in drows}
         for s in stats:
             if s["age"] >= s["tol"] and s["n_win"] == 0:
+                if diag_seen and s["pid"] not in could_play:
+                    print(f"[LIG] 🩺 {s['pid']} pasiflik ihtarı DÜŞTÜ — "
+                          f"teşhis: oynayabileceği pozisyon yoktu")
+                    continue
                 new_ihtar.setdefault(s["pid"], []).append(
                     f"pasiflik ({s['tol']} günde 0 kupon)")
         # C) rota: 14+ gün ve <= -10%
@@ -884,13 +903,17 @@ def _engine_candidates(prof: dict, tag: str, matches: list[dict],
     mode = prof.get("mode")
     # Model modu (HOCA/SIMYACI): bağımsız Poisson gol modelini yükle
     ratings = None
+    im = None
     if mode in ("confirm", "value"):
+        # ⚠️ TEMBEL IMPORT: independent_model ağır bağımlılık taşır. Koşulsuz
+        # import edilirse (eski hâli) motor ailesinin TAMAMI runtime'da
+        # ModuleNotFoundError ile düşer — 2026-08 tıkanıklığının kök nedeni.
         try:
             ratings = _get_ratings()
+            import independent_model as im  # noqa: F401 (sadece model modunda)
         except Exception as e:
             print(f"{tag} model yuklenemedi ({e}) -> PAS")
             return []
-    import independent_model as im
     _probs_cache: dict = {}
 
     picks: list[dict] = []
