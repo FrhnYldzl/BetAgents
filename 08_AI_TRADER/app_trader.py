@@ -1899,6 +1899,17 @@ def page_score_table(portfolio: dict) -> None:
         diag_rows = _db_rows(
             "SELECT ts, pid, status, detail FROM agent_diag "
             "ORDER BY ts DESC LIMIT 60")
+        # teşhis yaşı: zaten çektiğimiz satırlardan — ek sorgu yok
+        _diag_age_txt = "yaş bilinmiyor"
+        try:
+            _ah = (datetime.utcnow()
+                   - datetime.fromisoformat(str(diag_rows[0]["ts"])[:19])
+                   ).total_seconds() / 3600.0
+            _diag_age_txt = (
+                f"{_ah:.0f} sa önce ölçüldü" if _ah <= 26 else
+                f"⚠️ {_ah:.0f} SAATTİR ÖLÇÜLMEDİ — teşhis koşusu da durmuş olabilir")
+        except Exception:
+            pass
         seen, latest = set(), []
         for d in diag_rows:
             if d["pid"] not in seen:
@@ -1907,6 +1918,8 @@ def page_score_table(portfolio: dict) -> None:
             body = ""
             for d in sorted(latest, key=lambda x: x["status"]):
                 meta_d = AGENT_META.get(d["pid"], {})
+                if d["pid"] == "SISTEM":
+                    meta_d = {"icon": "🛰", "title": "VERİ HATTI"}
                 stc = ("#ef4444" if "🔴" in d["status"] else
                        "#f59e0b" if ("🟠" in d["status"] or "⏸" in d["status"]) else
                        "#10d48e" if "🟢" in d["status"] else "#64748b")
@@ -1922,8 +1935,8 @@ def page_score_table(portfolio: dict) -> None:
                 'padding:6px;margin:12px 0;">'
                 '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
                 'letter-spacing:0.08em;font-weight:700;padding:4px 8px;">'
-                '🩺 GÜNLÜK TIKANIKLIK TEŞHİSİ — her sessizliğin nedeni '
-                '(filtrelere dokunulmaz, sadece ölçülür)</div>'
+                f'🩺 TIKANIKLIK TEŞHİSİ · {_diag_age_txt}'
+                '</div>'
                 f'<table style="width:100%;border-collapse:collapse;">{body}</table></div>',
                 unsafe_allow_html=True)
     except Exception:

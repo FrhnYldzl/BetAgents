@@ -1265,6 +1265,18 @@ def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict],
     used: set = set()
     slots = prof["max_daily"]
 
+    # ⏱ GERÇEKLİK KURALI (filtre değil, oynanabilirlik): maça 30 dakikadan
+    # az kalan ayak kupona giremez. Gerekçe: iddaa maç başlarken kapatır;
+    # kâğıt üstünde "kazanan" bir kupon gerçekte hiç oynanamamış olurdu →
+    # ölçüm yalan söyler. (Ölçüldü: 154 kuponun 3'ü <60 dk, biri +3 dk.)
+    from datetime import datetime as _dtl, timedelta as _tdl
+    _floor = (_dtl.utcnow() + _tdl(minutes=30)).isoformat()
+    _before = len(picks)
+    picks = [x for x in picks
+             if str((x.get("_match") or {}).get("kickoff_utc") or "") > _floor]
+    if _before != len(picks):
+        print(f"    ⏱ {_before - len(picks)} aday elendi (maça <30 dk)")
+
     # 1) TEK'ler (MBS=1) — kanıt: 1-2 ayak ezici üstün
     n_tek = 0
     for s in picks:
@@ -1403,6 +1415,57 @@ def diagnose_all() -> list[dict]:
             (_now(),)).fetchall()]
         today = _now()[:10]
         out = []
+
+        # 🛰 VERİ HATTI NÖBETÇİSİ (kör nokta #1): fetch çökerse tüm ajanlar
+        # "⚪ meşru PAS" görünürdü — sistemik arıza, masum sessizlik sanılırdı.
+        # Maliyet: günde TEK ek sorgu (MAX(refreshed_at)); API çağrısı yok.
+        pool = len(matches)
+        data_broken = False
+        try:
+            lf = conn.execute("SELECT MAX(refreshed_at) FROM matches_v2").fetchone()[0]
+            from datetime import datetime as _dtx
+            age_h = ((_dtx.utcnow() - _dtx.fromisoformat(str(lf)[:19])).total_seconds()
+                     / 3600.0) if lf else 999.0
+        except Exception:
+            conn.rollback()
+            age_h = 999.0
+        # ⏳ SONUÇ KUYRUĞU: biten ama 6 saattir işlenmemiş maç var mı?
+        # (auto_settle 90 dk'da bir koşar; kuyruk birikirse kupon sonucu geç
+        # gelir ve karne yanıltır. Ölçüldü: medyan 1.2 sa, kuyruk ucu 35.7 sa.)
+        try:
+            lag_n = conn.execute(
+                "SELECT COUNT(DISTINCT m.match_id) FROM matches_v2 m "
+                "JOIN paper_bets pb ON pb.match_id=m.match_id "
+                "JOIN paper_coupons pc ON pc.coupon_id=pb.coupon_id "
+                "WHERE pc.status='open' AND m.is_settled=0 AND m.kickoff_utc < ?",
+                ((_dtx.utcnow() - __import__("datetime").timedelta(hours=6))
+                 .isoformat(),)).fetchone()[0]
+        except Exception:
+            conn.rollback()
+            lag_n = 0
+
+        if pool == 0 or age_h > 8:
+            # 'TIKANIKLIK' kelimesi bilinçli: UI alarm kutusu bunu sayıyor
+            sys_st = "🔴 TIKANIKLIK · VERİ HATTI"
+            sys_dt = (f"oynanabilir havuz {pool} maç · son fetch {age_h:.0f} sa önce "
+                      f"— ajanların sessizliği KENDİ kararı değil, veri yok")
+            data_broken = True
+        elif lag_n >= 5:
+            sys_st = "🟠 SONUÇ KUYRUĞU"
+            sys_dt = (f"{lag_n} maç 6+ saattir sonuçsuz (açık kuponlu) — "
+                      f"karne geç güncelleniyor · havuz {pool} maç")
+        elif pool < 25:
+            sys_st = "🟠 VERİ ZAYIF"
+            sys_dt = f"havuz {pool} maç (son fetch {age_h:.0f} sa) — seçenek dar"
+        else:
+            sys_st = "🟢 VERİ AKIYOR"
+            sys_dt = (f"{pool} oynanabilir maç · son fetch {age_h:.0f} sa önce · "
+                      f"sonuç kuyruğu {lag_n}")
+        conn.execute("INSERT INTO agent_diag (ts, pid, status, detail) VALUES (?,?,?,?)",
+                     (_now(), "SISTEM", sys_st, sys_dt))
+        out.append({"pid": "SISTEM", "status": sys_st, "detail": sys_dt})
+        print(f"[DIAG·SİSTEM] {sys_st} — {sys_dt}")
+
         for pid, prof in PROFILES.items():
             tag = f"[DIAG·{pid.split('_')[0]}]"
             status, detail = "", ""
@@ -1448,7 +1511,10 @@ def diagnose_all() -> list[dict]:
                                 picks = _engine_candidates(prof, tag, matches, eng)
                             if not picks:
                                 status = "⚪ MEŞRU PAS"
-                                detail = f"{len(matches)} maç tarandı, 0 profil-geçen aday"
+                                detail = (f"{len(matches)} maç tarandı, "
+                                          f"0 profil-geçen aday")
+                                if data_broken:
+                                    detail += " · ⚠️ SEBEP SİSTEMİK: veri hattı kesik"
                             else:
                                 picks.sort(key=_sort_key(prof), reverse=True)
                                 cps = _assemble_coupons(
@@ -1647,7 +1713,8 @@ def run_all(place: bool = True) -> dict:
         manage_licenses()
     except Exception as e:
         print(f"[LISANS] HATA: {e}")
-    # 🩺 Günlük tıkanıklık teşhisi (20 saatte bir — filtrelere dokunmaz, ölçer)
+    # 🩺 Tıkanıklık teşhisi (10 saatte bir — iki auto_play penceresine denk
+    # düşer; filtrelere dokunmaz, sadece ölçer. Maliyet: CPU + birkaç sorgu.)
     try:
         conn = db.connect()
         conn.execute("CREATE TABLE IF NOT EXISTS agent_diag "
@@ -1658,7 +1725,7 @@ def run_all(place: bool = True) -> dict:
         due = True
         if last:
             try:
-                due = (_dt.utcnow() - _dt.fromisoformat(str(last)[:19])) > _td(hours=20)
+                due = (_dt.utcnow() - _dt.fromisoformat(str(last)[:19])) > _td(hours=10)
             except Exception:
                 pass
         if due:
