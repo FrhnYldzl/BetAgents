@@ -1942,12 +1942,135 @@ def _er_tile(label, value, color, sub=""):
             f'<div style="color:#475569;font-size:9px;margin-top:1px;">{sub}</div></div>')
 
 
+
+def _mihenk_swot(R: dict) -> str:
+    """🧭 MİHENK stratejik değerlendirme — çerçeve insan yargısı,
+    içindeki her sayı son rapordan CANLI gelir. Yorum uydurulmaz."""
+    t = R.get("totals", {})
+    ags = R.get("agents", [])
+    r = R.get("rules", {})
+    gates = {g["key"]: g for g in R.get("gates", [])}
+    proven = [a for a in ags if a.get("proven")]
+    near = sorted([a for a in ags if not a.get("proven") and a.get("need")],
+                  key=lambda a: a["need"])[:4]
+    no_edge = [a for a in ags if a.get("edge", 0) <= 0]
+    jk = next((a for a in ags if a["pid"] == "JOKER_V1"), None)
+    beat_jk = sum(1 for a in ags if jk and a["pid"] != "JOKER_V1"
+                  and a["roi"] > jk["roi"])
+    ln, cr = r.get("lonely", {}), r.get("crowded", {})
+    lo, hi = r.get("odds_low", {}), r.get("odds_high", {})
+    nm = lambda a: a["pid"].split("_")[0]
+
+    S = [
+        (f"Kanıt üretebilen ölçüm altyapısı",
+         f"{len(proven)} ajan istatistiksel eşiği geçti"
+         + (f" ({', '.join(nm(a) for a in proven)})" if proven else "")
+         + " — sistem 'iyi görünen' ile 'kanıtlanmış'ı ayırabiliyor."),
+        ("Kendi kendini yalanlayabilme",
+         f"Rastgele kontrol (JOKER) hâlâ sahada: {beat_jk}/{len(ags)-1} ajan onu "
+         f"geçebiliyor. Çoğu sistemde bu ayna yoktur."),
+        ("Çapraz-dönem doğrulanmış kurallar",
+         f"Yalnız seçim {ln.get('roi',0):+.1f}% · kalabalık {cr.get('roi',0):+.1f}% "
+         f"(fark {ln.get('roi',0)-cr.get('roi',0):+.1f} puan) — iki erada da aynı yön."),
+        ("Otonom ve kendini onaran altyapı",
+         "Preflight + fail-loud + era mekanizması: sessiz çöküş imkânsız, "
+         "her sessizliğin nedeni kayıtlı."),
+        ("Sıfır sermaye riskiyle öğrenme",
+         "Bugüne kadar tek kuruş riske edilmedi; tüm dersler bedava alındı."),
+    ]
+    W = [
+        ("Örneklem hâlâ küçük",
+         f"{t.get('n',0)} karar kuponu, {t.get('sigma',0):.2f}σ. Kanıt eşiği 350 kupon."),
+        ("Rastgele ajan hâlâ üstte",
+         f"JOKER ROI {jk['roi']:+.1f}% ile ilk sıralarda — 'beceri' iddiası "
+         f"henüz kurulamıyor." if jk else "JOKER verisi yok."),
+        ("Karnenin yarısı yazılmadı",
+         f"{t.get('open_n',0)} açık kupon ({t.get('open_stake',0):,.0f} TL) sonuç bekliyor."),
+        ("Slipaj körlüğü",
+         "Gerçekte alınan oran ile kâğıttaki fark ölçülmüyor — "
+         "OPUS 5 defteri bunu kapatacak."),
+        ("Edge üretmeyen ajanlar",
+         f"{len(no_edge)} ajan başabaşın altında: "
+         f"{', '.join(nm(a) for a in no_edge[:5])}."),
+    ]
+    O = [
+        ("Gerçek performansın arşivi (OPUS 5)",
+         "iddaa gerçek kupon geçmişini siler; burada kalınca 'senin seçiciliğin "
+         "ajanlardan iyi mi' sorusu ilk kez ölçülebilir hale geldi."),
+        ("Kanıt eşiğine yakın ajanlar",
+         (" · ".join(f"{nm(a)} {a['need']} kupon" for a in near)
+          + " — bu tempoda 1-2 hafta içinde birden fazla kanıtlı ajan mümkün.")
+         if near else "Şu an eşiğe yakın ajan yok."),
+        ("Fiyat geçmişi biriktirme (düşük maliyet)",
+         "iddaa açılış→kapanış serisi kaydedilirse Mimar hattı açılır; "
+         "kapanış çizgisini yenmek, yüksek marjı aşmanın bilinen tek sistematik yolu."),
+        ("Kural bazlı seçicilik",
+         f"Oran ≥1.45 dilimi {hi.get('roi',0):+.1f}% (n={hi.get('n',0)}), "
+         f"<1.45 dilimi {lo.get('roi',0):+.1f}% (n={lo.get('n',0)}). "
+         f"Az sayıda ama doğru bahis, çok sayıda bahisten iyi."),
+        ("Ajan yenileme döngüsü",
+         "Edge üretmeyenlerin yerine, kanıtlanmış özelliklerden kurulu yeni "
+         "ajan tasarımı hazır (yalnızlık + uzun oran + büyük lig + ÜST/KG YOK)."),
+    ]
+    T = [
+        ("Yapısal marj: %17,6",
+         "iddaa'nın komisyonu Pinnacle'ın ~5,7 katı. Değiştirilemez; "
+         "yalnızca ince köşeleri aranabilir."),
+        ("Sezon etkisi",
+         "Era-2'nin pozitifliği gol-bol bir dönemin ürünü olabilir; "
+         "Era-1'de aynı ajanlar negatifti."),
+        ("Çoklu karşılaştırma yanılgısı",
+         f"{len(ags)} ajan test ediyoruz; %95 güvende ~1 yanlış pozitif beklenir. "
+         f"İlk kanıtları bu ışıkta okumak gerekir."),
+        ("Aşırı uyum (overfitting)",
+         "Kuralları bulduğumuz veriyle test ediyoruz. Gerçek sınav, "
+         "kuralın önümüzdeki haftalarda da tutmasıdır."),
+        ("İnsan halkası",
+         "Otomatik oynatma yok (yasal/ToS sınırı). Gerçek parada disiplinden "
+         "sapmak, kötü modelden daha sık öldürür."),
+    ]
+
+    def q(title, color, items, icon):
+        rows = "".join(
+            f'<div style="padding:5px 0;border-top:1px solid #18233a;">'
+            f'<div style="color:#e2e8f0;font-size:12px;font-weight:700;">{a}</div>'
+            f'<div style="color:#94a3b8;font-size:11px;line-height:1.5;">{b}</div></div>'
+            for a, b in items)
+        return (f'<div style="flex:1;min-width:290px;background:#0d1628;'
+                f'border:1px solid #1a2840;border-left:3px solid {color};'
+                f'border-radius:9px;padding:9px 13px;">'
+                f'<div style="color:{color};font-size:11px;font-weight:800;'
+                f'text-transform:uppercase;letter-spacing:0.08em;padding-bottom:4px;">'
+                f'{icon} {title}</div>{rows}</div>')
+
+    gate_ok = sum(1 for g in R.get("gates", []) if g.get("ok") is True)
+    verdict = (f'<div style="background:#10182a;border:1px solid #1e2d4a;'
+               f'border-left:3px solid #22d3ee;border-radius:8px;padding:10px 14px;'
+               f'margin:12px 0;color:#cbd5e1;font-size:12px;line-height:1.65;">'
+               f'<b style="color:#22d3ee;">MİHENK HÜKMÜ:</b> '
+               f'{t.get("n",0)} kupon · ROI {t.get("roi",0):+.1f}% · '
+               f'{t.get("sigma",0):.2f}σ · gerçek-para kapıları {gate_ok}/5 açık. '
+               f'Yön doğru, kanıt henüz tam değil. '
+               f'<b style="color:#e2e8f0;">Doğru hamle: ölçeği değil, '
+               f'örneklemi büyütmek.</b> Sermaye kararı 350 kupon, 3+ kanıtlı ajan '
+               f've JOKER geçildikten sonra verilir — daha önce değil.</div>')
+
+    return (verdict +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">'
+            + q("GÜÇLÜ YÖNLER", "#10d48e", S, "💪")
+            + q("FIRSATLAR", "#3b82f6", O, "🚀") + '</div>'
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'
+            + q("ZAYIF YÖNLER", "#f59e0b", W, "⚠️")
+            + q("TEHDİTLER", "#ef4444", T, "🛑") + '</div>')
+
+
 def page_exec_report(portfolio: dict) -> None:
     import json as _json
     st.markdown("""
     <div class="sec-title">
-      <div class="sec-title-main">📋 YÖNETİCİ ÖZETİ</div>
-      <div class="sec-title-meta">2 GÜNDE BİR DONDURULAN NUMARALI ARŞİV · ÖLÇÜM, YORUM DEĞİL</div>
+      <div class="sec-title-main">🧭 MİHENK — YÖNETİCİ ÖZETİ</div>
+      <div class="sec-title-meta">MİHENK TAŞI: SAFI SAHTEDEN AYIRAN ÖLÇÜ ·
+      2 GÜNDE BİR DONDURULAN NUMARALI ARŞİV</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2023,6 +2146,11 @@ def page_exec_report(portfolio: dict) -> None:
             + "".join(f'<div style="color:#cbd5e1;font-size:12px;padding:2px 0;'
                       f'font-family:Consolas,monospace;">{x}</div>' for x in fs)
             + '</div>', unsafe_allow_html=True)
+
+    # ── 🧭 MİHENK stratejik değerlendirme ──
+    with st.expander("🧭 MİHENK — STRATEJİK DEĞERLENDİRME (güçlü · zayıf · fırsat · tehdit)",
+                     expanded=True):
+        st.markdown(_mihenk_swot(R), unsafe_allow_html=True)
 
     # ── Ajan karnesi + kanıt eşiği ──
     st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'

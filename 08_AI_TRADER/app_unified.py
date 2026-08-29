@@ -91,7 +91,7 @@ st.session_state.setdefault("sb_bankroll", 5000)
 TRADER_PAGES = {
     "Genel Bakış":        T.page_overview,
     "🧑‍💻 OPUS 5 (Manuel)": T.page_opus5,
-    "📋 Yönetici Özeti":  T.page_exec_report,
+    "🧭 Mihenk · Yönetici Özeti": T.page_exec_report,
     "🏆 Skor Tablosu":    T.page_score_table,
     "🛡 Temkinli":        T.page_temkinli,
     "🎯 Avcı":            T.page_avci,
