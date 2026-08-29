@@ -87,6 +87,13 @@ def job_auto_settle():
     except Exception as e:
         print(f"[{_ts()}] CLV BACKFILL HATA: {e}")
 
+    # 📋 Yönetici özeti — 2 günde bir numaralı arşiv raporu
+    try:
+        import exec_report
+        exec_report.generate()
+    except Exception as e:
+        print(f"[{_ts()}] RAPOR HATA: {e}")
+
 
 def main():
     print(f"[{_ts()}] WORKER BAŞLADI — auto_play (06:00/15:00 UTC) + "

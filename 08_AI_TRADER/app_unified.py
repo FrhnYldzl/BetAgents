@@ -90,6 +90,7 @@ st.session_state.setdefault("sb_bankroll", 5000)
 # (etiket → fonksiyon).  Trader sayfaları portfolio arg alır; analiz almaz.
 TRADER_PAGES = {
     "Genel Bakış":        T.page_overview,
+    "📋 Yönetici Özeti":  T.page_exec_report,
     "🏆 Skor Tablosu":    T.page_score_table,
     "🛡 Temkinli":        T.page_temkinli,
     "🎯 Avcı":            T.page_avci,

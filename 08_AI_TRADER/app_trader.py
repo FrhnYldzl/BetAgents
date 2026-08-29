@@ -1677,6 +1677,212 @@ def page_euvox(portfolio: dict) -> None:
     _render_agent_page("EUVOX_V1")
 
 
+
+# ════════════════════════════════════════════════════════════════
+# 📋 YÖNETİCİ ÖZETİ — 2 günde bir dondurulan numaralı arşiv
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_exec_reports():
+    try:
+        return _db_rows("SELECT report_no, ts, payload FROM exec_reports "
+                        "ORDER BY report_no DESC LIMIT 60")
+    except Exception:
+        return []
+
+
+def _er_tile(label, value, color, sub=""):
+    return (f'<div style="flex:1;min-width:120px;background:#0d1628;border:1px solid #1a2840;'
+            f'border-radius:9px;padding:9px 11px;">'
+            f'<div style="color:#475569;font-size:9px;text-transform:uppercase;'
+            f'letter-spacing:0.07em;">{label}</div>'
+            f'<div style="color:{color};font-size:17px;font-weight:800;'
+            f'font-family:Consolas,monospace;margin-top:2px;">{value}</div>'
+            f'<div style="color:#475569;font-size:9px;margin-top:1px;">{sub}</div></div>')
+
+
+def page_exec_report(portfolio: dict) -> None:
+    import json as _json
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">📋 YÖNETİCİ ÖZETİ</div>
+      <div class="sec-title-meta">2 GÜNDE BİR DONDURULAN NUMARALI ARŞİV · ÖLÇÜM, YORUM DEĞİL</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    reps = get_exec_reports()
+    if not reps:
+        st.info("Henüz rapor üretilmedi. İlk rapor 29.08.2026'dan itibaren "
+                "worker tarafından otomatik oluşturulur (2 günde bir).")
+        return
+
+    labels = [f"#{r['report_no']} · {str(r['ts'])[:16].replace('T',' ')}" for r in reps]
+    sel = st.selectbox("Rapor", labels, index=0, key="exec_rep_sel")
+    row = reps[labels.index(sel)]
+    try:
+        R = _json.loads(row["payload"])
+    except Exception:
+        st.error("Rapor okunamadı.")
+        return
+
+    t = R.get("totals", {})
+    d = R.get("deltas", {})
+    sig = t.get("sigma", 0)
+    sig_c = "#10d48e" if sig >= 2 else "#f59e0b" if sig >= 1 else "#94a3b8"
+    roi_c = "#10d48e" if t.get("roi", 0) > 0 else "#ef4444"
+    dn = d.get("d_roi")
+    tiles = "".join([
+        _er_tile("Karar Kuponu", f"{t.get('n',0)}", "#e2e8f0",
+                 (f"önceki rapordan +{d.get('d_n',0)}" if not d.get("first") else "ilk rapor")),
+        _er_tile("İsabet", f"%{t.get('hit',0):.1f}", "#e2e8f0",
+                 f"ort. oran {t.get('avg_odds',0):.2f}"),
+        _er_tile("Kâr / Zarar", f"{t.get('pnl',0):+,.0f} TL", roi_c,
+                 f"ROI {t.get('roi',0):+.1f}%" +
+                 (f" ({dn:+.1f}p)" if dn is not None and not d.get("first") else "")),
+        _er_tile("İstatistiksel Güç", f"{sig:.2f}σ", sig_c,
+                 f"salınım ±{t.get('swing',0):,.0f} TL"),
+        _er_tile("Açık Pozisyon", f"{t.get('open_n',0)}", "#3b82f6",
+                 f"{t.get('open_stake',0):,.0f} TL risk"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:9px;flex-wrap:wrap;margin:2px 0 14px 0;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+    # ── Önceki rapordan bu yana ──
+    if not d.get("first"):
+        chips = []
+        for pid in d.get("newly_proven", []):
+            chips.append(('#10d48e', f"✅ {pid.split('_')[0]} kanıt eşiğini GEÇTİ"))
+        for pid in d.get("lost_proof", []):
+            chips.append(('#ef4444', f"⚠️ {pid.split('_')[0]} eşiğin ALTINA düştü"))
+        for pid in d.get("new_agents", []):
+            chips.append(('#3b82f6', f"🆕 {pid.split('_')[0]} ilk kuponlarını verdi"))
+        for f in d.get("rule_flips", []):
+            chips.append(('#f59e0b', f"🔄 kural işaret değiştirdi: {f['rule']} "
+                                     f"({f['before']:+.1f}% → {f['after']:+.1f}%)"))
+        body = "".join(
+            f'<div style="color:{c};font-size:12px;padding:3px 0;font-family:Consolas,monospace;">{x}</div>'
+            for c, x in chips) or ('<div style="color:#64748b;font-size:12px;">'
+                                   'Yapısal değişiklik yok — kurallar ve kanıt durumu aynı.</div>')
+        st.markdown(
+            f'<div style="background:#10182a;border:1px solid #1e2d4a;border-left:3px solid #a78bfa;'
+            f'border-radius:8px;padding:10px 13px;margin-bottom:14px;">'
+            f'<div style="color:#a78bfa;font-size:10px;text-transform:uppercase;'
+            f'letter-spacing:0.08em;font-weight:700;margin-bottom:5px;">'
+            f'#{d.get("prev_no")} RAPORUNDAN BU YANA</div>{body}</div>',
+            unsafe_allow_html=True)
+
+    # ── Tespitler ──
+    fs = R.get("findings", [])
+    if fs:
+        st.markdown(
+            '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+            'padding:10px 13px;margin-bottom:14px;">'
+            '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;font-weight:700;margin-bottom:5px;">TESPİTLER</div>'
+            + "".join(f'<div style="color:#cbd5e1;font-size:12px;padding:2px 0;'
+                      f'font-family:Consolas,monospace;">{x}</div>' for x in fs)
+            + '</div>', unsafe_allow_html=True)
+
+    # ── Ajan karnesi + kanıt eşiği ──
+    st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+                'letter-spacing:0.08em;font-weight:700;margin:6px 0 4px 0;">'
+                'AJAN KARNESİ · KANIT EŞİĞİ</div>', unsafe_allow_html=True)
+    body = ""
+    for a in R.get("agents", []):
+        meta = AGENT_META.get(a["pid"], {"icon": "", "title": a["pid"]})
+        ec = "#10d48e" if a["edge"] > 0 else "#ef4444"
+        rc = "#10d48e" if a["roi"] > 0 else "#ef4444"
+        if a["proven"]:
+            pv, pc = "✅ KANIT", "#10d48e"
+        elif a["need"]:
+            pv, pc = f"{a['need']} kupon gerek", "#f59e0b"
+        else:
+            pv, pc = "edge yok", "#64748b"
+        body += (
+            f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:11px;">'
+            f'<td style="padding:6px 8px;color:#e2e8f0;white-space:nowrap;">'
+            f'{meta.get("icon","")} {meta.get("title",a["pid"])}</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:#94a3b8;">{a["n"]}'
+            f'<span style="color:#475569;"> +{a["open"]}</span></td>'
+            f'<td style="padding:6px 8px;text-align:right;color:#e2e8f0;">%{a["hit"]:.0f}</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:#64748b;">{a["avg_odds"]:.2f}</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:#64748b;">%{a["breakeven"]:.0f}</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:{ec};font-weight:700;">{a["edge"]:+.1f}p</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:{rc};">{a["roi"]:+.1f}%</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:{pc};font-size:10px;">{pv}</td></tr>')
+    st.markdown(
+        '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+        'padding:6px;overflow-x:auto;margin-bottom:14px;">'
+        '<table style="width:100%;border-collapse:collapse;">'
+        '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+        '<td style="padding:4px 8px;">Ajan</td>'
+        '<td style="padding:4px 8px;text-align:right;">Kupon</td>'
+        '<td style="padding:4px 8px;text-align:right;">İsabet</td>'
+        '<td style="padding:4px 8px;text-align:right;">Oran</td>'
+        '<td style="padding:4px 8px;text-align:right;">Gereken</td>'
+        '<td style="padding:4px 8px;text-align:right;">Fark</td>'
+        '<td style="padding:4px 8px;text-align:right;">ROI</td>'
+        '<td style="padding:4px 8px;text-align:right;">Kanıt</td></tr>'
+        f'{body}</table></div>', unsafe_allow_html=True)
+
+    # ── Kural doğrulama ──
+    r = R.get("rules", {})
+    pairs = [("👤 Yalnız seçim", "lonely", "Kalabalık (2+ ajan)", "crowded"),
+             ("📈 Oran ≥1.45", "odds_high", "Oran <1.45", "odds_low"),
+             ("🌍 Büyük lig", "big_league", "Küçük/egzotik lig", "small_league"),
+             ("🎯 ÜST 2.5 / KG YOK", "mkt_good", "ALT 2.5 / 1X2", "mkt_bad")]
+    rb = ""
+    for gl, gk, bl, bk in pairs:
+        g, b = r.get(gk, {}), r.get(bk, {})
+        if not g.get("n") or not b.get("n"):
+            continue
+        diff = g["roi"] - b["roi"]
+        dc = "#10d48e" if diff > 0 else "#ef4444"
+        rb += (f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:11px;">'
+               f'<td style="padding:5px 8px;color:#e2e8f0;">{gl}</td>'
+               f'<td style="padding:5px 8px;text-align:right;color:{"#10d48e" if g["roi"]>0 else "#ef4444"};">'
+               f'{g["roi"]:+.1f}% <span style="color:#475569;">n={g["n"]}</span></td>'
+               f'<td style="padding:5px 8px;color:#94a3b8;">{bl}</td>'
+               f'<td style="padding:5px 8px;text-align:right;color:{"#10d48e" if b["roi"]>0 else "#ef4444"};">'
+               f'{b["roi"]:+.1f}% <span style="color:#475569;">n={b["n"]}</span></td>'
+               f'<td style="padding:5px 8px;text-align:right;color:{dc};font-weight:700;">{diff:+.1f}p</td></tr>')
+    if rb:
+        st.markdown(
+            '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;font-weight:700;margin:6px 0 4px 0;">'
+            'KURAL DOĞRULAMA · manuel oyun kuralları hâlâ geçerli mi?</div>'
+            '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+            'padding:6px;overflow-x:auto;margin-bottom:14px;">'
+            f'<table style="width:100%;border-collapse:collapse;">{rb}</table></div>',
+            unsafe_allow_html=True)
+
+    # ── Gerçek para kapıları ──
+    gb = ""
+    for g in R.get("gates", []):
+        ok = g.get("ok")
+        ic, c = ("✅", "#10d48e") if ok else (("⏳", "#f59e0b") if ok is False else ("•", "#64748b"))
+        gb += (f'<tr style="border-top:1px solid #18233a;font-size:11px;">'
+               f'<td style="padding:5px 8px;color:{c};white-space:nowrap;">{ic} {g["name"]}</td>'
+               f'<td style="padding:5px 8px;color:#64748b;font-size:10px;">{g["target"]}</td>'
+               f'<td style="padding:5px 8px;color:#cbd5e1;font-family:Consolas,monospace;'
+               f'font-size:10px;text-align:right;">{g["value"]}</td></tr>')
+    st.markdown(
+        '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+        'letter-spacing:0.08em;font-weight:700;margin:6px 0 4px 0;">'
+        'GERÇEK PARAYA DÖNÜŞ · BEŞ KAPI</div>'
+        '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+        'padding:6px;overflow-x:auto;margin-bottom:14px;">'
+        f'<table style="width:100%;border-collapse:collapse;">{gb}</table></div>',
+        unsafe_allow_html=True)
+
+    h = R.get("health", {})
+    st.markdown(
+        f'<div style="color:#475569;font-size:10px;font-family:Consolas,monospace;">'
+        f'🩺 rapor anındaki sistem: {h.get("data_line") or "—"} · '
+        f'tıkalı ajan {h.get("blocked",0)} · oynayan {h.get("played",0)} · '
+        f'son ajan koşusu {str(h.get("last_run") or "—")[:16].replace("T"," ")}</div>',
+        unsafe_allow_html=True)
+
 # ════════════════════════════════════════════════════════════════
 # 🏆 AGENTS SCORE TABLE — tüm oyuncuların tam karşılaştırması
 # ════════════════════════════════════════════════════════════════
