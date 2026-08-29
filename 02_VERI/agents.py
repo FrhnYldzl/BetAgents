@@ -1202,6 +1202,21 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             ORDER BY kickoff_utc ASC LIMIT 200
             """, (_now(), pid)).fetchall()
         matches = [dict(r) for r in rows]
+        # 🔒 ÇİFT BAHİS KİLİDİ: bu portföyün ZATEN açık pozisyonu olan maçlar.
+        # Motor modları bunu matches sorgusunda alıyordu; fade/popular kendi
+        # aday kaynağını kullandığı için filtreyi ATLIYORDU → aynı bahis
+        # günlerce tekrar kuruluyordu (TERS 3x, POPÜLER 2x — karneyi şişirdi).
+        open_matches = set()
+        open_keys = set()
+        try:
+            for r in conn.execute(
+                    "SELECT pb.match_id, pb.market, pb.pick FROM paper_bets pb "
+                    "JOIN paper_coupons pc ON pb.coupon_id=pc.coupon_id "
+                    "WHERE pc.portfolio_id=? AND pc.status='open'", (pid,)).fetchall():
+                open_matches.add(r[0])
+                open_keys.add((r[0], r[1], r[2]))
+        except Exception:
+            conn.rollback()
     finally:
         conn.close()
 
@@ -1223,36 +1238,57 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # 🏛 KONSEY modu: ajan heyeti oylaması (iç-Polymarket)
     if mode == "council":
         picks = _council_candidates(prof, tag, matches, eng)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
     if mode == "midband":
         picks = _midband_candidates(prof, tag, matches)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🪞 TERS modu: yazar pick'lerinin karşı tarafı
     if mode == "fade":
         picks = _fade_candidates(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🃏 JOKER modu: kontrol ajanı — rastgele seçim, sinyal motoru yok
     if mode == "joker":
         picks = _joker_candidates(prof, tag, matches)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🔥 POPÜLER modu: aday kaynağı sinyal motoru DEĞİL — yazar+konsensüs
     if mode == "popular":
         picks = _popular_candidates(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     picks = _engine_candidates(prof, tag, matches, eng)
+    picks = _lock_open(picks, open_matches, open_keys, tag)
     picks.sort(key=_sort_key(prof), reverse=True)
     return _assemble_coupons(prof, bankroll, picks, unit)
+
+
+def _lock_open(picks: list[dict], open_matches: set, open_keys: set,
+               tag: str = "") -> list[dict]:
+    """🔒 Açık pozisyonu olan maça İKİNCİ kez girme (mod fark etmez)."""
+    out = []
+    for p in picks:
+        m = p.get("_match") or {}
+        mid = m.get("match_id")
+        if mid in open_matches or (mid, p.get("market"), p.get("pick")) in open_keys:
+            continue
+        out.append(p)
+    if tag and len(out) != len(picks):
+        print(f"{tag} 🔒 {len(picks)-len(out)} aday elendi (zaten açık pozisyon)")
+    return out
 
 
 def _assemble_coupons(prof: dict, bankroll: float, picks: list[dict],
