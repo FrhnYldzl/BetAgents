@@ -1288,6 +1288,9 @@ AGENT_META = {
                   "yarışa dahil: 1.000 TL · hedef 2.500 · Sözleşme Ligi kuralları "
                   "ona da işler (ihtar/kadro dışı/kasa devri). Era-1 (5.000 TL) "
                   "arşivde — 📦 KURUCU-ARŞİV.")},
+    "OPUS5_V1": {"icon": "🧑‍💻", "title": "OPUS 5",
+                   "sub": "manuel · gerçekte oynadıklarım",
+                   "renk": "#22d3ee"},
     "PAPER_V1": {
         "icon": "📦", "title": "KURUCU-ARŞİV", "renk": "#64748b", "archived": True,
         "sub": "ERA-1 ARŞİVİ (5.000 TL dönemi — salt okunur)",
@@ -1677,6 +1680,244 @@ def page_euvox(portfolio: dict) -> None:
     _render_agent_page("EUVOX_V1")
 
 
+
+
+# ════════════════════════════════════════════════════════════════
+# 🧑‍💻 OPUS 5 — MANUEL AJAN (gerçekte oynadıklarımın defteri)
+# ════════════════════════════════════════════════════════════════
+
+def _opus_mod():
+    import sys as _s
+    from pathlib import Path as _P
+    v = str(_P(__file__).resolve().parent.parent / "02_VERI")
+    if v not in _s.path:
+        _s.path.insert(0, v)
+    import manual_book
+    return manual_book
+
+
+def page_opus5(portfolio: dict) -> None:
+    mb = _opus_mod()
+    st.markdown("""
+    <div class="sec-title">
+      <div class="sec-title-main">🧑‍💻 OPUS 5 — MANUEL AJAN</div>
+      <div class="sec-title-meta">GERÇEKTE OYNADIKLARIM · iddaa ARŞİVİ SİLER, BURASI SİLMEZ</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#0a1f26;border:1px solid #164e5c;border-left:3px solid #22d3ee;'
+        'border-radius:8px;padding:9px 13px;margin:2px 0 14px 0;color:#94a3b8;font-size:12px;'
+        'line-height:1.6;">ℹ️ Maç ve oranlar <b style="color:#e2e8f0;">değiştirilmez</b> — '
+        'ajanların açık kuponlarından birebir kopyalanır. Sen sadece '
+        '<b style="color:#e2e8f0;">"bunu gerçekte oynadım"</b> dersin. Sonuçlar diğer ajanlarla '
+        'aynı anda, aynı kaynaktan işlenir; böylece kendi performansın ajanlarla '
+        'aynı metriklerle (isabet · flat ROI · kanıt eşiği) kıyaslanır.</div>',
+        unsafe_allow_html=True)
+
+    # ── Karne ──
+    try:
+        S = mb.stats()
+    except Exception as e:
+        st.error(f"Defter okunamadı: {e}")
+        return
+    n = S.get("n", 0)
+    tiles = "".join([
+        _clv_tile("Kayıtlı Kupon", f"{S.get('total',0)}", "#e2e8f0",
+                  f"{S.get('open',0)} açık · {n} karar"),
+        _clv_tile("İsabet", f"%{S['hit']:.0f}" if n else "—", "#e2e8f0",
+                  f"ort. oran {S['avg_odds']:.2f}" if n else "henüz sonuç yok"),
+        _clv_tile("Kâr / Zarar", f"{S['pnl']:+,.0f} TL" if n else "—",
+                  "#10d48e" if n and S["pnl"] > 0 else "#ef4444" if n else "#64748b",
+                  f"ROI {S['roi']:+.1f}%" if n else ""),
+        _clv_tile("Flat Beceri", f"{S['flat_roi']:+.1f}%" if n else "—",
+                  "#10d48e" if n and S["flat_roi"] > 0 else "#64748b",
+                  "sabit birim bazında"),
+    ])
+    st.markdown(f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">{tiles}</div>',
+                unsafe_allow_html=True)
+
+    stake = st.number_input("Bahis birimi (TL)", min_value=10.0, max_value=5000.0,
+                            value=50.0, step=10.0, key="opus_stake")
+
+    tab1, tab2, tab3 = st.tabs(["🛒 Ajanların açık kuponları",
+                                "🧩 Kendi kuponumu kurayım",
+                                "📒 Defterim"])
+
+    # ── SEKME 1: ajan ajan açık kuponlar ──
+    with tab1:
+        try:
+            opens = mb.open_coupons()
+        except Exception as e:
+            st.error(f"Kuponlar okunamadı: {e}")
+            opens = []
+        if not opens:
+            st.info("Şu an oynanabilir (henüz başlamamış) açık ajan kuponu yok.")
+        by_agent = {}
+        for c in opens:
+            by_agent.setdefault(c["agent"], []).append(c)
+        for apid, lst in by_agent.items():
+            meta = AGENT_META.get(apid, {"icon": "", "title": apid})
+            with st.expander(f"{meta.get('icon','')} {meta.get('title',apid)} — "
+                             f"{len(lst)} açık kupon", expanded=False):
+                for c in lst:
+                    legs_html = "<br>".join(
+                        f'<span style="color:#94a3b8;">{l["home"][:18]} – {l["away"][:18]}</span> '
+                        f'<span style="color:#e2e8f0;">{l["market"]}:{l["pick"]}</span> '
+                        f'<span style="color:#10d48e;">@{l["odds"]:.2f}</span>'
+                        f'<span style="color:#475569;font-size:10px;"> · {l["league"]} · '
+                        f'{str(l["kickoff"])[5:16].replace("T"," ")}</span>'
+                        for l in c["legs"])
+                    col1, col2 = st.columns([5, 1])
+                    with col1:
+                        st.markdown(
+                            f'<div style="background:#0d1628;border:1px solid #1a2840;'
+                            f'border-radius:8px;padding:8px 11px;margin-bottom:4px;'
+                            f'font-family:Consolas,monospace;font-size:11px;">'
+                            f'<b style="color:#e2e8f0;">{c["type"]}</b> '
+                            f'<span style="color:#10d48e;font-weight:700;">@{c["odds"]:.2f}</span> '
+                            f'<span style="color:#475569;">· {c["n_legs"]} ayak · '
+                            f'{stake:.0f} TL → {stake*c["odds"]:.0f} TL</span><br>{legs_html}</div>',
+                            unsafe_allow_html=True)
+                    with col2:
+                        if c["already"]:
+                            st.markdown('<div style="color:#10d48e;font-size:11px;'
+                                        'padding-top:14px;">✅ defterde</div>',
+                                        unsafe_allow_html=True)
+                        elif st.button("Oynadım", key=f"play_{c['coupon_id'][:12]}",
+                                       use_container_width=True):
+                            r = mb.play_coupon(c["coupon_id"], float(stake))
+                            if r.get("ok"):
+                                st.success(r["msg"])
+                                st.cache_data.clear()
+                                st.rerun()
+                            else:
+                                st.error(r.get("msg"))
+
+    # ── SEKME 2: sepetten kendi kuponu ──
+    with tab2:
+        try:
+            opens = mb.open_coupons()
+        except Exception:
+            opens = []
+        seen, options = set(), []
+        for c in opens:
+            for l in c["legs"]:
+                k = (l["match_id"], l["market"], l["pick"])
+                if k in seen:
+                    continue
+                seen.add(k)
+                options.append((
+                    f'{l["home"][:16]} – {l["away"][:16]} | {l["market"]}:{l["pick"]} '
+                    f'@{l["odds"]:.2f} | {l["league"]} | '
+                    f'{str(l["kickoff"])[5:16].replace("T"," ")} | {c["agent"].split("_")[0]}',
+                    l["bet_id"], l["odds"]))
+        if not options:
+            st.info("Seçilebilecek açık ayak yok.")
+        else:
+            picked = st.multiselect("Ayakları seç (aynı maçtan iki ayak olamaz)",
+                                    [o[0] for o in options], key="opus_basket")
+            if picked:
+                sel = [o for o in options if o[0] in picked]
+                comb = 1.0
+                for o in sel:
+                    comb *= float(o[2])
+                st.markdown(
+                    f'<div style="background:#0d1628;border:1px solid #1a2840;border-radius:8px;'
+                    f'padding:9px 12px;margin:6px 0;font-family:Consolas,monospace;">'
+                    f'<span style="color:#64748b;font-size:11px;">SEPET</span> '
+                    f'<span style="color:#e2e8f0;font-size:14px;font-weight:700;">'
+                    f'{len(sel)} ayak · toplam oran {comb:.2f}</span> '
+                    f'<span style="color:#10d48e;">→ {stake:.0f} TL yatır, '
+                    f'{stake*comb:.0f} TL kazanç</span></div>', unsafe_allow_html=True)
+                if st.button("✅ Bu kuponu gerçekte oynadım — kaydet",
+                             type="primary", use_container_width=True):
+                    r = mb.play_custom([o[1] for o in sel], float(stake))
+                    if r.get("ok"):
+                        st.success(r["msg"])
+                        st.session_state["opus_basket"] = []
+                        st.cache_data.clear()
+                        st.rerun()
+                    else:
+                        st.error(r.get("msg"))
+
+    # ── SEKME 3: defter ──
+    with tab3:
+        rows = _db_rows(
+            "SELECT coupon_id, created_at, coupon_type, combined_odds, stake, "
+            "status, COALESCE(pnl,0) pnl, reasoning FROM paper_coupons "
+            "WHERE portfolio_id='OPUS5_V1' ORDER BY created_at DESC LIMIT 60")
+        if not rows:
+            st.info("Defter boş. Yukarıdaki sekmelerden oynadığın kuponları işaretle.")
+        else:
+            body = ""
+            for r in rows:
+                src = str(r["reasoning"] or "")
+                src = (src.split("kaynak=")[1].split()[0] if "kaynak=" in src else "?")
+                sc = {"won": "#10d48e", "lost": "#ef4444",
+                      "open": "#3b82f6"}.get(r["status"], "#64748b")
+                sl = {"won": "KAZANDI", "lost": "KAYBETTI",
+                      "open": "AÇIK", "void": "İADE"}.get(r["status"], r["status"])
+                body += (
+                    f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;'
+                    f'font-size:11px;">'
+                    f'<td style="padding:5px 8px;color:#475569;">'
+                    f'{str(r["created_at"])[5:16].replace("T"," ")}</td>'
+                    f'<td style="padding:5px 8px;color:#94a3b8;">{r["coupon_type"]}</td>'
+                    f'<td style="padding:5px 8px;color:#22d3ee;font-size:10px;">'
+                    f'{src.split("_")[0]}</td>'
+                    f'<td style="padding:5px 8px;text-align:right;color:#e2e8f0;">'
+                    f'{r["combined_odds"]:.2f}</td>'
+                    f'<td style="padding:5px 8px;text-align:right;color:#94a3b8;">'
+                    f'{r["stake"]:.0f} TL</td>'
+                    f'<td style="padding:5px 8px;text-align:right;color:{sc};font-weight:700;">'
+                    f'{sl}</td>'
+                    f'<td style="padding:5px 8px;text-align:right;color:{sc};">'
+                    f'{r["pnl"]:+.0f}</td></tr>')
+            st.markdown(
+                '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+                'padding:6px;overflow-x:auto;">'
+                '<table style="width:100%;border-collapse:collapse;">'
+                '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+                '<td style="padding:4px 8px;">Tarih</td><td style="padding:4px 8px;">Tip</td>'
+                '<td style="padding:4px 8px;">Kaynak</td>'
+                '<td style="padding:4px 8px;text-align:right;">Oran</td>'
+                '<td style="padding:4px 8px;text-align:right;">Bahis</td>'
+                '<td style="padding:4px 8px;text-align:right;">Durum</td>'
+                '<td style="padding:4px 8px;text-align:right;">P&L</td></tr>'
+                f'{body}</table></div>', unsafe_allow_html=True)
+
+            src = S.get("sources") or {}
+            if len(src) > 1:
+                sb = "".join(
+                    f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;'
+                    f'font-size:11px;"><td style="padding:5px 8px;color:#e2e8f0;">'
+                    f'{a.split("_")[0]}</td>'
+                    f'<td style="padding:5px 8px;text-align:right;color:#94a3b8;">'
+                    f'{d["won"]}/{d["n"]}</td>'
+                    f'<td style="padding:5px 8px;text-align:right;'
+                    f'color:{"#10d48e" if d["pnl"]>0 else "#ef4444"};">{d["pnl"]:+.0f} TL</td></tr>'
+                    for a, d in sorted(src.items(), key=lambda x: -x[1]["pnl"]))
+                st.markdown(
+                    '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+                    'letter-spacing:0.08em;font-weight:700;margin:12px 0 4px 0;">'
+                    'HANGİ AJANIN KUPONLARI BANA KAZANDIRIYOR?</div>'
+                    '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+                    f'padding:6px;"><table style="width:100%;border-collapse:collapse;">{sb}'
+                    '</table></div>', unsafe_allow_html=True)
+
+            with st.expander("↩️ Yanlış kayıt sil (yalnız açık kuponlar)"):
+                opn = [r for r in rows if r["status"] == "open"]
+                if not opn:
+                    st.caption("Silinebilecek açık kayıt yok.")
+                for r in opn:
+                    c1, c2 = st.columns([5, 1])
+                    c1.caption(f'{str(r["created_at"])[5:16]} · {r["coupon_type"]} '
+                               f'@{r["combined_odds"]:.2f} · {r["stake"]:.0f} TL')
+                    if c2.button("Sil", key=f"del_{r['coupon_id'][:12]}"):
+                        res = mb.undo(r["coupon_id"])
+                        (st.success if res.get("ok") else st.error)(res["msg"])
+                        st.cache_data.clear()
+                        st.rerun()
 
 # ════════════════════════════════════════════════════════════════
 # 📋 YÖNETİCİ ÖZETİ — 2 günde bir dondurulan numaralı arşiv
