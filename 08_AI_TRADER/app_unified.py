@@ -106,6 +106,8 @@ TRADER_PAGES = {
     "🏛 Konsey":           T.page_konsey,
     "🪞 Ters":             T.page_ters,
     "🎰 Çarpan":           T.page_carpan,
+    "🔺 Simetri":          T.page_simetri,
+    "✖️ Kavşak":           T.page_kavsak,
     "🇹🇷 Trivox":       T.page_trivox,
     "🇪🇺 Euvox":        T.page_euvox,
     "Kupon Analizi":      T.page_coupon_analysis,

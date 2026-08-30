@@ -247,7 +247,41 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,          # yüksek varyans: mola yok
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
+        "combo_market": "1X2_OU", "min_edge": 0.08,
         "pas_tolerance_days": 30,                 # veri birikene dek sabır
+    },
+    "SIMETRI_V1": {
+        # 🔺 SİMETRİ — ALT/ÜST × KG kombinesi. KIRMIZI TAKIM'ın en güçlü
+        # kartı: ölçülen korelasyon 0.33 ile 1.97 arasında (4.261 maç).
+        # "ALT ve YOK" gerçekte çarpımın 1.97 katı; "ÜST ve YOK" 0.40'ı.
+        # Bu, tüm kombo pazarları içinde en keskin ayrışma.
+        "name": "SİMETRİ (A/Ü × KG korelasyonu)",
+        "stop_pct": -0.30,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 2.20, "max_odds": 30.0,
+        "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
+        "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "score", "mode": "multiplier",
+        "combo_market": "OU_BTTS", "min_edge": 0.08,
+        "pas_tolerance_days": 30,
+    },
+    "KAVSAK_V1": {
+        # ✖️ KAVŞAK — 1X2 × KG kombinesi. "0 ve VAR" (beraberlik + karşılıklı
+        # gol) korelasyonu 1.44'e çıkıyor: beraberlikler çoğunlukla 1-1/2-2.
+        # "0 ve YOK" ise 0.44 — 0-0 nadir. Beraberliği TEK BAŞINA oynamak
+        # kaybettiriyor (ölçüldü: her segmentte −%12/−%21) ama KG ile
+        # birleştirilince korelasyon değeri doğuyor.
+        "name": "KAVŞAK (1X2 × KG korelasyonu)",
+        "stop_pct": -0.30,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 2.50, "max_odds": 35.0,
+        "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
+        "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "score", "mode": "multiplier",
+        "combo_market": "1X2_BTTS", "min_edge": 0.08,
+        "pas_tolerance_days": 30,
     },
     "TRIVOX_V1": {
         # 🏁 EMEKLİ (29 Ağu 2026) — GERİYE DÖNÜK TEST KARARI.
@@ -1039,12 +1073,17 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
         print(f"{tag} çarpan modülü yüklenemedi: {e}")
         return []
     try:
-        cs = ma.candidates(min_edge=prof.get("min_edge", ma.MIN_EDGE))
+        cs = ma.candidates(
+            combo_market=prof.get("combo_market", "1X2_OU"),
+            min_edge=prof.get("min_edge", ma.MIN_EDGE),
+            min_odds=prof.get("min_odds", ma.MIN_ODDS),
+            max_odds=prof.get("max_odds", ma.MAX_ODDS))
     except Exception as e:
         print(f"{tag} aday üretilemedi: {e}")
         return []
     if not cs:
-        print(f"{tag} korelasyon-değerli kombine yok (pazar defteri bekleniyor)")
+        print(f"{tag} {prof.get('combo_market','1X2_OU')}: korelasyon-değerli "
+              f"kombine yok (pazar defteri bekleniyor)")
         return []
     conn = db.connect()
     try:
@@ -1071,7 +1110,9 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
                        "away_team": c["away"], "league_code": c["league"],
                        "kickoff_utc": c["kickoff"], "mbs": 1},
         })
-    print(f"{tag} 🎰 {len(picks)} korelasyon-değerli kombine (edge ≥ %8)")
+    print(f"{tag} 🔴 {len(picks)} korelasyon-değerli kombine "
+          f"({prof.get('combo_market','1X2_OU')}, edge ≥ "
+          f"%{prof.get('min_edge', 0.08)*100:.0f})")
     return picks
 
 

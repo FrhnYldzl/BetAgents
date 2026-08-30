@@ -1326,6 +1326,24 @@ AGENT_META = {
                   "stop −%30 · yüksek varyans olduğu için mola kuralı yok. "
                   "İZOLE: yalnız market_odds tablosunu okur, KONSEY'de yoktur."),
     },
+    "SIMETRI_V1": {
+        "icon": "🔺", "title": "SİMETRİ", "renk": "#fb7185",
+        "sub": "A/Ü × KG KORELASYONU",
+        "rules": ("Kombo pazarların EN KESKİN ayrışması: 4.261 maçta "
+                  "ölçüldü, 'ALT ve YOK' gerçekte çarpımın 1.97 katı, "
+                  "'ÜST ve YOK' ise 0.40ı. Katsayılar P(ÜST) × P(KG VAR) "
+                  "bantlarına koşullu (24 hücre). Adil oran = bileşen çarpımı "
+                  "÷ korelasyon; iddaa bunu >=%8 aşarsa oynanır · oran 2.20-30."),
+    },
+    "KAVSAK_V1": {
+        "icon": "✖️", "title": "KAVŞAK", "renk": "#c084fc",
+        "sub": "1X2 × KG KORELASYONU",
+        "rules": ("Beraberliği TEK BAŞINA oynamak kaybettiriyor (18k maçta "
+                  "her segmentte −%12/−%21; piyasa beraberliği doğru "
+                  "fiyatlıyor). AMA KG ile birleştirilince değer doğuyor: "
+                  "'0 ve VAR' korelasyonu 1.44 (beraberlikler çoğunlukla "
+                  "1-1/2-2), '0 ve YOK' ise 0.44 (0-0 nadir). >=%8 edge."),
+    },
     "PAPER_V1": {
         "icon": "📦", "title": "KURUCU-ARŞİV", "renk": "#64748b", "archived": True,
         "sub": "ERA-1 ARŞİVİ (5.000 TL dönemi — salt okunur)",
@@ -1571,6 +1589,14 @@ AGENT_BRIEF = {
                   "Bahisçinin 'bağımsızlık varsayımı' hatasını sömürmek",
                   "≥%8 edge'li seçimlerde pozitif flat ROI",
                   "Marjı üstel ödemeden yüksek çarpan — tek yapısal açık adayı"),
+    "SIMETRI_V1": ("A/Ü × KG kombine pazarı · 24 hücrelik koşullu korelasyon",
+                   "Kombo pazarların EN KESKİN ayrışmasını sömürmek (0.33 ↔ 1.97)",
+                   "≥%8 edge'li seçimlerde pozitif flat ROI",
+                   "KIRMIZI TAKIM'ın en güçlü kartı — en yüksek ölçülen korelasyon"),
+    "KAVSAK_V1": ("1X2 × KG kombine pazarı · 54 hücrelik koşullu korelasyon",
+                  "Tek başına kaybettiren beraberliği, KG ile birleştirip değere çevirmek",
+                  "≥%8 edge'li seçimlerde pozitif flat ROI",
+                  "'Beraberlik tahmin edilemez ama kombinesi edilebilir' tezinin sınavı"),
     "OPUS5_V1": ("İnsan seçiciliği — gerçekte oynananların defteri",
                  "iddaa'nın sildiği gerçek arşivi tutmak",
                  "Ajanların ortalamasını geçmek",
@@ -1580,6 +1606,39 @@ AGENT_BRIEF = {
                  "—",
                  "Tüm kanıt tabanımızın ham maddesi"),
 }
+
+
+AGENT_TEAM = {
+    # 🔵 MAVİ TAKIM — kurucu kadro (çalışma şekillerine DOKUNULMADI)
+    "KURUCU_V2": "MAVI", "TEMKINLI_V1": "MAVI", "MEMUR_V1": "MAVI",
+    "AVCI_V1": "MAVI", "HOCA_V1": "MAVI", "SIMYACI_V1": "MAVI",
+    "POPULER_V1": "MAVI", "ERKENKUS_V1": "MAVI", "CESUR_V1": "MAVI",
+    "JOKER_V1": "MAVI", "KALECI_V1": "MAVI", "KONSEY_V1": "MAVI",
+    "TERS_V1": "MAVI", "EUVOX_V1": "MAVI", "TRIVOX_V1": "MAVI",
+    # 🔴 KIRMIZI TAKIM — kombo/korelasyon uzmanları (izole hat)
+    "CARPAN_V1": "KIRMIZI", "SIMETRI_V1": "KIRMIZI", "KAVSAK_V1": "KIRMIZI",
+    # bağımsız
+    "OPUS5_V1": "INSAN", "PAPER_V1": "ARSIV",
+}
+
+TEAM_META = {
+    "MAVI": ("🔵", "MAVİ TAKIM", "#3b82f6",
+             "Kurucu kadro · sinyal motoru, model, kaynak-tersleme, kontrol"),
+    "KIRMIZI": ("🔴", "KIRMIZI TAKIM", "#f43f5e",
+                "Kombo/korelasyon uzmanları · izole hat, market_odds tabanlı"),
+    "INSAN": ("🧑‍💻", "İNSAN", "#22d3ee", "Gerçekte oynananların defteri"),
+    "ARSIV": ("📦", "ARŞİV", "#64748b", "Era-1 kaydı"),
+}
+
+
+def _team_badge(pid: str) -> str:
+    t = AGENT_TEAM.get(pid)
+    if not t:
+        return ""
+    ic, nm, c, _ = TEAM_META[t]
+    return (f'<span style="background:{c}22;border:1px solid {c}66;color:{c};'
+            f'border-radius:5px;padding:1px 6px;font-size:9px;font-weight:800;'
+            f'letter-spacing:0.06em;">{ic} {nm}</span>')
 
 
 def _brief_html(pid: str) -> str:
@@ -1599,7 +1658,7 @@ def _brief_html(pid: str) -> str:
         f'margin-bottom:12px;">'
         f'<div style="color:{renk};font-size:10px;font-weight:800;'
         f'text-transform:uppercase;letter-spacing:0.09em;padding-bottom:3px;">'
-        f'🎖 GÖREV BRİFİNGİ</div>'
+        f'🎖 GÖREV BRİFİNGİ &nbsp; {_team_badge(pid)}</div>'
         + row.format(k="Uzmanlık", v=uz, c="#e2e8f0")
         + row.format(k="Görev", v=gorev, c="#cbd5e1")
         + row.format(k="Başarı ölçütü", v=basari, c="#10d48e")
@@ -1846,6 +1905,13 @@ def page_carpan(portfolio: dict) -> None:
         'okur; diğer ajanlar bu hesaptan hiçbir şey almaz, KONSEY oylamasında yoktur.</span></div>',
         unsafe_allow_html=True)
 
+
+def page_simetri(portfolio: dict) -> None:
+    _render_agent_page("SIMETRI_V1")
+
+
+def page_kavsak(portfolio: dict) -> None:
+    _render_agent_page("KAVSAK_V1")
 
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
