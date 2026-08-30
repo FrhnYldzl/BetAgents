@@ -1314,8 +1314,8 @@ AGENT_META = {
                    "sub": "manuel · gerçekte oynadıklarım",
                    "renk": "#22d3ee"},
     "CARPAN_V1": {
-        "icon": "🎰", "title": "ÇARPAN", "renk": "#f472b6",
-        "sub": "MAÇ İÇİ KORELASYON · YÜKSEK ÇARPAN",
+        "icon": "🎰", "title": "KOMBO", "renk": "#f472b6",
+        "sub": "1X2 × A/Ü KORELASYONU",
         "rules": ("Bahisçi kombineyi ayakların ÇARPIMI olarak fiyatlar "
                   "(bağımsızlık varsayımı); oysa aynı maçın sonuçları güçlü "
                   "korelasyonludur. 18.040 maçta ölçüldü: '0 ve ALT' gerçekte "
@@ -1343,6 +1343,23 @@ AGENT_META = {
                   "fiyatlıyor). AMA KG ile birleştirilince değer doğuyor: "
                   "'0 ve VAR' korelasyonu 1.44 (beraberlikler çoğunlukla "
                   "1-1/2-2), '0 ve YOK' ise 0.44 (0-0 nadir). >=%8 edge."),
+    },
+    "BANT_V1": {
+        "icon": "🥅", "title": "BANT", "renk": "#facc15",
+        "sub": "GOL ARALIKLARI · YEDEK (veri bekliyor)",
+        "rules": ("Toplam gol dağılımı Poisson'a uyuyor (0-1 gol 0.95 · "
+                  "2-3 gol 1.02 · 4-5 gol 1.01 · 6+ gol 0.98) — dağılımdan "
+                  "gelen açık YOK. Ama bant FİYATLARI hiç test edilmedi; "
+                  "TOTAL_GOALS oranları yeni toplanıyor. Veri yeterli olunca "
+                  "PoC çerçevesinden geçip aktive VEYA reddedilecek."),
+    },
+    "DEVRE_V1": {
+        "icon": "⏱", "title": "DEVRE", "renk": "#94a3b8",
+        "sub": "İLK YARI · YEDEK (yarı skoru bekliyor)",
+        "rules": ("18.059 maçın HİÇBİRİNDE yarı skoru yok — İLK YARI "
+                  "pazarları şu an TEST EDİLEMEZ. HT_FT/HT_1X2 oranlarını "
+                  "topluyoruz; sonuç tarafı (yarı skorları) da toplanınca "
+                  "korelasyon haritası çıkarılıp karar verilecek."),
     },
     "PAPER_V1": {
         "icon": "📦", "title": "KURUCU-ARŞİV", "renk": "#64748b", "archived": True,
@@ -1597,6 +1614,14 @@ AGENT_BRIEF = {
                   "Tek başına kaybettiren beraberliği, KG ile birleştirip değere çevirmek",
                   "≥%8 edge'li seçimlerde pozitif flat ROI",
                   "'Beraberlik tahmin edilemez ama kombinesi edilebilir' tezinin sınavı"),
+    "BANT_V1": ("Gol aralığı pazarları (0-1 / 2-3 / 4-5 / 6+)",
+                "Bant fiyatlarının Poisson'dan sapıp sapmadığını ölçmek",
+                "Veri gelince PoC'den geçmek — geçemezse emekli",
+                "Dağılım açığı yok; tek umut fiyatlama hatası"),
+    "DEVRE_V1": ("İlk yarı pazarları (HT/FT, İY sonucu, İY alt/üst)",
+                 "Yarı skorları toplanınca korelasyon haritasını çıkarmak",
+                 "Test edilebilir hale gelmek",
+                 "Şu an ölçülemeyen tek oyun türü — veri boşluğunun temsilcisi"),
     "OPUS5_V1": ("İnsan seçiciliği — gerçekte oynananların defteri",
                  "iddaa'nın sildiği gerçek arşivi tutmak",
                  "Ajanların ortalamasını geçmek",
@@ -1617,6 +1642,7 @@ AGENT_TEAM = {
     "TERS_V1": "MAVI", "EUVOX_V1": "MAVI", "TRIVOX_V1": "MAVI",
     # 🔴 KIRMIZI TAKIM — kombo/korelasyon uzmanları (izole hat)
     "CARPAN_V1": "KIRMIZI", "SIMETRI_V1": "KIRMIZI", "KAVSAK_V1": "KIRMIZI",
+    "BANT_V1": "KIRMIZI", "DEVRE_V1": "KIRMIZI",
     # bağımsız
     "OPUS5_V1": "INSAN", "PAPER_V1": "ARSIV",
 }

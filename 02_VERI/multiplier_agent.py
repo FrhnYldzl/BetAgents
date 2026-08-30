@@ -37,6 +37,10 @@ from combo_tables import MARKETS, band
 MIN_EDGE = 0.08
 MIN_ODDS = 2.50
 MAX_ODDS = 40.0
+# 🛑 AKIL SAĞLIĞI TAVANI: "çok iyi görünen edge, edge değil HATADIR."
+# %60 üstü bir açık, iddaa'nın para dağıttığı anlamına gelmez — bizim
+# modelimizin o hücrede yanlış olduğu anlamına gelir. Reddedilir.
+MAX_EDGE = 0.60
 
 
 def _now() -> str:
@@ -92,14 +96,70 @@ def _norm_probs(latest: dict, ev: str, market: str) -> dict | None:
     return None
 
 
+def _enrichment() -> dict:
+    """⭐ ARTIK-BİLGİ: h2h/form özellikleri. Piyasa fiyatı sabit tutulduğunda
+    bunlar EKSTRA bilgi taşıyor (18.059 maçta ölçüldü):
+      · h2h beraberlik oranı yüksek → gerçek X, piyasadan +2.0 puan fazla
+      · h2h gol ortalaması orta     → gerçek ÜST, piyasadan +2.8 puan fazla
+      · h2h KG oranı düşük          → gerçek ÜST, piyasadan +2.9 puan fazla
+    Tek başına marjı kapatmıyor (−%7/−%9) ama kombo korelasyonuyla
+    ÇARPILINCA anlamlı. Bu yüzden kapı olarak kullanılır, bahis olarak değil.
+    (Yalnız OKUMA — MAVİ TAKIM'ın hiçbir hesabına dokunmaz.)"""
+    conn = db.connect()
+    out = {}
+    try:
+        for r in conn.execute(
+                "SELECT external_id_iddaa, h2h_n, h2h_draws, h2h_avg_goals, "
+                "h2h_btts_rate, home_clean_sheet_5g, away_clean_sheet_5g "
+                "FROM matches_v2 WHERE is_settled=0 "
+                "AND external_id_iddaa IS NOT NULL").fetchall():
+            out[str(r[0])] = {
+                "h2h_n": r[1] or 0, "h2h_draws": r[2] or 0,
+                "h2h_goals": r[3], "h2h_btts": r[4],
+                "cs": (r[5] or 0) + (r[6] or 0),
+            }
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+    return out
+
+
+def _residual_ok(pick: str, e: dict | None) -> bool:
+    """Aday, artık-bilgiyle AYNI yönü gösteriyor mu? Veri yoksa geçer."""
+    if not e:
+        return True
+    d_rate = (e["h2h_draws"] / e["h2h_n"]) if e["h2h_n"] >= 4 else None
+    g = e.get("h2h_goals")
+    b = e.get("h2h_btts")
+    p = pick or ""
+    # beraberlik ayağı: h2h'de beraberlik geçmişi ortalamanın üstünde olmalı
+    if p.startswith("0 "):
+        if d_rate is not None and d_rate < 0.26:
+            return False
+    # ÜST / KG VAR ayağı: h2h gollü olmalı
+    if "Üst" in p or "Var" in p:
+        if g is not None and g < 2.30:
+            return False
+    # ALT / KG YOK ayağı: h2h az gollü olmalı
+    if "Alt" in p or "Yok" in p:
+        if g is not None and g > 3.10:
+            return False
+        if b is not None and b > 0.70:
+            return False
+    return True
+
+
 def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
-               min_odds: float = MIN_ODDS, max_odds: float = MAX_ODDS) -> list[dict]:
+               min_odds: float = MIN_ODDS, max_odds: float = MAX_ODDS,
+               residual_gate: bool = True) -> list[dict]:
     cfg = MARKETS.get(combo_market)
     if not cfg:
         return []
     latest, meta = _load_latest()
     if not latest:
         return []
+    enr = _enrichment() if residual_gate else {}
     (mk_a, edges_a) = cfg["band_a"]
     (mk_b, edges_b) = cfg["band_b"]
     out: list[dict] = []
@@ -109,7 +169,7 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
         if not pa or not pb:
             continue
         # bant: a için ilk kod (1X2'de "1", OU'da "U"), b için ilk kod
-        key_a = "1" if mk_a == "1X2" else "U"
+        key_a = "0" if mk_a == "1X2" else "U"   # 1X2'de bant P(X)'ten
         key_b = "U" if mk_b == "OU2.5" else "V"
         ba = band(pa[key_a], edges_a)
         bb = band(pb[key_b], edges_b)
@@ -122,14 +182,27 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 combo = latest.get((ev, combo_market, sel))
                 if not combo:
                     continue
+                # ⚠️ DERS: korelasyon katsayısı MARJSIZ olasılıklardan
+                # türetildi (gerçek sıklık ÷ marjinallerin çarpımı). Bu yüzden
+                # adil oran da MARJSIZ olasılıklardan hesaplanmalı. Önce
+                # marjlı oranları çarpmıştım — iki marj birden düşüyordu ve
+                # edge'ler ~%30 şişik çıkıyordu.
+                qa, qb = pa.get(ca), pb.get(cb)
+                if not qa or not qb:
+                    continue
+                p_joint = c * qa * qb            # korelasyon-düzeltilmiş ortak olasılık
+                if p_joint <= 0:
+                    continue
+                fair = 1.0 / p_joint             # marjsız adil oran
                 oa = pa["_odds"].get(ca)
                 ob = pb["_odds"].get(cb)
-                if not oa or not ob:
-                    continue
-                naive = oa * ob
-                fair = naive / c
+                naive = (oa * ob) if (oa and ob) else 0
                 edge = combo / fair - 1
-                if edge < min_edge or not (min_odds <= combo <= max_odds):
+                if edge < min_edge or edge > MAX_EDGE:
+                    continue                      # 🛑 akıl sağlığı tavanı
+                if not (min_odds <= combo <= max_odds):
+                    continue
+                if residual_gate and not _residual_ok(sel, enr.get(ev)):
                     continue
                 out.append({
                     "event_id": ev, "league": m["lg"], "kickoff": m["ko"],

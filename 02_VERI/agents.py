@@ -239,7 +239,7 @@ PROFILES: dict[str, dict] = {
         # Kullanıcı PoC istisnası tanıdı: veri birikir birikmez oynar,
         # ölçüm canlıda yapılır. Diğer ajanlar bu hesaptan HİÇBİR ŞEY
         # okumaz; KONSEY oylamasına da dahil değildir.
-        "name": "ÇARPAN (maç içi korelasyon — yüksek çarpan)",
+        "name": "KOMBO (maç içi korelasyon — 1X2 × A/Ü)",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.50, "max_odds": 40.0,
@@ -247,7 +247,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,          # yüksek varyans: mola yok
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "1X2_OU", "min_edge": 0.08,
+        "combo_market": "1X2_OU", "min_edge": 0.08, "residual_gate": True,
         "pas_tolerance_days": 30,                 # veri birikene dek sabır
     },
     "SIMETRI_V1": {
@@ -263,7 +263,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "OU_BTTS", "min_edge": 0.08,
+        "combo_market": "OU_BTTS", "min_edge": 0.08, "residual_gate": True,
         "pas_tolerance_days": 30,
     },
     "KAVSAK_V1": {
@@ -280,8 +280,38 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "1X2_BTTS", "min_edge": 0.08,
+        "combo_market": "1X2_BTTS", "min_edge": 0.08, "residual_gate": True,
         "pas_tolerance_days": 30,
+    },
+    "BANT_V1": {
+        # 🥅 BANT — GOLLER bantları (0-1 / 2-3 / 4-5 / 6+). YEDEK: veri bekliyor.
+        # Ölçüldü: toplam gol dağılımı Poisson'a uyuyor (0.95-1.02), yani
+        # dağılımdan gelen açık YOK. Ama bant FİYATLARI hiç test edilmedi —
+        # TOTAL_GOALS oranları yeni toplanmaya başladı. Yeterli veri birikince
+        # PoC çerçevesinden geçirilip aktive/reddedilecek.
+        "name": "BANT (gol aralıkları — veri bekliyor)",
+        "dormant": True,
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 3.00, "max_odds": 40.0,
+        "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "multiplier", "combo_market": "TOTAL_GOALS", "min_edge": 0.10,
+        "pas_tolerance_days": 60,
+    },
+    "DEVRE_V1": {
+        # ⏱ DEVRE — İLK YARI pazarları. YEDEK: SONUÇ verisi eksik.
+        # 18.059 maçın HİÇBİRİNDE yarı skoru yok (home_score_ht boş).
+        # HT oranlarını topluyoruz; yarı skorları da toplanınca test edilecek.
+        "name": "DEVRE (ilk yarı — yarı skoru bekliyor)",
+        "dormant": True,
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 2.00, "max_odds": 35.0,
+        "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
+        "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "multiplier", "combo_market": "HT_FT", "min_edge": 0.10,
+        "pas_tolerance_days": 60,
     },
     "TRIVOX_V1": {
         # 🏁 EMEKLİ (29 Ağu 2026) — GERİYE DÖNÜK TEST KARARI.
@@ -1077,7 +1107,8 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
             combo_market=prof.get("combo_market", "1X2_OU"),
             min_edge=prof.get("min_edge", ma.MIN_EDGE),
             min_odds=prof.get("min_odds", ma.MIN_ODDS),
-            max_odds=prof.get("max_odds", ma.MAX_ODDS))
+            max_odds=prof.get("max_odds", ma.MAX_ODDS),
+            residual_gate=prof.get("residual_gate", True))
     except Exception as e:
         print(f"{tag} aday üretilemedi: {e}")
         return []
@@ -1088,10 +1119,15 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
     conn = db.connect()
     try:
         mm = {}
+        # DİKKAT: fetch_iddaa_live event id'yi external_id_iddaa'ya yazıyor
+        # (iddaa_event_id kolonu boş kalıyor) — ikisini de dene.
         for r in conn.execute(
-                "SELECT match_id, iddaa_event_id FROM matches_v2 "
-                "WHERE is_settled=0 AND iddaa_event_id IS NOT NULL").fetchall():
-            mm[str(r[1])] = r[0]
+                "SELECT match_id, external_id_iddaa, iddaa_event_id FROM matches_v2 "
+                "WHERE is_settled=0 AND (external_id_iddaa IS NOT NULL "
+                "OR iddaa_event_id IS NOT NULL)").fetchall():
+            for k in (r[1], r[2]):
+                if k:
+                    mm[str(k)] = r[0]
     except Exception:
         conn.rollback()
         mm = {}
