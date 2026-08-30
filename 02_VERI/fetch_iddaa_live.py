@@ -323,6 +323,18 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
         except Exception as e:
             print(f"  (fiyat gecmisi atlandi: {e})")
 
+    # 🎰 PAZAR DEFTERİ: yüksek çarpanlı + maç içi KOMBİNE pazarlar
+    # (1X2_OU, 1X2_BTTS, HT_FT, TOTAL_GOALS...). AYRI tabloya yazılır;
+    # matches_v2'ye dokunulmaz, sinyal motoru bu veriyi HİÇ görmez.
+    if not dry_run:
+        try:
+            import market_book
+            n_mb = market_book.capture(events[:max_events])
+            if n_mb:
+                print(f"  🎰 pazar defteri: {n_mb} yeni fiyat kaydi")
+        except Exception as e:
+            print(f"  (pazar defteri atlandi: {e})")
+
     # 4) Database insert
     if not dry_run and results:
         print(f"\n[4] matches_v2 + signal_snapshots'a yaziliyor...")

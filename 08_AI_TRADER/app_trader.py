@@ -1313,6 +1313,19 @@ AGENT_META = {
     "OPUS5_V1": {"icon": "🧑‍💻", "title": "OPUS 5",
                    "sub": "manuel · gerçekte oynadıklarım",
                    "renk": "#22d3ee"},
+    "CARPAN_V1": {
+        "icon": "🎰", "title": "ÇARPAN", "renk": "#f472b6",
+        "sub": "MAÇ İÇİ KORELASYON · YÜKSEK ÇARPAN",
+        "rules": ("Bahisçi kombineyi ayakların ÇARPIMI olarak fiyatlar "
+                  "(bağımsızlık varsayımı); oysa aynı maçın sonuçları güçlü "
+                  "korelasyonludur. 18.040 maçta ölçüldü: '0 ve ALT' gerçekte "
+                  "çarpımın 1,60 katı, '0 ve ÜST' ise yarısı (0,48). Katsayılar "
+                  "favori gücü × gol beklentisi bantlarına göre koşulludur (66 "
+                  "hücre). Adil oran = bileşen çarpımı ÷ korelasyon katsayısı; "
+                  "iddaa bunu >=%8 aşarsa oynanır · oran 2.50-40 · günde 2 · "
+                  "stop −%30 · yüksek varyans olduğu için mola kuralı yok. "
+                  "İZOLE: yalnız market_odds tablosunu okur, KONSEY'de yoktur."),
+    },
     "PAPER_V1": {
         "icon": "📦", "title": "KURUCU-ARŞİV", "renk": "#64748b", "archived": True,
         "sub": "ERA-1 ARŞİVİ (5.000 TL dönemi — salt okunur)",
@@ -1707,6 +1720,22 @@ def page_konsey(portfolio: dict) -> None:
 
 def page_ters(portfolio: dict) -> None:
     _render_agent_page("TERS_V1")
+
+
+def page_carpan(portfolio: dict) -> None:
+    _render_agent_page("CARPAN_V1")
+    st.markdown(
+        '<div style="background:#1f1020;border:1px solid #4a1d3d;border-left:3px solid #f472b6;'
+        'border-radius:8px;padding:9px 13px;margin:10px 0;color:#94a3b8;font-size:12px;'
+        'line-height:1.65;">🎰 <b style="color:#f472b6;">TEZ:</b> Bahisçi kombineyi ayakların '
+        '<b>çarpımı</b> olarak fiyatlar (bağımsızlık varsayımı). Ama aynı maçın sonuçları '
+        'güçlü korelasyonludur — 18.040 maçta ölçüldü: <b style="color:#e2e8f0;">"0 ve ALT" '
+        'gerçekte çarpımın 1,60 katı</b>, <b style="color:#e2e8f0;">"0 ve ÜST" ise yarısı</b>. '
+        'iddaa bunları TEK seçim olarak sunduğu için korelasyon, kombinenin üstel marj cezası '
+        'ödenmeden oynanabilir. Adil oran = bileşen çarpımı ÷ korelasyon katsayısı; iddaa bunu '
+        '%8 aşarsa oynanır.<br><span style="color:#64748b;">İZOLE: yalnız market_odds tablosunu '
+        'okur; diğer ajanlar bu hesaptan hiçbir şey almaz, KONSEY oylamasında yoktur.</span></div>',
+        unsafe_allow_html=True)
 
 
 def page_trivox(portfolio: dict) -> None:

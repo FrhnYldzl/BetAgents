@@ -230,6 +230,25 @@ PROFILES: dict[str, dict] = {
     # Aktivasyon (Ağustos): dormant kaldır + lig eşleme (T1/E0/SP1...) +
     # model sinyal hattını bağla. Alt-modeller (MONOVOX/DUOVOX/BTTS-*/OU25-*)
     # aktivasyonda filtre/bacak olarak bunlara bağlanır.
+    "CARPAN_V1": {
+        # 🎰 ÇARPAN — maç içi korelasyon ajanı (İZOLE)
+        # Aday kaynağı YALNIZ market_odds tablosu: iddaa'nın "1 ve Üst"
+        # tarzı kombine seçimleri. Adil oran = bileşen çarpımı ÷ korelasyon
+        # katsayısı (18.040 maçtan koşullu ölçüldü). iddaa'nın oranı adil
+        # oranı ≥%8 aşarsa oynar.
+        # Kullanıcı PoC istisnası tanıdı: veri birikir birikmez oynar,
+        # ölçüm canlıda yapılır. Diğer ajanlar bu hesaptan HİÇBİR ŞEY
+        # okumaz; KONSEY oylamasına da dahil değildir.
+        "name": "ÇARPAN (maç içi korelasyon — yüksek çarpan)",
+        "stop_pct": -0.30,
+        "markets": set(), "fav_min": 0.0,
+        "min_mp": 0.0, "min_odds": 2.50, "max_odds": 40.0,
+        "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
+        "max_tek": 2, "loss_streak": 99,          # yüksek varyans: mola yok
+        "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "score", "mode": "multiplier",
+        "pas_tolerance_days": 30,                 # veri birikene dek sabır
+    },
     "TRIVOX_V1": {
         # 🏁 EMEKLİ (29 Ağu 2026) — GERİYE DÖNÜK TEST KARARI.
         # 2.884 Süper Lig maçı / 9 sezon (2017-2026, Pinnacle kapanış) motor
@@ -1011,6 +1030,51 @@ COUNCIL_VOTERS = {
 }
 
 
+def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
+    """🎰 ÇARPAN: market_odds'tan korelasyon-değerli kombine seçimler.
+    matches_v2'yi ve sinyal motorunu HİÇ kullanmaz (izolasyon şartı)."""
+    try:
+        import multiplier_agent as ma
+    except Exception as e:
+        print(f"{tag} çarpan modülü yüklenemedi: {e}")
+        return []
+    try:
+        cs = ma.candidates(min_edge=prof.get("min_edge", ma.MIN_EDGE))
+    except Exception as e:
+        print(f"{tag} aday üretilemedi: {e}")
+        return []
+    if not cs:
+        print(f"{tag} korelasyon-değerli kombine yok (pazar defteri bekleniyor)")
+        return []
+    conn = db.connect()
+    try:
+        mm = {}
+        for r in conn.execute(
+                "SELECT match_id, iddaa_event_id FROM matches_v2 "
+                "WHERE is_settled=0 AND iddaa_event_id IS NOT NULL").fetchall():
+            mm[str(r[1])] = r[0]
+    except Exception:
+        conn.rollback()
+        mm = {}
+    finally:
+        conn.close()
+    picks = []
+    for c in cs:
+        mid = mm.get(str(c["event_id"]))
+        if not mid:
+            continue                      # eşleşmeyen maç oynanmaz
+        picks.append({
+            "market": c["market"], "pick": c["pick"], "odds": c["odds"],
+            "model_prob": 1.0 / c["fair"], "signal_score": c["edge"] / 100.0,
+            "signal_name": "KORELASYON_DEGERI",
+            "_match": {"match_id": mid, "home_team": c["home"],
+                       "away_team": c["away"], "league_code": c["league"],
+                       "kickoff_utc": c["kickoff"], "mbs": 1},
+        })
+    print(f"{tag} 🎰 {len(picks)} korelasyon-değerli kombine (edge ≥ %8)")
+    return picks
+
+
 def _council_candidates(prof: dict, tag: str, matches: list[dict],
                         eng: PaperEngine) -> list[dict]:
     """Her seçmen ajanın filtrelerini aynı maç havuzuna uygula, oyları
@@ -1250,6 +1314,13 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         unit = 100.0
 
     mode = prof.get("mode")
+    # 🎰 ÇARPAN modu: izole kombine pazarı (market_odds)
+    if mode == "multiplier":
+        picks = _multiplier_candidates(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
+        picks.sort(key=lambda x: -(x.get("signal_score") or 0))
+        return _assemble_coupons(prof, bankroll, picks, unit)
+
     # 🏛 KONSEY modu: ajan heyeti oylaması (iç-Polymarket)
     if mode == "council":
         picks = _council_candidates(prof, tag, matches, eng)
@@ -1659,6 +1730,8 @@ def preflight() -> list[str]:
                 _fade_candidates(prof, f"[pre:{pid}]")
             elif mode == "popular":
                 _popular_candidates(prof, f"[pre:{pid}]")
+            elif mode == "multiplier":
+                _multiplier_candidates(prof, f"[pre:{pid}]")
             else:
                 _engine_candidates(prof, f"[pre:{pid}]", matches, eng)
         except Exception as e:
