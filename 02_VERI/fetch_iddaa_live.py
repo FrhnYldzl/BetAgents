@@ -312,6 +312,17 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
 
     print(f"\n[3] {len(results)} event detayli cekildi")
 
+    # 📈 FİYAT GEÇMİŞİ: bu veri zaten elimizde, kaydetmeden atıyorduk.
+    # Sıfır ek API çağrısı; yalnız DEĞİŞEN fiyatlar yazılır. Asla patlamaz.
+    if not dry_run and results:
+        try:
+            import price_history
+            n_ph = price_history.capture(results)
+            if n_ph:
+                print(f"  📈 fiyat gecmisi: {n_ph} yeni kayit (degisen fiyat)")
+        except Exception as e:
+            print(f"  (fiyat gecmisi atlandi: {e})")
+
     # 4) Database insert
     if not dry_run and results:
         print(f"\n[4] matches_v2 + signal_snapshots'a yaziliyor...")
