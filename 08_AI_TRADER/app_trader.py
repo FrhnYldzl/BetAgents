@@ -2244,6 +2244,67 @@ def page_exec_report(portfolio: dict) -> None:
         f'<table style="width:100%;border-collapse:collapse;">{gb}</table></div>',
         unsafe_allow_html=True)
 
+    # ── 🧪 PROOF OF CONCEPT arşivi ──
+    try:
+        bt = _db_rows("SELECT ts, concept, verdict, payload FROM backtest_runs "
+                      "ORDER BY ts DESC LIMIT 20")
+    except Exception:
+        bt = []
+    if bt:
+        import json as _j
+        seen_c, rows_c = set(), []
+        for b in bt:
+            if b["concept"] in seen_c:
+                continue
+            seen_c.add(b["concept"])
+            rows_c.append(b)
+        body = ""
+        for b in rows_c:
+            try:
+                P = _j.loads(b["payload"])
+            except Exception:
+                continue
+            t = P.get("total", {})
+            te = P.get("test", {})
+            vc = ("#10d48e" if b["verdict"] == "GEÇTİ" else
+                  "#f59e0b" if "ŞÜPHELİ" in str(b["verdict"]) else "#ef4444")
+            body += (
+                f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;'
+                f'font-size:11px;">'
+                f'<td style="padding:5px 8px;color:#e2e8f0;">{P.get("desc","")[:44]}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:#94a3b8;">{t.get("n",0)}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:#e2e8f0;">'
+                f'%{t.get("hit",0):.1f}</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:#64748b;">'
+                f'%{t.get("breakeven",0):.1f}</td>'
+                f'<td style="padding:5px 8px;text-align:right;'
+                f'color:{"#10d48e" if t.get("roi",0)>0 else "#ef4444"};font-weight:700;">'
+                f'{t.get("roi",0):+.2f}%</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:#94a3b8;">'
+                f'{te.get("roi",0):+.2f}%</td>'
+                f'<td style="padding:5px 8px;text-align:right;color:{vc};font-weight:700;">'
+                f'{b["verdict"]}</td></tr>')
+        st.markdown(
+            '<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;font-weight:700;margin:6px 0 4px 0;">'
+            '🧪 PROOF OF CONCEPT ARŞİVİ · hiçbir ajan testten geçmeden kurulmaz</div>'
+            '<div style="background:#0d1628;border:1px solid #1a2840;border-radius:9px;'
+            'padding:6px;overflow-x:auto;margin-bottom:6px;">'
+            '<table style="width:100%;border-collapse:collapse;">'
+            '<tr style="color:#475569;font-size:9px;text-transform:uppercase;">'
+            '<td style="padding:4px 8px;">Konsept (9 sezon · iddaa fiyatına çevrilmiş)</td>'
+            '<td style="padding:4px 8px;text-align:right;">n</td>'
+            '<td style="padding:4px 8px;text-align:right;">İsabet</td>'
+            '<td style="padding:4px 8px;text-align:right;">Gereken</td>'
+            '<td style="padding:4px 8px;text-align:right;">ROI</td>'
+            '<td style="padding:4px 8px;text-align:right;">Sınav</td>'
+            '<td style="padding:4px 8px;text-align:right;">Hüküm</td></tr>'
+            f'{body}</table></div>'
+            '<div style="color:#475569;font-size:10px;margin-bottom:14px;">'
+            'Aşama: KONSEPT → BACKTEST → KARAR → CANLI AJAN. '
+            '"Sınav" sütunu 2024-2026 dilimidir; kalıcılık testi.</div>',
+            unsafe_allow_html=True)
+
     h = R.get("health", {})
     st.markdown(
         f'<div style="color:#475569;font-size:10px;font-family:Consolas,monospace;">'
