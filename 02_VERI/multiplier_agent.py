@@ -32,7 +32,7 @@ except Exception:
     pass
 
 import db
-from combo_tables import MARKETS, band
+from combo_tables import MARKETS, band, strength_factor, EDGE_MULT
 
 MIN_EDGE = 0.08
 MIN_ODDS = 2.50
@@ -190,15 +190,21 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 qa, qb = pa.get(ca), pb.get(cb)
                 if not qa or not qb:
                     continue
-                p_joint = c * qa * qb            # korelasyon-düzeltilmiş ortak olasılık
+                # 🛡 GÜVENLİK MARJI: bileşen gücü düzeltmesi (51.294 örnek-dışı
+                # gözlemde ölçüldü). "İkisi de zayıf" adaylarda model %9 fazla
+                # iyimser; bu düzeltme onları otomatik eşik altına indirir.
+                sf, sf_label = strength_factor(ca, qa, cb, qb)
+                p_joint = c * qa * qb * sf
                 if p_joint <= 0:
                     continue
-                fair = 1.0 / p_joint             # marjsız adil oran
+                fair = 1.0 / p_joint             # marjsız + güç-düzeltilmiş adil oran
                 oa = pa["_odds"].get(ca)
                 ob = pb["_odds"].get(cb)
                 naive = (oa * ob) if (oa and ob) else 0
                 edge = combo / fair - 1
-                if edge < min_edge or edge > MAX_EDGE:
+                # 🛡 risk-ayarlı eşik: zayıf bölgede daha fazla marj iste
+                need = min_edge * EDGE_MULT.get(sf_label, 1.0)
+                if edge < need or edge > MAX_EDGE:
                     continue                      # 🛑 akıl sağlığı tavanı
                 if not (min_odds <= combo <= max_odds):
                     continue
@@ -210,6 +216,8 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                     "market": combo_market, "pick": sel, "odds": combo,
                     "fair": round(fair, 2), "naive": round(naive, 2),
                     "corr": c, "edge": round(edge * 100, 1), "lead": m["lead"],
+                    "strength": sf, "strength_label": sf_label,
+                    "need_edge": round(need * 100, 1),
                 })
     out.sort(key=lambda x: -x["edge"])
     return out

@@ -1153,6 +1153,7 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
             "model_prob": mp, "implied_prob": ip, "edge": mp - ip,
             "signal_score": c["edge"] / 100.0,
             "signal_name": "KORELASYON_DEGERI",
+            "_strength": c.get("strength_label"),
             "_match": {"match_id": mid, "home_team": c["home"],
                        "away_team": c["away"], "league_code": c["league"],
                        "kickoff_utc": c["kickoff"], "mbs": 1},

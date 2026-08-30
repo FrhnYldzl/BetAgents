@@ -193,3 +193,54 @@ MARKETS = {
         "label": lambda a, b: f"{a} ve {'Var' if b == 'V' else 'Yok'}",
     },
 }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 🛡 GÜVENLİK MARJI — BİLEŞEN GÜCÜ DÜZELTMESİ
+# ══════════════════════════════════════════════════════════════════════
+# BULGU (51.294 örnek-dışı gözlem, korelasyon tablosu 2024 ÖNCESİ veriyle
+# kalibre edildi, ölçüm 2024+ diliminde yapıldı):
+#
+#   Model genelinde MÜKEMMEL kalibre: tahmin %16.68 · gerçek %16.67 (oran 1.00)
+#   AMA bileşen gücüne göre sistematik sapıyor:
+#     ikisi de ÇOK GÜÇLÜ (üst %35) → oran 1.08  (model fazla TEMKİNLİ)
+#     ikisi de güçlü (üst yarı)    → oran 1.05
+#     biri zayıf                   → oran 0.98
+#     ikisi de ZAYIF               → oran 0.91  (model fazla İYİMSER = TUZAK)
+#
+# Yani "ucuz görünmek" tek başına yetmiyor — kullanıcının sezgisi doğruydu.
+# Uçtan uca 17 puanlık doğruluk farkı var ve bu, edge eşiğimizden (%8) büyük.
+#
+# UYGULAMA: p_ortak, bileşen gücüne göre düzeltilir. Böylece zayıf-zayıf
+# adaylar otomatik olarak eşiğin altına düşer; güçlü-güçlü olanlar öne çıkar.
+
+STRENGTH_MED = {"1": 0.424, "0": 0.263, "2": 0.290,
+                "U": 0.524, "A": 0.476, "V": 0.533, "Y": 0.467}
+STRENGTH_HI = {"1": 0.495, "0": 0.276, "2": 0.353,
+               "U": 0.560, "A": 0.513, "V": 0.562, "Y": 0.496}
+
+
+def strength_factor(code_a: str, qa: float, code_b: str, qb: float) -> tuple:
+    """Bileşen gücüne göre olasılık düzeltmesi + okunur etiket."""
+    ha = qa >= STRENGTH_HI.get(code_a, 9)
+    hb = qb >= STRENGTH_HI.get(code_b, 9)
+    ma = qa >= STRENGTH_MED.get(code_a, 9)
+    mb = qb >= STRENGTH_MED.get(code_b, 9)
+    if ha and hb:
+        return 1.08, "ikisi de ÇOK GÜÇLÜ"
+    if ma and mb:
+        return 1.05, "ikisi de güçlü"
+    if ma or mb:
+        return 0.98, "biri zayıf"
+    return 0.91, "ikisi de ZAYIF (tuzak bölgesi)"
+
+
+# 🛡 RİSK-AYARLI EŞİK: modelin daha az güvenilir olduğu bölgede DAHA FAZLA
+# marj iste. Düzeltme katsayısı ortalamadır; zayıf bölgede sapmanın kendisi
+# de daha oynaktır. "Aynı edge her yerde aynı değeri taşımaz."
+EDGE_MULT = {
+    "ikisi de ÇOK GÜÇLÜ": 0.80,          # güvenilir bölge — daha düşük eşik yeter
+    "ikisi de güçlü": 1.00,
+    "biri zayıf": 1.30,
+    "ikisi de ZAYIF (tuzak bölgesi)": 1.80,   # burada iki katına yakın marj iste
+}

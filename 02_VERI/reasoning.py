@@ -59,7 +59,9 @@ def build_reason(pick: dict, prof: dict | None = None) -> str:
                 f"KOMBO: '{sel}' seçimi, bileşenlerinin çarpımına göre "
                 f"korelasyon-düzeltilmiş adil oranı "
                 f"{(1/mp):.2f} iken iddaa {o:.2f} veriyor"
-                + (f" (+%{ss*100:.1f} değer)" if ss else ""))
+                + (f" (+%{ss*100:.1f} değer)" if ss else "")
+                + (f" · bileşen gücü: {pick['_strength']}"
+                   if pick.get("_strength") else ""))
         elif sn:
             parts.append(f"sinyal: {SIGNAL_TR.get(sn, sn)}")
         if mp and ip:
