@@ -1579,6 +1579,7 @@ def _diag_write(pid: str, status: str, detail: str) -> None:
 
 def run_profile(pid: str, place: bool = True) -> list[str]:
     ensure_portfolio(pid)
+    prof = PROFILES.get(pid, {})
     eng = PaperEngine(pid)
     tag = f"[{pid.split('_')[0]}]"
     # 🛡 FAIL-LOUD: çöken ajan SESSİZ kalmaz — teşhis tablosuna 🔴 yazılır.
@@ -1604,6 +1605,26 @@ def run_profile(pid: str, place: bool = True) -> list[str]:
         return []
     ids = eng.place_coupons(coupons, dry_run=False)
     print(f"{tag} {len(ids)} kupon yerlestirildi.")
+    # 🧠 GEREKÇE NOTU: "bu maçı neden seçtim" — her ayağa yazılır.
+    # Sonuç ikili (tuttu/tutmadı) ama BİLGİ süreklidir; gerekçe olmadan
+    # neyin işe yaradığını değil, yalnız neyin kazandığını biliriz.
+    try:
+        import reasoning as _rz
+        conn_r = db.connect()
+        _rz.ensure_columns(conn_r)
+        for c, cid in zip(coupons, ids):
+            for pk in c.get("picks", []):
+                note = _rz.build_reason(pk, prof)
+                if not note:
+                    continue
+                conn_r.execute(
+                    "UPDATE paper_bets SET reason=? WHERE coupon_id=? "
+                    "AND market=? AND pick=?",
+                    (note, cid, pk.get("market"), pk.get("pick")))
+        conn_r.commit()
+        conn_r.close()
+    except Exception as e:
+        print(f"{tag} gerekçe yazılamadı: {e}")
     return ids
 
 

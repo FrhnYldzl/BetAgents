@@ -1493,8 +1493,9 @@ def get_agent_data(pid: str):
             (pid,))
         for c in out["open"]:
             c["legs"] = _db_rows(
-                "SELECT home_team, away_team, market, pick, odds, kickoff_utc "
-                "FROM paper_bets WHERE coupon_id=?", (c["coupon_id"],))
+                "SELECT home_team, away_team, market, pick, odds, kickoff_utc, "
+                "reason, postmortem, status FROM paper_bets WHERE coupon_id=?",
+                (c["coupon_id"],))
         out["last"] = _db_rows(
             "SELECT coupon_type, combined_odds, stake, pnl, status, settled_at "
             "FROM paper_coupons WHERE portfolio_id=? AND status IN "
@@ -1510,6 +1511,15 @@ def get_agent_data(pid: str):
             out["clv"] = _clv_overall(pid)
         except Exception:
             out["clv"] = None
+        # 🧠 GEREKÇE DEFTERİ: son kararlar + neden seçildi + ne oldu
+        out["reasons"] = _db_rows(
+            "SELECT pb.home_team h, pb.away_team a, pb.market m, pb.pick p, "
+            "pb.odds o, pb.status st, pb.reason rs, pb.postmortem pm, "
+            "pc.created_at ca FROM paper_bets pb "
+            "JOIN paper_coupons pc ON pb.coupon_id=pc.coupon_id "
+            "WHERE pc.portfolio_id=? AND (pb.reason IS NOT NULL "
+            "OR pb.postmortem IS NOT NULL) ORDER BY pc.created_at DESC LIMIT 12",
+            (pid,))
         out["journal"] = _db_rows(
             "SELECT entry_date, entry_type, title, content, pnl "
             "FROM paper_journal WHERE portfolio_id=? "
@@ -1739,6 +1749,35 @@ def _render_agent_page(pid: str) -> None:
     """, unsafe_allow_html=True)
 
     st.markdown(_brief_html(pid), unsafe_allow_html=True)
+
+    # 🧠 GEREKÇE DEFTERİ
+    try:
+        _rs = (get_agent_data(pid) or {}).get("reasons") or []
+    except Exception:
+        _rs = []
+    if _rs:
+        body = ""
+        for r in _rs:
+            sc = {"won": "#10d48e", "lost": "#ef4444",
+                  "open": "#3b82f6"}.get(r.get("st"), "#64748b")
+            ico = {"won": "✅", "lost": "❌", "open": "⏳"}.get(r.get("st"), "•")
+            body += (
+                f'<div style="border-top:1px solid #18233a;padding:6px 0;">'
+                f'<div style="color:#e2e8f0;font-size:11px;font-family:Consolas,monospace;">'
+                f'{ico} <b>{str(r.get("h") or "")[:20]} – {str(r.get("a") or "")[:20]}</b> '
+                f'<span style="color:{sc};">{r.get("m")}:{r.get("p")} @{r.get("o") or 0:.2f}</span>'
+                f'<span style="color:#475569;"> · {str(r.get("ca") or "")[5:16].replace("T"," ")}</span></div>'
+                + (f'<div style="color:#94a3b8;font-size:10px;line-height:1.5;'
+                   f'padding-left:14px;">🧠 <b>neden:</b> {r["rs"]}</div>' if r.get("rs") else "")
+                + (f'<div style="color:{sc};font-size:10px;line-height:1.5;'
+                   f'padding-left:14px;">🔎 <b>sonuç:</b> {r["pm"]}</div>' if r.get("pm") else "")
+                + '</div>')
+        with st.expander("🧠 GEREKÇE DEFTERİ — bu maçları neden seçtim, ne oldu?",
+                         expanded=False):
+            st.markdown(
+                '<div style="background:#0d1628;border:1px solid #1a2840;'
+                f'border-radius:9px;padding:4px 12px;">{body}</div>',
+                unsafe_allow_html=True)
 
     league = _agent_league_html()
     if league:
@@ -2993,6 +3032,11 @@ def _team_dashboard_html() -> str:
                   f'{bm.get("icon","")} {bm.get("title",best["pid"])}</span> '
                   f'<span style="color:{"#10d48e" if (best["roi"] or 0)>0 else "#ef4444"};">'
                   f'{best["roi"]:+.1f}%</span> ({best["w"]}/{best["n"]})</div>')
+        # DERS: f-string İÇİNDE "%" biçimlendirmesi kullanılmaz — f-string
+        # %% kaçışını işlemez, format dizisi bozulur ve tüm blok düşer.
+        # Metinleri ÖNCE hazırla, f-string'e hazır string koy.
+        hit_txt = f"%{t['hit']:.0f}" if t.get("hit") is not None else "—"
+        roi_txt = f"{t['roi']:+.1f}%" if t.get("roi") is not None else "—"
         cards += (
             f'<div style="flex:1;min-width:280px;background:#0d1628;border:1px solid #1a2840;'
             f'border-left:3px solid {c};border-radius:10px;padding:11px 14px;">'
@@ -3009,12 +3053,12 @@ def _team_dashboard_html() -> str:
             f'<div style="color:{pc};font-size:16px;font-weight:800;">{pnl:+,.0f}</div></div>'
             f'<div><div style="color:#475569;font-size:9px;">İSABET</div>'
             f'<div style="color:#e2e8f0;font-size:16px;font-weight:800;">'
-            f'{("%%%.0f" % t["hit"]) if t.get("hit") is not None else "—"}'
+            f'{hit_txt}'
             f'<span style="font-size:10px;color:#475569;"> {t.get("w",0)}/{t.get("n",0)}</span>'
             f'</div></div>'
             f'<div><div style="color:#475569;font-size:9px;">ROI</div>'
             f'<div style="color:{pc};font-size:16px;font-weight:800;">'
-            f'{("%%+.1f%%%%" % t["roi"]) if t.get("roi") is not None else "—"}</div></div>'
+            f'{roi_txt}</div></div>'
             f'<div><div style="color:#475569;font-size:9px;">AÇIK</div>'
             f'<div style="color:#3b82f6;font-size:16px;font-weight:800;">{t.get("open",0)}</div></div>'
             f'<div><div style="color:#475569;font-size:9px;">BUGÜN</div>'
@@ -3098,11 +3142,13 @@ def _featured_agent_block() -> None:
 def page_overview(portfolio: dict) -> None:
 
     # 🔵🔴 TAKIM PANOSU + 🌟 LİDER PORTFÖY
+    # FAIL-LOUD: sessizce yutma — hata varsa görünsün (ders: yutulan
+    # istisna, 'özellik görünmüyor' olarak geri döner)
     try:
         st.markdown(_team_dashboard_html(), unsafe_allow_html=True)
         _featured_agent_block()
-    except Exception:
-        pass
+    except Exception as _e:
+        st.error(f'Takım panosu hatası: {_e}')
     render_system_health()
     st.markdown("""
     <div class="sec-title">

@@ -179,6 +179,17 @@ def run():
 
     log("=== AUTO SETTLE BITTI ===\n")
 
+    # 🧠 POST-MORTEM: sonuç gelen her bahse 'ne kadar yakındı' notu.
+    # 3-0 kaybetmekle 2-1 kaybetmek aynı şey değildir; bu fark
+    # filtreyi ayarlamak için sonucun kendisinden öğreticidir.
+    try:
+        import reasoning
+        n_pm = reasoning.backfill_postmortems(1000)
+        if n_pm:
+            print(f'  post-mortem yazildi: {n_pm} bahis')
+    except Exception as e:
+        print(f'  post-mortem hatasi: {e}')
+
 
 if __name__ == "__main__":
     run()
