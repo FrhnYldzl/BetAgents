@@ -231,7 +231,18 @@ PROFILES: dict[str, dict] = {
     # model sinyal hattını bağla. Alt-modeller (MONOVOX/DUOVOX/BTTS-*/OU25-*)
     # aktivasyonda filtre/bacak olarak bunlara bağlanır.
     "TRIVOX_V1": {
-        "name": "TRIVOX (T1 uzmanı — SEZONDA, motor-v1)",
+        # 🏁 EMEKLİ (29 Ağu 2026) — GERİYE DÖNÜK TEST KARARI.
+        # 2.884 Süper Lig maçı / 9 sezon (2017-2026, Pinnacle kapanış) motor
+        # sinyalleriyle yeniden oynatıldı; her oran iddaa fiyatına çevrildi
+        # (×0.880, marj 3.5% → 17.6%). SONUÇ: iddaa fiyatlarıyla TEK BİR
+        # kârlı hücre yok. En iyi: 1X2 mp 0.55-0.62 → +0.04% (n=89) ve
+        # dönemler arası işaret değiştiriyor (eğitim +6.5%, sınav −13.9%).
+        # Ayrıca "halk büyükleri şişirir → terslesek" hipotezi de çürüdü:
+        # büyükleri terslemek −31% ile −36%. Motorun Pinnacle fiyatlarında
+        # ~+5% becerisi var, ama iddaa marjı onu tamamen yiyor.
+        # Karar: T1 tek başına uzmanlık alanı değil; slot boşaltıldı.
+        "name": "TRIVOX (emekli — T1'de kanıtlanmış edge yok)",
+        "retired": True,
         "stop_pct": -0.15, "leagues": {"T1"},
         "markets": {"KG_YOK", "UST_25"}, "fav_min": 0.72,
         "min_mp": 0.66, "min_odds": 1.20,
@@ -434,6 +445,7 @@ def review_league() -> None:
         # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler
         field = [p for p in list(PROFILES) + ["KURUCU_V2"]
                  if not PROFILES.get(p, {}).get("dormant")
+                 and not PROFILES.get(p, {}).get("retired")
                  and not _is_benched(conn, p)]
         stats = []
         for pid in field:
@@ -1163,6 +1175,9 @@ def manage_licenses():
 def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     prof = PROFILES[pid]
     tag = f"[{pid.split('_')[0]}]"
+    if prof.get("retired"):
+        print(f"{tag} 🏁 EMEKLI (kanit yok) -> oynamaz")
+        return []
     if prof.get("dormant"):
         print(f"{tag} 😴 sezon bekliyor (Agustos'ta aktive edilecek) -> PAS")
         return []
@@ -1506,7 +1521,10 @@ def diagnose_all() -> list[dict]:
             tag = f"[DIAG·{pid.split('_')[0]}]"
             status, detail = "", ""
             try:
-                if prof.get("dormant"):
+                if prof.get("retired"):
+                    status, detail = "🏁 EMEKLİ", ("geriye dönük test: iddaa "
+                                                  "fiyatlarıyla kârlı hücre yok")
+                elif prof.get("dormant"):
                     status, detail = "😴 DORMANT", "sezona kadar bilinçli uyku"
                 elif _is_benched(conn, pid):
                     status, detail = "🚫 KADRO DIŞI", "sözleşme feshi"
@@ -1626,7 +1644,7 @@ def preflight() -> list[str]:
         conn.close()
 
     for pid, prof in PROFILES.items():
-        if prof.get("dormant"):
+        if prof.get("dormant") or prof.get("retired"):
             continue
         try:
             eng = PaperEngine(pid)
