@@ -2749,6 +2749,16 @@ def page_score_table(portfolio: dict) -> None:
                             key="score_sort")
     rows.sort(key=SORTS[sel_sort], reverse=True)
     medals = {0: "🥇", 1: "🥈", 2: "🥉"}
+    # 🔵🔴 takım ayrımı: aynı sayfada ama ayrı bölümler
+    grp = st.radio("Görünüm", ["🏁 Hepsi", "🔵 Mavi Takım", "🔴 Kırmızı Takım"],
+                   horizontal=True, key="score_team", label_visibility="collapsed")
+    if grp.startswith("🔵"):
+        rows = [r for r in rows if AGENT_TEAM.get(r["pid"]) == "MAVI"]
+    elif grp.startswith("🔴"):
+        rows = [r for r in rows if AGENT_TEAM.get(r["pid"]) == "KIRMIZI"]
+    if not rows:
+        st.info("Bu takımda henüz veri yok.")
+        return
     body = ""
     for i, r in enumerate(rows):
         pc = "#10d48e" if r["pnl"] >= 0 else "#ef4444"
@@ -2783,7 +2793,10 @@ def page_score_table(portfolio: dict) -> None:
             f'<tr style="border-top:1px solid #18233a;font-family:Consolas,monospace;font-size:12px;">'
             f'<td style="padding:8px;color:#e2e8f0;white-space:nowrap;">{medals.get(i,"")} '
             f'{r["icon"]} <b>{r["title"]}</b><br>'
-            f'<span style="color:#475569;font-size:9px;">{r["sub"]}'
+            f'<span style="color:#475569;font-size:9px;">'
+            + (lambda t: (f'<span style="color:{TEAM_META[t][2]};">{TEAM_META[t][0]}</span> '
+                          if t in TEAM_META else ''))(AGENT_TEAM.get(r["pid"], ""))
+            + f'{r["sub"]}'
             + (f' · 📦 era-{r["era_no"]-1}: {r["arch_n"]} kupon' if r.get("arch_n") else '')
             + f'</span></td>'
             f'<td style="padding:8px;text-align:right;color:#e2e8f0;">{r["cur"]:,.0f}<br>'
@@ -2891,7 +2904,205 @@ def page_score_table(portfolio: dict) -> None:
         unsafe_allow_html=True)
 
 
+
+# ════════════════════════════════════════════════════════════════
+# 🔵🔴 TAKIM PANOSU — MAVİ vs KIRMIZI genel durum
+# ════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=180, show_spinner=False)
+def get_team_stats() -> dict:
+    """Takım bazında: kasa · kupon · isabet · ROI · açık · bugün.
+    Sıfırlama YOK — Era-2 birikimi korunur, ayrıca 'bugünden itibaren'
+    ayrı sütunda izlenir."""
+    from datetime import datetime as _dt
+    today = _dt.utcnow().date().isoformat()
+    rows = _db_rows(
+        "SELECT portfolio_id, initial_bankroll, current_bankroll, era_start "
+        "FROM paper_portfolio")
+    port = {r["portfolio_id"]: r for r in rows}
+    agg = {r["portfolio_id"]: r for r in _db_rows(
+        "SELECT portfolio_id, "
+        "SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
+        "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
+        "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o, "
+        "SUM(CASE WHEN status IN ('won','lost') THEN COALESCE(pnl,0) ELSE 0 END) pnl, "
+        "SUM(CASE WHEN status IN ('won','lost') THEN stake ELSE 0 END) stk, "
+        "AVG(CASE WHEN status IN ('won','lost') THEN combined_odds END) avo "
+        "FROM paper_coupons GROUP BY portfolio_id")}
+    tday = {r["portfolio_id"]: r for r in _db_rows(
+        "SELECT portfolio_id, COUNT(*) n, "
+        "SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
+        "SUM(COALESCE(pnl,0)) pnl FROM paper_coupons "
+        "WHERE created_at >= ? GROUP BY portfolio_id", (today + "T00:00:00",))}
+
+    out = {}
+    for team in ("MAVI", "KIRMIZI"):
+        pids = [k for k, v in AGENT_TEAM.items() if v == team and k in port]
+        T = {"pids": pids, "bank": 0.0, "init": 0.0, "n": 0, "w": 0, "open": 0,
+             "pnl": 0.0, "stake": 0.0, "today_n": 0, "today_pnl": 0.0,
+             "agents": []}
+        for pid in pids:
+            p_ = port[pid]
+            a = agg.get(pid) or {}
+            t = tday.get(pid) or {}
+            n = a.get("n") or 0
+            w = a.get("w") or 0
+            pnl = float(a.get("pnl") or 0)
+            T["bank"] += float(p_.get("current_bankroll") or 0)
+            T["init"] += float(p_.get("initial_bankroll") or 0)
+            T["n"] += n
+            T["w"] += w
+            T["open"] += a.get("o") or 0
+            T["pnl"] += pnl
+            T["stake"] += float(a.get("stk") or 0)
+            T["today_n"] += t.get("n") or 0
+            T["today_pnl"] += float(t.get("pnl") or 0)
+            T["agents"].append({
+                "pid": pid, "n": n, "w": w, "pnl": pnl,
+                "hit": (w / n * 100) if n else None,
+                "roi": (pnl / (a.get("stk") or 1) * 100) if (a.get("stk") or 0) else None,
+                "bank": float(p_.get("current_bankroll") or 0),
+                "avg_odds": float(a.get("avo") or 0),
+                "open": a.get("o") or 0,
+            })
+        T["hit"] = (T["w"] / T["n"] * 100) if T["n"] else None
+        T["roi"] = (T["pnl"] / T["stake"] * 100) if T["stake"] else None
+        T["agents"].sort(key=lambda x: -(x["roi"] if x["roi"] is not None else -999))
+        out[team] = T
+    return out
+
+
+def _team_dashboard_html() -> str:
+    """Genel Bakış üstünde iki takımın karnesi."""
+    try:
+        T = get_team_stats()
+    except Exception:
+        return ""
+    cards = ""
+    for team in ("MAVI", "KIRMIZI"):
+        t = T.get(team) or {}
+        ic, nm, c, desc = TEAM_META[team]
+        pnl = t.get("pnl", 0)
+        pc = "#10d48e" if pnl >= 0 else "#ef4444"
+        best = next((a for a in t.get("agents", []) if a["n"] >= 3), None)
+        bl = ""
+        if best:
+            bm = AGENT_META.get(best["pid"], {})
+            bl = (f'<div style="color:#64748b;font-size:10px;margin-top:5px;">'
+                  f'öne çıkan: <span style="color:{bm.get("renk","#e2e8f0")};">'
+                  f'{bm.get("icon","")} {bm.get("title",best["pid"])}</span> '
+                  f'<span style="color:{"#10d48e" if (best["roi"] or 0)>0 else "#ef4444"};">'
+                  f'{best["roi"]:+.1f}%</span> ({best["w"]}/{best["n"]})</div>')
+        cards += (
+            f'<div style="flex:1;min-width:280px;background:#0d1628;border:1px solid #1a2840;'
+            f'border-left:3px solid {c};border-radius:10px;padding:11px 14px;">'
+            f'<div style="color:{c};font-size:12px;font-weight:800;letter-spacing:0.06em;">'
+            f'{ic} {nm} <span style="color:#475569;font-size:9px;font-weight:400;">'
+            f'· {len(t.get("pids",[]))} ajan</span></div>'
+            f'<div style="color:#475569;font-size:9px;margin-bottom:6px;">{desc}</div>'
+            f'<div style="display:flex;gap:14px;flex-wrap:wrap;font-family:Consolas,monospace;">'
+            f'<div><div style="color:#475569;font-size:9px;">KASA</div>'
+            f'<div style="color:#e2e8f0;font-size:16px;font-weight:800;">'
+            f'{t.get("bank",0):,.0f}<span style="font-size:10px;color:#475569;"> / '
+            f'{t.get("init",0):,.0f}</span></div></div>'
+            f'<div><div style="color:#475569;font-size:9px;">K/Z</div>'
+            f'<div style="color:{pc};font-size:16px;font-weight:800;">{pnl:+,.0f}</div></div>'
+            f'<div><div style="color:#475569;font-size:9px;">İSABET</div>'
+            f'<div style="color:#e2e8f0;font-size:16px;font-weight:800;">'
+            f'{("%%%.0f" % t["hit"]) if t.get("hit") is not None else "—"}'
+            f'<span style="font-size:10px;color:#475569;"> {t.get("w",0)}/{t.get("n",0)}</span>'
+            f'</div></div>'
+            f'<div><div style="color:#475569;font-size:9px;">ROI</div>'
+            f'<div style="color:{pc};font-size:16px;font-weight:800;">'
+            f'{("%%+.1f%%%%" % t["roi"]) if t.get("roi") is not None else "—"}</div></div>'
+            f'<div><div style="color:#475569;font-size:9px;">AÇIK</div>'
+            f'<div style="color:#3b82f6;font-size:16px;font-weight:800;">{t.get("open",0)}</div></div>'
+            f'<div><div style="color:#475569;font-size:9px;">BUGÜN</div>'
+            f'<div style="color:#e2e8f0;font-size:16px;font-weight:800;">{t.get("today_n",0)}'
+            f'<span style="font-size:10px;color:'
+            f'{"#10d48e" if t.get("today_pnl",0)>=0 else "#ef4444"};"> '
+            f'{t.get("today_pnl",0):+,.0f}</span></div></div>'
+            f'</div>{bl}</div>')
+    return ('<div style="display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 14px 0;">'
+            + cards + '</div>')
+
+
+def _featured_agent_block() -> None:
+    """🌟 En başarılı ajanın portföyü — diğerlerine kaydırmalı geçiş."""
+    try:
+        T = get_team_stats()
+    except Exception:
+        return
+    allx = []
+    for team in ("MAVI", "KIRMIZI"):
+        for a in (T.get(team) or {}).get("agents", []):
+            a = dict(a)
+            a["team"] = team
+            allx.append(a)
+    ranked = sorted([a for a in allx if a["n"] >= 3],
+                    key=lambda x: -(x["roi"] if x["roi"] is not None else -999))
+    if not ranked:
+        return
+    labels = []
+    for i, a in enumerate(ranked):
+        m = AGENT_META.get(a["pid"], {})
+        medal = ["🥇", "🥈", "🥉"][i] if i < 3 else f"#{i+1}"
+        labels.append(f'{medal} {m.get("icon","")} {m.get("title",a["pid"])} '
+                      f'({a["roi"]:+.1f}%)')
+    st.markdown('<div style="color:#64748b;font-size:10px;text-transform:uppercase;'
+                'letter-spacing:0.08em;font-weight:700;margin:6px 0 4px 0;">'
+                '🌟 LİDER PORTFÖY — ok tuşlarıyla diğer ajanlara geç</div>',
+                unsafe_allow_html=True)
+    sel = st.select_slider("Ajan", options=labels, value=labels[0],
+                           key="featured_agent", label_visibility="collapsed")
+    a = ranked[labels.index(sel)]
+    pid = a["pid"]
+    m = AGENT_META.get(pid, {})
+    ic, tn, tc, _ = TEAM_META.get(a["team"], ("", "", "#64748b", ""))
+    pc = "#10d48e" if a["pnl"] >= 0 else "#ef4444"
+    brief = AGENT_BRIEF.get(pid)
+    bl = ""
+    if brief:
+        bl = (f'<div style="color:#94a3b8;font-size:11px;line-height:1.55;'
+              f'margin-top:6px;border-top:1px solid #18233a;padding-top:6px;">'
+              f'<b style="color:#e2e8f0;">Uzmanlık:</b> {brief[0]}<br>'
+              f'<b style="color:#10d48e;">Başarı ölçütü:</b> {brief[2]}</div>')
+    st.markdown(
+        f'<div style="background:#0d1628;border:1px solid #1a2840;'
+        f'border-left:3px solid {m.get("renk","#10d48e")};border-radius:10px;'
+        f'padding:12px 15px;margin-bottom:14px;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+        f'<div><span style="font-size:19px;font-weight:900;color:#e2e8f0;">'
+        f'{m.get("icon","")} {m.get("title",pid)}</span> '
+        f'<span style="background:{tc}22;border:1px solid {tc}66;color:{tc};'
+        f'border-radius:5px;padding:1px 6px;font-size:9px;font-weight:800;">'
+        f'{ic} {tn}</span></div>'
+        f'<div style="color:{pc};font-size:22px;font-weight:900;'
+        f'font-family:Consolas,monospace;">{a["pnl"]:+,.0f} TL</div></div>'
+        f'<div style="display:flex;gap:18px;margin-top:8px;flex-wrap:wrap;'
+        f'font-family:Consolas,monospace;">'
+        f'<div><div style="color:#475569;font-size:9px;">KASA</div>'
+        f'<div style="color:#e2e8f0;font-size:15px;font-weight:800;">{a["bank"]:,.0f} TL</div></div>'
+        f'<div><div style="color:#475569;font-size:9px;">İSABET</div>'
+        f'<div style="color:#e2e8f0;font-size:15px;font-weight:800;">'
+        f'%{a["hit"]:.0f} <span style="font-size:10px;color:#475569;">{a["w"]}/{a["n"]}</span></div></div>'
+        f'<div><div style="color:#475569;font-size:9px;">ROI</div>'
+        f'<div style="color:{pc};font-size:15px;font-weight:800;">{a["roi"]:+.1f}%</div></div>'
+        f'<div><div style="color:#475569;font-size:9px;">ORT. ORAN</div>'
+        f'<div style="color:#94a3b8;font-size:15px;font-weight:800;">{a["avg_odds"]:.2f}</div></div>'
+        f'<div><div style="color:#475569;font-size:9px;">AÇIK</div>'
+        f'<div style="color:#3b82f6;font-size:15px;font-weight:800;">{a["open"]}</div></div>'
+        f'</div>{bl}</div>', unsafe_allow_html=True)
+
+
 def page_overview(portfolio: dict) -> None:
+
+    # 🔵🔴 TAKIM PANOSU + 🌟 LİDER PORTFÖY
+    try:
+        st.markdown(_team_dashboard_html(), unsafe_allow_html=True)
+        _featured_agent_block()
+    except Exception:
+        pass
     render_system_health()
     st.markdown("""
     <div class="sec-title">

@@ -226,5 +226,69 @@ def report(market: str | None = None, min_edge: float = MIN_EDGE) -> None:
                   f"(kor {c['corr']:.2f}) → %{c['edge']:+.1f}")
 
 
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ⚽ MODEL-FİYATLI PAZARLAR (BANT · DEVRE) — korelasyon tablosu yerine
+# maçın kendi fiyatından kalibre edilen Poisson gol modeli kullanılır.
+# ══════════════════════════════════════════════════════════════════════
+
+MODEL_MARKETS = {"TOTAL_GOALS", "HT_FT", "HT_1X2", "HT_OU0.5", "HT_OU1.5"}
+
+
+def model_candidates(market: str = "TOTAL_GOALS", min_edge: float = 0.10,
+                     min_odds: float = 2.00, max_odds: float = 40.0) -> list[dict]:
+    """iddaa'nın bant/İY fiyatını, piyasadan kalibre edilmiş Poisson modelinin
+    adil fiyatıyla karşılaştırır. Model varsayımı 24.612 maçta doğrulandı
+    (toplam gol dağılımı Poisson'a uyuyor); İY payı (%45) ise DOĞRULANMAMIŞ
+    varsayımdır — DEVRE bunu canlıda sınar."""
+    try:
+        import goal_model as gm
+    except Exception as e:
+        print(f"  (gol modeli yüklenemedi: {e})")
+        return []
+    latest, meta = _load_latest()
+    if not latest:
+        return []
+    out = []
+    for ev, m in meta.items():
+        o1 = latest.get((ev, "1X2", "1"))
+        ox = latest.get((ev, "1X2", "0")) or latest.get((ev, "1X2", "X"))
+        o2 = latest.get((ev, "1X2", "2"))
+        ou = latest.get((ev, "OU2.5", "Üst"))
+        un = latest.get((ev, "OU2.5", "Alt"))
+        if not all((o1, ox, o2, ou, un)):
+            continue
+        # bu maçta hedef pazarın fiyatı var mı?
+        sels = {k[2]: v for k, v in latest.items()
+                if k[0] == ev and k[1] == market}
+        if not sels:
+            continue
+        try:
+            pr = gm.price_all(o1, ox, o2, ou, un)
+        except Exception:
+            continue
+        probs = pr.get(market) or {}
+        for sel, odd in sels.items():
+            p = probs.get(sel)
+            if not p or p <= 0:
+                continue
+            fair = 1.0 / p
+            edge = odd / fair - 1
+            if edge < min_edge or edge > MAX_EDGE:
+                continue
+            if not (min_odds <= odd <= max_odds):
+                continue
+            out.append({
+                "event_id": ev, "league": m["lg"], "kickoff": m["ko"],
+                "home": m["home"], "away": m["away"], "market": market,
+                "pick": sel, "odds": odd, "fair": round(fair, 2),
+                "naive": 0, "corr": 1.0, "edge": round(edge * 100, 1),
+                "lead": m["lead"],
+            })
+    out.sort(key=lambda x: -x["edge"])
+    return out
+
+
 if __name__ == "__main__":
     report(sys.argv[1] if len(sys.argv) > 1 else None)

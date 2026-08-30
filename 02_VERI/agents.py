@@ -289,8 +289,7 @@ PROFILES: dict[str, dict] = {
         # dağılımdan gelen açık YOK. Ama bant FİYATLARI hiç test edilmedi —
         # TOTAL_GOALS oranları yeni toplanmaya başladı. Yeterli veri birikince
         # PoC çerçevesinden geçirilip aktive/reddedilecek.
-        "name": "BANT (gol aralıkları — veri bekliyor)",
-        "dormant": True,
+        "name": "BANT (gol aralıkları — Poisson adil fiyat)",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 3.00, "max_odds": 40.0,
         "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
@@ -303,8 +302,7 @@ PROFILES: dict[str, dict] = {
         # ⏱ DEVRE — İLK YARI pazarları. YEDEK: SONUÇ verisi eksik.
         # 18.059 maçın HİÇBİRİNDE yarı skoru yok (home_score_ht boş).
         # HT oranlarını topluyoruz; yarı skorları da toplanınca test edilecek.
-        "name": "DEVRE (ilk yarı — yarı skoru bekliyor)",
-        "dormant": True,
+        "name": "DEVRE (ilk yarı — Poisson adil fiyat)",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.00, "max_odds": 35.0,
         "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
@@ -1102,13 +1100,21 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
     except Exception as e:
         print(f"{tag} çarpan modülü yüklenemedi: {e}")
         return []
+    mk = prof.get("combo_market", "1X2_OU")
     try:
-        cs = ma.candidates(
-            combo_market=prof.get("combo_market", "1X2_OU"),
-            min_edge=prof.get("min_edge", ma.MIN_EDGE),
-            min_odds=prof.get("min_odds", ma.MIN_ODDS),
-            max_odds=prof.get("max_odds", ma.MAX_ODDS),
-            residual_gate=prof.get("residual_gate", True))
+        if mk in getattr(ma, "MODEL_MARKETS", set()):
+            # ⚽ model-fiyatlı pazar (BANT · DEVRE)
+            cs = ma.model_candidates(
+                market=mk, min_edge=prof.get("min_edge", 0.10),
+                min_odds=prof.get("min_odds", 2.0),
+                max_odds=prof.get("max_odds", 40.0))
+        else:
+            cs = ma.candidates(
+                combo_market=mk,
+                min_edge=prof.get("min_edge", ma.MIN_EDGE),
+                min_odds=prof.get("min_odds", ma.MIN_ODDS),
+                max_odds=prof.get("max_odds", ma.MAX_ODDS),
+                residual_gate=prof.get("residual_gate", True))
     except Exception as e:
         print(f"{tag} aday üretilemedi: {e}")
         return []
