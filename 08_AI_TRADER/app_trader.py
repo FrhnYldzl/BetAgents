@@ -1500,6 +1500,113 @@ def _league_rows_data() -> dict:
     return {"port": port, "agg": agg}
 
 
+# ════════════════════════════════════════════════════════════════
+# 🎖 GÖREV BRİFİNGİ — her ajan bir hipotezin sahadaki temsilcisidir
+# (uzmanlık · görev · başarı ölçütü · sisteme katkısı)
+# ════════════════════════════════════════════════════════════════
+
+AGENT_BRIEF = {
+    "KURUCU_V2": ("Ana motor: tüm sinyal aileleri, MBS-uyumlu TEK+K3",
+                  "Sistemin temel hattını temsil etmek — diğer herkesin ölçüldüğü referans",
+                  "Flat-LCB > 0 ve JOKER'i geçmek",
+                  "Buradaki bozulma tüm mimariyi sorgulatır"),
+    "TEMKINLI_V1": ("Yüksek model güveni · kısa oran · tek ayak",
+                    "'Güvenli oyun kâr eder mi?' hipotezini sınamak",
+                    "%70+ isabet VE pozitif flat ROI — ikisi birden",
+                    "Şu an −%27: 'güvenli oran tuzağı'nın canlı kanıtı"),
+    "MEMUR_V1": ("Orta risk · sinyal skoru sıralı · disiplinli hacim",
+                 "Risk-getiri denge noktasını bulmak",
+                 "Rastgele ajanı (JOKER) geçmek",
+                 "Orta yolun kendiliğinden değer üretmediğini gösteriyor"),
+    "AVCI_V1": ("Yüksek oran avı (ort. 1.71) · SHARP > edge > oran",
+                "Değerin kısa oranda değil UZUN oranda olduğunu kanıtlamak",
+                "n≥30'da Wilson alt sınırı başabaşın üstünde kalmalı",
+                "Kanıt eşiğini geçen İLK ajan — tezin canlı doğrulaması"),
+    "HOCA_V1": ("Bağımsız Poisson modeliyle piyasayı TEYİT etme",
+                "Model ve piyasa aynı yönü gösterdiğinde oynamak",
+                "Teyitli bahislerin teyitsizlerden iyi olması",
+                "Modelin katma değeri var mı sorusunun cevabı"),
+    "SIMYACI_V1": ("Model piyasadan ≥3 puan yüksek dediğinde değer avı",
+                   "Kontrol deneyi: backtest −%8 demişti, canlı ne diyecek?",
+                   "Hipotezi doğrulamak VEYA çürütmek — ikisi de kazanç",
+                   "Modelimizin piyasayı yenip yenemediğini ölçen tek ajan"),
+    "POPULER_V1": ("iddaa yazarları + konsensüs + sharp teyidi",
+                   "'Kalabalık bilgeliği' tezini sınamak",
+                   "Başabaşı geçmek",
+                   "İki erada da −%70: başarısızlığı TERS'in yakıtı oldu"),
+    "ERKENKUS_V1": ("Maça 40+ saat kala erken giriş",
+                    "Erken fiyatın değerli olup olmadığını ölçmek",
+                    "Geç girenlerden daha iyi sonuç",
+                    "CLV/zamanlama tezinin ilk sahadaki sınayıcısı"),
+    "CESUR_V1": ("1.60–2.00 orta band · ÜST 2.5 + KG YOK",
+                 "Kanıtlanmış 'en iyi bölge'yi sistematik sömürmek",
+                 "Bandın ROI'sini pozitif tutmak",
+                 "Era-1 kanıtından doğan ilk veri-doğumlu ajan"),
+    "JOKER_V1": ("HİÇBİRİ — deterministik rastgele seçim",
+                 "Kendimize yalan söylememizi engellemek",
+                 "⚠️ Başarısı KAYBETMEKTİR. Onu geçemeyen ajan beceri iddia edemez",
+                 "Sistemin dürüstlük sigortası — belki de en değerli ajan"),
+    "KALECI_V1": ("KG YOK + ALT kesişimi · ölüm penceresi (6-40sa) yasağı",
+                  "Düşük gollü maçları kesişimle yakalamak",
+                  "Kesişim mantığının tekil seçimleri geçmesi",
+                  "Kalabalık bulgusundan sonra tezi sorgulanıyor"),
+    "KONSEY_V1": ("Servet-ağırlıklı ajan oylaması (iç Polymarket)",
+                  "Uzlaşmanın değer üretip üretmediğini ölçmek",
+                  "Tekil ajanların ortalamasını geçmek",
+                  "−%38: uzlaşma tezi çöküyor — bu da bir sonuçtur"),
+    "TERS_V1": ("Yazar pick'lerinin KARŞI tarafı (fade)",
+                "Marjdan-daha-kötü bir kaynağı tersleyerek kâr etmek",
+                "İki erada da pozitif kalmak",
+                "Çapraz-era doğrulanan TEK hipotezimiz"),
+    "EUVOX_V1": ("Büyük Avrupa ligleri (SP1·I1·F1·D1·E0)",
+                 "Lig uzmanlaşmasının değer üretip üretmediğini ölçmek",
+                 "Kanıt eşiği (8 kupon kaldı)",
+                 "Kazançları kupa/dengesiz eşleşmelerden: açıklama değişti"),
+    "TRIVOX_V1": ("Süper Lig uzmanı — 🏁 EMEKLİ",
+                  "Görev tamamlandı: 9 sezon backtest kararı verdi",
+                  "—",
+                  "T1 en iyi ligimiz çıktı ama motor marjı aşamadı. "
+                  "Emekliliği başarısızlık değil, ölçümün çalıştığının kanıtı"),
+    "CARPAN_V1": ("Maç içi korelasyon · kombine pazarlar (1X2_OU)",
+                  "Bahisçinin 'bağımsızlık varsayımı' hatasını sömürmek",
+                  "≥%8 edge'li seçimlerde pozitif flat ROI",
+                  "Marjı üstel ödemeden yüksek çarpan — tek yapısal açık adayı"),
+    "OPUS5_V1": ("İnsan seçiciliği — gerçekte oynananların defteri",
+                 "iddaa'nın sildiği gerçek arşivi tutmak",
+                 "Ajanların ortalamasını geçmek",
+                 "Kâğıt ile gerçek dünya arasındaki tek köprü"),
+    "PAPER_V1": ("📦 Era-1 arşivi",
+                 "Geçmişin kaydını korumak",
+                 "—",
+                 "Tüm kanıt tabanımızın ham maddesi"),
+}
+
+
+def _brief_html(pid: str) -> str:
+    b = AGENT_BRIEF.get(pid)
+    if not b:
+        return ""
+    uz, gorev, basari, onem = b
+    meta = AGENT_META.get(pid, {})
+    renk = meta.get("renk", "#10d48e")
+    row = ('<div style="display:flex;gap:8px;padding:4px 0;">'
+           '<div style="color:#64748b;font-size:9px;min-width:96px;'
+           'text-transform:uppercase;letter-spacing:0.06em;padding-top:2px;">{k}</div>'
+           '<div style="color:{c};font-size:12px;line-height:1.5;flex:1;">{v}</div></div>')
+    return (
+        f'<div style="background:#0d1628;border:1px solid #1a2840;'
+        f'border-left:3px solid {renk};border-radius:9px;padding:9px 13px;'
+        f'margin-bottom:12px;">'
+        f'<div style="color:{renk};font-size:10px;font-weight:800;'
+        f'text-transform:uppercase;letter-spacing:0.09em;padding-bottom:3px;">'
+        f'🎖 GÖREV BRİFİNGİ</div>'
+        + row.format(k="Uzmanlık", v=uz, c="#e2e8f0")
+        + row.format(k="Görev", v=gorev, c="#cbd5e1")
+        + row.format(k="Başarı ölçütü", v=basari, c="#10d48e")
+        + row.format(k="Sisteme katkısı", v=onem, c="#94a3b8")
+        + '</div>')
+
+
 def _agent_league_html() -> str:
     """🏁 Oyuncuların kompakt kıyası — her ajan sayfasının tepesinde."""
     rows = ""
@@ -1545,6 +1652,8 @@ def _render_agent_page(pid: str) -> None:
       <div class="sec-title-meta">AYRI KASA 1.000 TL · HEDEF 2.500 TL / 1 AY · {meta['sub']}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown(_brief_html(pid), unsafe_allow_html=True)
 
     league = _agent_league_html()
     if league:
@@ -1780,6 +1889,7 @@ def page_opus5(portfolio: dict) -> None:
       <div class="sec-title-meta">GERÇEKTE OYNADIKLARIM · iddaa ARŞİVİ SİLER, BURASI SİLMEZ</div>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown(_brief_html("OPUS5_V1"), unsafe_allow_html=True)
     st.markdown(
         '<div style="background:#0a1f26;border:1px solid #164e5c;border-left:3px solid #22d3ee;'
         'border-radius:8px;padding:9px 13px;margin:2px 0 14px 0;color:#94a3b8;font-size:12px;'
