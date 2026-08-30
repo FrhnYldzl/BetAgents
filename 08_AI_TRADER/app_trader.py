@@ -1939,6 +1939,21 @@ def page_simetri(portfolio: dict) -> None:
 def page_kavsak(portfolio: dict) -> None:
     _render_agent_page("KAVSAK_V1")
 
+def page_bant(portfolio: dict) -> None:
+    _render_agent_page("BANT_V1")
+    st.info("😴 YEDEK — veri bekliyor. Toplam gol dağılımı Poisson'a uyuyor "
+            "(0-1: 0.95 · 2-3: 1.02 · 4-5: 1.01 · 6+: 0.98), yani dağılımdan "
+            "gelen açık yok. TOTAL_GOALS **fiyatları** yeni toplanıyor; yeterli "
+            "veri birikince PoC çerçevesinden geçip aktive VEYA emekli edilecek.")
+
+
+def page_devre(portfolio: dict) -> None:
+    _render_agent_page("DEVRE_V1")
+    st.warning("⏸ YEDEK — SONUÇ verisi eksik. 18.059 maçın hiçbirinde yarı "
+               "skoru yok (`home_score_ht` tamamen boş). HT_FT / HT_1X2 "
+               "oranlarını topluyoruz ama korelasyon haritası çıkarmak için "
+               "yarı skorlarının da toplanması gerekiyor.")
+
 def page_trivox(portfolio: dict) -> None:
     _render_agent_page("TRIVOX_V1")
 

@@ -1138,9 +1138,14 @@ def _multiplier_candidates(prof: dict, tag: str) -> list[dict]:
         mid = mm.get(str(c["event_id"]))
         if not mid:
             continue                      # eşleşmeyen maç oynanmaz
+        # paper_engine.place_coupons TÜM bu alanları bekler — eksikse
+        # kupon kurulur ama YERLEŞTİRME aşamasında KeyError ile düşer.
+        mp = 1.0 / c["fair"] if c.get("fair") else 0.0
+        ip = 1.0 / c["odds"] if c.get("odds") else 0.0
         picks.append({
             "market": c["market"], "pick": c["pick"], "odds": c["odds"],
-            "model_prob": 1.0 / c["fair"], "signal_score": c["edge"] / 100.0,
+            "model_prob": mp, "implied_prob": ip, "edge": mp - ip,
+            "signal_score": c["edge"] / 100.0,
             "signal_name": "KORELASYON_DEGERI",
             "_match": {"match_id": mid, "home_team": c["home"],
                        "away_team": c["away"], "league_code": c["league"],
