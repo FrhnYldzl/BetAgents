@@ -196,8 +196,21 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 # kümesi bahsidir. Kazandıran skorların ampirik kütlesi,
                 # korelasyon çarpımından %34.9 daha isabetli kalibre
                 # (50.916 örnek-dışı gözlem). Küme kurulamazsa korelasyona düş.
+                # ⚠️ DERS: profil anahtarı P(ev sahibi) ve P(üst) ister —
+                # bunlar kombinenin BİLEŞENLERİNDEN gelmeyebilir. Örneğin
+                # OU_BTTS'in bileşenleri A/Ü ve KG'dir, 1X2 yoktur; 1X2_BTTS'te
+                # de A/Ü yoktur. Önce bileşenlerden dene, yoksa maçın kendi
+                # 1X2 / OU2.5 fiyatından çek. (Bunu yapmayınca KAVŞAK ve
+                # SİMETRİ sessizce eski korelasyon yöntemine düşüyordu.)
                 q1 = pa.get("1") if mk_a == "1X2" else None
-                qU = pb.get("U") if mk_b == "OU2.5" else pa.get("U")
+                qU = pb.get("U") if mk_b == "OU2.5" else (
+                    pa.get("U") if mk_a == "OU2.5" else None)
+                if q1 is None:
+                    _p = _norm_probs(latest, ev, "1X2")
+                    q1 = _p.get("1") if _p else None
+                if qU is None:
+                    _p = _norm_probs(latest, ev, "OU2.5")
+                    qU = _p.get("U") if _p else None
                 winner = None
                 if combo_market == "1X2_OU":
                     winner = ss.combo_winner(ca, cb)
