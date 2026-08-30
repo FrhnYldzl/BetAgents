@@ -220,6 +220,17 @@ STRENGTH_HI = {"1": 0.495, "0": 0.276, "2": 0.353,
                "U": 0.560, "A": 0.513, "V": 0.562, "Y": 0.496}
 
 
+# ⚠️ PAZAR-ÖZEL: bu etki HER kombo pazarında yok!
+#   1X2_OU   → VAR  (18.040 maç, örnek-dışı: 1.08 ↔ 0.91, 17 puan fark)
+#   1X2_BTTS → VAR  (aynı ölçüm)
+#   OU_BTTS  → YOK  (4.454 maç, iç bölünmüş sınav: tüm bantlar 0.99-1.02)
+# Sebebi yapısal: A/Ü ve KG'nin İKİSİ DE gol sürecine bağlı, aralarındaki
+# korelasyon zaten çok güçlü (1.97'ye kadar) — bileşen gücü ek bilgi
+# taşımıyor. Oysa 1X2 × gol pazarları SONUÇ ile GOL boyutunu karıştırır;
+# orada bileşen gücü gerçek bilgi.
+STRENGTH_APPLIES = {"1X2_OU": True, "1X2_BTTS": True, "OU_BTTS": False}
+
+
 def strength_factor(code_a: str, qa: float, code_b: str, qb: float) -> tuple:
     """Bileşen gücüne göre olasılık düzeltmesi + okunur etiket."""
     ha = qa >= STRENGTH_HI.get(code_a, 9)

@@ -32,7 +32,8 @@ except Exception:
     pass
 
 import db
-from combo_tables import MARKETS, band, strength_factor, EDGE_MULT
+from combo_tables import (MARKETS, band, strength_factor, EDGE_MULT,
+                          STRENGTH_APPLIES)
 
 MIN_EDGE = 0.08
 MIN_ODDS = 2.50
@@ -193,7 +194,11 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 # 🛡 GÜVENLİK MARJI: bileşen gücü düzeltmesi (51.294 örnek-dışı
                 # gözlemde ölçüldü). "İkisi de zayıf" adaylarda model %9 fazla
                 # iyimser; bu düzeltme onları otomatik eşik altına indirir.
-                sf, sf_label = strength_factor(ca, qa, cb, qb)
+                if STRENGTH_APPLIES.get(combo_market, True):
+                    sf, sf_label = strength_factor(ca, qa, cb, qb)
+                else:
+                    # bu pazarda etki ÖLÇÜLDÜ ve YOK — düzeltme uygulanmaz
+                    sf, sf_label = 1.0, "güç etkisi yok (ölçüldü)"
                 p_joint = c * qa * qb * sf
                 if p_joint <= 0:
                     continue
