@@ -182,6 +182,13 @@ def run():
     # 🧠 POST-MORTEM: sonuç gelen her bahse 'ne kadar yakındı' notu.
     # 3-0 kaybetmekle 2-1 kaybetmek aynı şey değildir; bu fark
     # filtreyi ayarlamak için sonucun kendisinden öğreticidir.
+    # 🔍 SONUÇ DENETİMİ: settle motorunun kaçırdığı/yanlış çözdüğü bahisler
+    try:
+        import verify_settlements
+        verify_settlements.run(dry=False)
+    except Exception as e:
+        print(f'  sonuc denetimi hatasi: {e}')
+
     try:
         import reasoning
         n_pm = reasoning.backfill_postmortems(1000)

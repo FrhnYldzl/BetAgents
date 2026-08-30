@@ -1265,14 +1265,58 @@ class PaperEngine:
         market = bet.get("market", "")
         pick = bet.get("pick", "")
 
-        if market == "1X2":
-            if home_score > away_score:
-                actual = "1"
-            elif home_score == away_score:
-                actual = "X"
+        total = home_score + away_score
+        btts = home_score > 0 and away_score > 0
+        if home_score > away_score:
+            res = "1"
+        elif home_score == away_score:
+            res = "0"
+        else:
+            res = "2"
+
+        # ── KOMBO PAZARLAR (KIRMIZI TAKIM) ────────────────────────────
+        # ⚠️ KÖK NEDEN DERSİ: bu blok yokken _determine_outcome bilmediği
+        # her pazara "void" diyordu. KIRMIZI ajanların "2 ve Var" gibi
+        # kombine bahisleri KAZANMIŞ olsa bile VOID yazılıyordu — yani
+        # ajanlar hiçbir zaman doğru ölçülemezdi.
+        if " ve " in (pick or ""):
+            a, b = [x.strip() for x in pick.split(" ve ", 1)]
+            au = a.upper()
+            if au in ("1", "0", "X", "2"):
+                ok_a = (res == ("0" if au == "X" else au))
+            elif au in ("ÜST", "UST"):
+                ok_a = total > 2.5
+            elif au == "ALT":
+                ok_a = total < 2.5
             else:
-                actual = "2"
-            return "won" if pick == actual else "lost"
+                return "void"
+            bu = b.upper()
+            if bu in ("ÜST", "UST"):
+                ok_b = total > 2.5
+            elif bu == "ALT":
+                ok_b = total < 2.5
+            elif bu == "VAR":
+                ok_b = btts
+            elif bu == "YOK":
+                ok_b = not btts
+            else:
+                return "void"
+            return "won" if (ok_a and ok_b) else "lost"
+
+        # ── GOL ARALIĞI (BANT) ────────────────────────────────────────
+        if market == "TOTAL_GOALS" or (pick or "").endswith("gol"):
+            pl = (pick or "").replace("gol", "").strip()
+            try:
+                if "+" in pl:
+                    return "won" if total >= int(pl.replace("+", "")) else "lost"
+                lo, hi = [int(x) for x in pl.split("-")]
+                return "won" if lo <= total <= hi else "lost"
+            except Exception:
+                return "void"
+
+        if market == "1X2":
+            # NOT: iddaa "0" kullanır, eski kayıtlarda "X" olabilir — ikisi de
+            return "won" if pick in (res, "X" if res == "0" else res) else "lost"
 
         elif market == "KG_VAR":
             btts = home_score > 0 and away_score > 0

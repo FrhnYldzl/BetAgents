@@ -117,13 +117,19 @@ def open_coupons(exclude_started: bool = True) -> list[dict]:
         legs = by_c.get(c[0], [])
         if not legs:
             continue
-        if exclude_started and any(str(x["kickoff"] or "") <= now for x in legs):
-            continue                      # başlamış maç oynanamaz
+        # ⚠️ UX DERSİ: eskiden başlamış maçlı kuponlar listeden TAMAMEN
+        # siliniyordu — kullanıcı "ajanlarım eksik" diye görüyordu.
+        # Artık gösterilir ama OYNANAMAZ olarak işaretlenir (şeffaflık).
+        started = any(str(x["kickoff"] or "") <= now for x in legs)
+        if exclude_started and started:
+            pass                          # yine de listeye alınır, işaretli
         out.append({
             "coupon_id": c[0], "agent": c[1], "type": c[2],
             "odds": float(c[3] or 1), "n_legs": len(legs),
             "created_at": c[5], "legs": legs,
             "already": c[0] in mine,
+            "playable": not started,
+            "why_not": "maç başladı — gerçekte oynanamaz" if started else "",
             "kickoff": min(str(x["kickoff"] or "") for x in legs),
         })
     out.sort(key=lambda x: (x["agent"], x["kickoff"]))

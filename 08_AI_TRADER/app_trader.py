@@ -2089,8 +2089,10 @@ def page_opus5(portfolio: dict) -> None:
             by_agent.setdefault(c["agent"], []).append(c)
         for apid, lst in by_agent.items():
             meta = AGENT_META.get(apid, {"icon": "", "title": apid})
+            _pl = sum(1 for c in lst if c.get("playable", True))
             with st.expander(f"{meta.get('icon','')} {meta.get('title',apid)} — "
-                             f"{len(lst)} açık kupon", expanded=False):
+                             f"{len(lst)} açık kupon "
+                             f"({_pl} oynanabilir)", expanded=False):
                 for c in lst:
                     legs_html = "<br>".join(
                         f'<span style="color:#94a3b8;">{l["home"][:18]} – {l["away"][:18]}</span> '
@@ -2111,7 +2113,11 @@ def page_opus5(portfolio: dict) -> None:
                             f'{stake:.0f} TL → {stake*c["odds"]:.0f} TL</span><br>{legs_html}</div>',
                             unsafe_allow_html=True)
                     with col2:
-                        if c["already"]:
+                        if not c.get("playable", True):
+                            st.markdown('<div style="color:#64748b;font-size:10px;'
+                                        'padding-top:14px;">⏱ başladı</div>',
+                                        unsafe_allow_html=True)
+                        elif c["already"]:
                             st.markdown('<div style="color:#10d48e;font-size:11px;'
                                         'padding-top:14px;">✅ defterde</div>',
                                         unsafe_allow_html=True)
@@ -2133,6 +2139,8 @@ def page_opus5(portfolio: dict) -> None:
             opens = []
         seen, options = set(), []
         for c in opens:
+            if not c.get("playable", True):
+                continue                  # sepette başlamış maç olmaz
             for l in c["legs"]:
                 k = (l["match_id"], l["market"], l["pick"])
                 if k in seen:
