@@ -373,6 +373,28 @@ def _db_rows(sql: str, params: tuple = ()) -> list[dict]:
 
 # ── SVG Position Chart (Meridian-style) ──────────────────────────────────────
 
+def _bets_by_coupon(coupon_ids, cols: str = "*") -> dict:
+    """⚡ N+1 KIRICI: eskiden her kupon için AYRI sorgu (ve ayrı bağlantı)
+    açılıyordu — Genel Bakış'ta 40+ bağlantı demekti. Artık tek sorgu,
+    sonuç kupon_id'ye göre gruplanır. Çıktı birebir aynı."""
+    ids = [c for c in (coupon_ids or []) if c]
+    if not ids:
+        return {}
+    out: dict = {}
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i + 100]
+        ph = ",".join("?" for _ in chunk)
+        try:
+            rows = _db_rows(
+                f"SELECT coupon_id, {cols} FROM paper_bets "
+                f"WHERE coupon_id IN ({ph})", tuple(chunk))
+        except Exception:
+            continue
+        for r in rows:
+            out.setdefault(r.get("coupon_id"), []).append(r)
+    return out
+
+
 def _svg_position_chart(stake: float, potential: float, color: str, uid: str = "") -> str:
     """Meridian-style mini position chart: stake TL (entry) → potential return TL (target).
     Bezier S-curve with gradient fill, exactly like Meridian Capital equity sparklines."""
@@ -1437,7 +1459,7 @@ def get_agent_data(pid: str):
             out["analysis"] = None
         try:
             import clv as _clv
-            out["clv"] = (_clv.clv_summary(pid) or {}).get("overall")
+            out["clv"] = _clv_overall(pid)
         except Exception:
             out["clv"] = None
         out["journal"] = _db_rows(
@@ -1449,21 +1471,36 @@ def get_agent_data(pid: str):
     return out
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _league_rows_data() -> dict:
+    """⚡ HIZ: eskiden her ajan için 2 ayrı sorgu (17 ajan = 34 bağlantı)
+    açılıyordu. Artık TEK toplu sorgu çifti + 120 sn önbellek.
+    Bağlantı kurmak sorgudan 3 kat pahalı olduğu için asıl kazanç burada."""
+    port = {r["portfolio_id"]: r for r in _db_rows(
+        "SELECT portfolio_id, current_bankroll, initial_bankroll FROM paper_portfolio")}
+    agg = {r["portfolio_id"]: r for r in _db_rows(
+        "SELECT portfolio_id, "
+        "SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
+        "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
+        "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o "
+        "FROM paper_coupons GROUP BY portfolio_id")}
+    return {"port": port, "agg": agg}
+
+
 def _agent_league_html() -> str:
-    """🏁 3 ajanın kompakt kıyası — her ajan sayfasının tepesinde."""
+    """🏁 Oyuncuların kompakt kıyası — her ajan sayfasının tepesinde."""
     rows = ""
+    try:
+        D = _league_rows_data()
+    except Exception:
+        return ""
     for apid, meta in AGENT_META.items():
-        p = _db_rows("SELECT current_bankroll, initial_bankroll FROM paper_portfolio "
-                     "WHERE portfolio_id=?", (apid,))
-        if not p:
+        pr = D["port"].get(apid)
+        if not pr:
             continue
-        cur = p[0].get("current_bankroll") or 0
-        init = p[0].get("initial_bankroll") or 1
-        s = _db_rows(
-            "SELECT SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) w, "
-            "SUM(CASE WHEN status IN ('won','lost') THEN 1 ELSE 0 END) n, "
-            "SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) o "
-            "FROM paper_coupons WHERE portfolio_id=?", (apid,))[0]
+        cur = pr.get("current_bankroll") or 0
+        init = pr.get("initial_bankroll") or 1
+        s = D["agg"].get(apid) or {}
         n = s.get("n") or 0
         w = s.get("w") or 0
         o = s.get("o") or 0
@@ -1696,6 +1733,16 @@ def _opus_mod():
     return manual_book
 
 
+@st.cache_data(ttl=90, show_spinner=False)
+def _opus_stats() -> dict:
+    return _opus_mod().stats()
+
+
+@st.cache_data(ttl=90, show_spinner=False)
+def _opus_opens() -> list:
+    return _opus_mod().open_coupons()
+
+
 def page_opus5(portfolio: dict) -> None:
     mb = _opus_mod()
     st.markdown("""
@@ -1716,7 +1763,7 @@ def page_opus5(portfolio: dict) -> None:
 
     # ── Karne ──
     try:
-        S = mb.stats()
+        S = _opus_stats()
     except Exception as e:
         st.error(f"Defter okunamadı: {e}")
         return
@@ -1746,7 +1793,7 @@ def page_opus5(portfolio: dict) -> None:
     # ── SEKME 1: ajan ajan açık kuponlar ──
     with tab1:
         try:
-            opens = mb.open_coupons()
+            opens = _opus_opens()
         except Exception as e:
             st.error(f"Kuponlar okunamadı: {e}")
             opens = []
@@ -1796,7 +1843,7 @@ def page_opus5(portfolio: dict) -> None:
     # ── SEKME 2: sepetten kendi kuponu ──
     with tab2:
         try:
-            opens = mb.open_coupons()
+            opens = _opus_opens()
         except Exception:
             opens = []
         seen, options = set(), []
@@ -2317,6 +2364,16 @@ def page_exec_report(portfolio: dict) -> None:
 # 🏆 AGENTS SCORE TABLE — tüm oyuncuların tam karşılaştırması
 # ════════════════════════════════════════════════════════════════
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _clv_overall(pid: str):
+    """⚡ CLV özeti ajan/skor sayfalarında tekrar tekrar hesaplanıyordu."""
+    try:
+        import clv as _clv
+        return (_clv.clv_summary(pid) or {}).get("overall")
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def get_score_table():
     rows = []
@@ -2346,7 +2403,7 @@ def get_score_table():
         clv_mean = clv_n = None
         try:
             import clv as _clv
-            ov = (_clv.clv_summary(apid) or {}).get("overall") or {}
+            ov = _clv_overall(apid) or {}
             if ov.get("n"):
                 clv_mean, clv_n = ov.get("mean"), ov.get("n")
         except Exception:
@@ -2766,11 +2823,10 @@ def page_overview(portfolio: dict) -> None:
 
     # ── Bekleyen sub-filter (Devam Eden / Başlamamış) ────────
     # Bir kuponun en erken kickoff'una göre filtrele
+    _ko_cache: dict = {}
+
     def _earliest_kickoff(coupon_id: str) -> datetime | None:
-        bets = _db_rows(
-            "SELECT kickoff_utc FROM paper_bets WHERE coupon_id=?",
-            (coupon_id,)
-        )
+        bets = _ko_cache.get(coupon_id) or []
         times = []
         for b in bets:
             ko = b.get("kickoff_utc") or ""
@@ -2783,6 +2839,8 @@ def page_overview(portfolio: dict) -> None:
     # Separate Başlamamış vs Devam Eden
     bekleyen_baslamamis = []
     bekleyen_devam      = []
+    _ko_cache.update(_bets_by_coupon(
+        [c.get("coupon_id") for c in open_coupons], "kickoff_utc"))
     for c in open_coupons:
         ko = _earliest_kickoff(c.get("coupon_id", ""))
         if ko is None or ko > now_utc:
@@ -2836,6 +2894,10 @@ def page_overview(portfolio: dict) -> None:
                     )
                     return
                 cols_per_row = 2
+                _open_bets = _bets_by_coupon(
+                    [c.get("coupon_id") for c in coupon_list],
+                    "home_team, away_team, market, pick, odds, model_prob, "
+                    "implied_prob, edge, signal_score, status, kickoff_utc")
                 for i in range(0, len(coupon_list), cols_per_row):
                     _cols = st.columns(cols_per_row)
                     for j, coup in enumerate(coupon_list[i : i + cols_per_row]):
@@ -2846,13 +2908,9 @@ def page_overview(portfolio: dict) -> None:
                             reasoning = (coup.get("reasoning") or "")[:80]
                             ctype_desc = TYPE_DESC.get(ctype, ctype)
 
-                            bets = _db_rows("""
-                                SELECT home_team, away_team, market, pick, odds,
-                                       model_prob, implied_prob, edge, signal_score,
-                                       status, kickoff_utc
-                                FROM paper_bets WHERE coupon_id=?
-                                ORDER BY odds DESC
-                            """, (coup["coupon_id"],))
+                            bets = sorted(
+                                _open_bets.get(coup["coupon_id"], []),
+                                key=lambda b: -(b.get("odds") or 0))
 
                             bet_html = ""
                             for b in bets:
@@ -2981,6 +3039,9 @@ def page_overview(portfolio: dict) -> None:
                     f'<div style="color:#475569;font-size:11px;padding:2px 0 8px 0;">'
                     f'Son {len(won_coupons)} gösteriliyor (toplam {n_won} kazanan — '
                     f'tam liste: Arsiv)</div>', unsafe_allow_html=True)
+            _won_bets = _bets_by_coupon(
+                [c.get("coupon_id") for c in won_coupons],
+                "home_team, away_team, market, pick, odds, home_score, away_score")
             for coup in won_coupons:
                 ctype = coup.get("coupon_type", "")
                 tc    = TYPE_COLORS.get(ctype, "#10d48e")
@@ -2994,10 +3055,7 @@ def page_overview(portfolio: dict) -> None:
                 sat   = (coup.get("settled_at") or "")[:10]
                 roi   = (pot - stk) / stk * 100 if stk else 0
                 svg   = _svg_settlement_chart(stk, pnl, cid)
-                bets  = _db_rows(
-                    "SELECT home_team, away_team, market, pick, odds, home_score, away_score FROM paper_bets WHERE coupon_id=?",
-                    (coup["coupon_id"],)
-                )
+                bets  = _won_bets.get(coup["coupon_id"], [])
                 bet_rows = ""
                 for b in bets:
                     sc = f"{b.get('home_score','-')}-{b.get('away_score','-')}"
@@ -3048,6 +3106,9 @@ def page_overview(portfolio: dict) -> None:
                     f'<div style="color:#475569;font-size:11px;padding:2px 0 8px 0;">'
                     f'Son {len(lost_coupons)} gösteriliyor (toplam {n_lost} kaybeden — '
                     f'tam liste: Arsiv)</div>', unsafe_allow_html=True)
+            _lost_bets = _bets_by_coupon(
+                [c.get("coupon_id") for c in lost_coupons],
+                "home_team, away_team, market, pick, odds, home_score, away_score")
             for coup in lost_coupons:
                 cid  = (coup.get("coupon_id") or "")[:8]
                 pnl  = coup.get("pnl") or 0
@@ -3055,10 +3116,7 @@ def page_overview(portfolio: dict) -> None:
                 odds = coup.get("combined_odds") or 0
                 sat  = (coup.get("settled_at") or "")[:10]
                 svg  = _svg_settlement_chart(stk, pnl, cid)
-                bets = _db_rows(
-                    "SELECT home_team, away_team, market, pick, odds, home_score, away_score FROM paper_bets WHERE coupon_id=?",
-                    (coup["coupon_id"],)
-                )
+                bets = _lost_bets.get(coup["coupon_id"], [])
                 bet_rows = ""
                 for b in bets:
                     sc = f"{b.get('home_score','-')}-{b.get('away_score','-')}"
