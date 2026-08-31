@@ -359,12 +359,92 @@ def _num(v: float, d: int = 2) -> str:
     return f"{v:.{d}f}".replace(".", ",")
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def load_opus() -> dict:
+    """OPUS 5 defteri — GERÇEKTE oynananlar.
+
+    Yol haritasının kapatılması gereken tek sorusu burada ölçülür:
+    kâğıt ajanlar ucuz bölgede -%12,5 gösteriyor, ama sahada kazanç
+    bildiriliyor. İkisi birden doğru olabilir — gerçekte oynananlar,
+    kâğıt ajanların oynadıklarından farklı olabilir. FARK ÖLÇÜLMELİ.
+
+    Ve asıl soru: KOMBİNE YAPMAK, ayakları TEK TEK oynamaktan iyi mi?
+    Her çok-ayaklı kupon için karşı-olgusal hesaplanır: aynı ayaklar
+    tek tek oynansaydı ne getirirdi? Marj analizine göre kombine
+    pahalı olmalı; bu, tezin kendi verinle sınanması."""
+    cs = _rows(
+        "SELECT coupon_id cid, status st, combined_odds co, stake sk, "
+        "COALESCE(pnl,0) pnl, reasoning rs FROM paper_coupons "
+        "WHERE portfolio_id='OPUS5_V1'", sessiz=True)
+    if not cs:
+        return {"var": False}
+    ids = [c["cid"] for c in cs]
+    qs = ",".join("?" for _ in ids)
+    legs = _rows(
+        f"SELECT coupon_id cid, odds o, status st, market mk, pick pk, "
+        f"home_team h, away_team a FROM paper_bets WHERE coupon_id IN ({qs})",
+        tuple(ids), sessiz=True)
+    by: dict = {}
+    for l in legs:
+        by.setdefault(l["cid"], []).append(l)
+
+    dec = [c for c in cs if c["st"] in ("won", "lost")]
+    kombo_r, tek_r, n_multi = [], [], 0
+    for c in dec:
+        L = by.get(c["cid"], [])
+        if not L:
+            continue
+        co = float(c["co"] or 1)
+        kombo_r.append((co - 1.0) if c["st"] == "won" else -1.0)
+        # karşı-olgusal: aynı ayaklar tek tek, eşit paylı
+        sing = [((float(l["o"]) - 1.0) if l["st"] == "won" else -1.0)
+                for l in L if l["st"] in ("won", "lost")]
+        tek_r.append(sum(sing) / len(sing) if sing else 0.0)
+        if len(L) >= 2:
+            n_multi += 1
+
+    # ayak düzeyi: fiyata göre üstünlük (ajan tablosuyla aynı ölçü)
+    fl = [l for l in legs if l["st"] in ("won", "lost") and float(l["o"] or 0) > 1.01]
+    hit = (sum(1 for l in fl if l["st"] == "won") / len(fl)) if fl else 0.0
+    exp = (sum(1.0 / float(l["o"]) for l in fl) / len(fl)) if fl else 0.0
+
+    def _m(v):
+        return (sum(v) / len(v)) if v else 0.0
+
+    return {
+        "var": True, "kupon": len(cs),
+        "acik": sum(1 for c in cs if c["st"] == "open"),
+        "karar": len(dec), "cok_ayakli": n_multi,
+        "ayak": len(fl), "hit": hit, "exp": exp, "edge": hit - exp,
+        "kombo": _m(kombo_r), "tek": _m(tek_r),
+        "fark": _m(kombo_r) - _m(tek_r), "n_kars": len(kombo_r),
+        "pnl": sum(float(c["pnl"] or 0) for c in dec),
+    }
+
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_havuz() -> dict:
+    """Tüm kâğıt ajanların ayak düzeyi ortalaması — OPUS 5 kıyas tabanı."""
+    rows = _rows("SELECT odds o, status s FROM paper_bets "
+                 "WHERE status IN ('won','lost') AND odds > 1.01 "
+                 "AND portfolio_id <> 'OPUS5_V1'", sessiz=True)
+    if not rows:
+        return {"n": 0}
+    n = len(rows)
+    hit = sum(1 for r in rows if r["s"] == "won") / n
+    exp = sum(1.0 / float(r["o"]) for r in rows) / n
+    flat = sum(((float(r["o"]) - 1.0) if r["s"] == "won" else -1.0)
+               for r in rows) / n
+    return {"n": n, "hit": hit, "exp": exp, "edge": hit - exp, "flat": flat}
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
 
-def page_desk() -> None:
-    st.markdown(V2_CSS, unsafe_allow_html=True)
+def _rail() -> None:
+    """Durum şeridi — iki sayfa da kullanır. Veri kaynağı burada
+    YAZAR: yanlış kaynağı üretim sanmak, yanlış rakama güvenmektir."""
 
     r = load_rail()
     kcell = ("henüz yok" if r["k"] is None
@@ -391,6 +471,8 @@ def page_desk() -> None:
             "ortam değişkeni gerekiyor. Aşağıdaki her sayı bu kaynaktan.</div>",
             unsafe_allow_html=True)
 
+
+def page_desk() -> None:
     left, mid, right = st.columns([1.08, 1.55, 1.0], gap="small")
 
     # ── SOL: ajan güveni ──────────────────────────────────────
@@ -533,5 +615,166 @@ def page_desk() -> None:
         "</div>", unsafe_allow_html=True)
 
 
+def page_opus() -> None:
+    """🧑‍💻 OPUS 5 — gerçekte oynananların defteri."""
+    o = load_opus()
+    h = load_havuz()
+    left, right = st.columns([1.15, 1.0], gap="small")
+
+    with left:
+        if not o.get("var"):
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>OPUS 5 Defteri</h2>"
+                "<div class='hint'>gerçekte oynananlar</div></div>"
+                "<div class='v2body'><div class='dq'>Defter boş. Sağdan gerçekte "
+                "oynadığın kuponu kaydet — kâğıt ile saha arasındaki fark ancak "
+                "böyle ölçülebilir.</div></div></div>", unsafe_allow_html=True)
+        else:
+            fark = o["edge"] - h["edge"] if h.get("n") else 0.0
+            if fark > 0.02:
+                yorum = ("<b>Saha kâğıdı geçiyor.</b> Aradaki farkı yaratan şey "
+                         "modelin göremediği bir bilgidir — onu bulmak yol "
+                         "haritasının dört fazından da değerli.")
+            elif abs(fark) <= 0.02:
+                yorum = ("<b>Saha ile kâğıt aynı yerde.</b> Gerçek oyun, "
+                         "ajanların ölçülen performansından ayrışmıyor.")
+            else:
+                yorum = ("<b>Kâğıt sahayı geçiyor.</b> Manuel seçim, ajanların "
+                         "ham çıktısından daha kötü sonuç veriyor.")
+            hn = "{:,}".format(h.get("n", 0)).replace(",", ".")
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>OPUS 5 Defteri</h2>"
+                "<div class='hint'>gerçekte oynananlar</div></div>"
+                "<div class='v2body'>"
+                "<table class='v2'><thead><tr><th></th>"
+                "<th class='r'>Ayak</th><th class='r'>İsabet</th>"
+                "<th class='r'>Fiyat bekler</th><th class='r'>Fark</th>"
+                "</tr></thead><tbody>"
+                "<tr><td><span class='ag'>🧑‍💻 OPUS 5 · sen</span>"
+                "<span class='sb'>" + str(o["kupon"]) + " kupon · " +
+                str(o["acik"]) + " açık</span></td>"
+                "<td class='r n'>" + str(o["ayak"]) + "</td>"
+                "<td class='r n'>" + _pct(o["hit"]) + "</td>"
+                "<td class='r n'>" + _pct(o["exp"]) + "</td>"
+                "<td class='r'><span class='" +
+                ("dp" if o["edge"] >= 0 else "dm") + "'>" + _sgn(o["edge"]) +
+                "</span></td></tr>"
+                "<tr><td><span class='ag'>📊 Kâğıt ajanlar · havuz</span>"
+                "<span class='sb'>kıyas tabanı</span></td>"
+                "<td class='r n'>" + hn + "</td>"
+                "<td class='r n'>" + _pct(h.get("hit", 0)) + "</td>"
+                "<td class='r n'>" + _pct(h.get("exp", 0)) + "</td>"
+                "<td class='r'><span class='" +
+                ("dp" if h.get("edge", 0) >= 0 else "dm") + "'>" +
+                _sgn(h.get("edge", 0)) + "</span></td></tr>"
+                "</tbody></table>"
+                "<div class='v2mb' style='margin-top:12px;'>" + yorum +
+                " Sahanın üstünlüğü havuzdan <b>" + _sgn(fark) +
+                "</b> farklı.</div></div></div>", unsafe_allow_html=True)
+
+            if o["n_kars"] >= 3:
+                k, t, d = o["kombo"], o["tek"], o["fark"]
+                if d > 0:
+                    hkm = "Kombine <b>daha iyi</b> — ama örneklem küçük."
+                else:
+                    hkm = ("Kombine <b>daha kötü</b>. Marj analizi bunu "
+                           "öngörüyordu: her ayak kendi marjını taşır ve "
+                           "marjlar çarpılır.")
+                st.markdown(
+                    "<div class='v2card'><div class='v2head'>"
+                    "<h2>Kombine mi, Tek Tek mi</h2>"
+                    "<div class='hint'>karşı-olgusal · " + str(o["n_kars"]) +
+                    " kupon</div></div><div class='v2body'>"
+                    "<div class='ro'><span>Kombine oynandı</span><b class='" +
+                    ("ps" if k >= 0 else "ng") + "'>" +
+                    ("+" if k >= 0 else "−") + _num(abs(k) * 100, 1) + "%</b></div>"
+                    "<div class='ro'><span>Aynı ayaklar tek tek</span><b class='" +
+                    ("ps" if t >= 0 else "ng") + "'>" +
+                    ("+" if t >= 0 else "−") + _num(abs(t) * 100, 1) + "%</b></div>"
+                    "<div class='ro big'><span>Kombinenin katkısı</span><b class='" +
+                    ("ps" if d >= 0 else "ng") + "'>" +
+                    ("+" if d >= 0 else "−") + _num(abs(d) * 100, 1) + "p</b></div>"
+                    "<div class='vd' style='margin-top:10px;'>" + hkm +
+                    " Bu, kombine alışkanlığının <b>kendi verinle</b> ölçülmüş "
+                    "fiyatıdır — varsayımla değil.</div></div></div>",
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    "<div class='v2card'><div class='v2head'>"
+                    "<h2>Kombine mi, Tek Tek mi</h2>"
+                    "<div class='hint'>bekliyor</div></div><div class='v2body'>"
+                    "<div class='dq'>Karşı-olgusal için en az 3 sonuçlanmış "
+                    "kupon gerekiyor — şu an " + str(o["n_kars"]) +
+                    ". Kaydettikçe ölçülecek.</div></div></div>",
+                    unsafe_allow_html=True)
+
+    with right:
+        board = load_board()
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Gerçekte Ne Oynadın</h2>"
+            "<div class='hint'>işaretle → kaydet</div></div>"
+            "<div class='v2body' style='padding-bottom:4px;'>"
+            "<div class='v2mb'>iddaa arşivi siliyor. Buraya girdiğin her kupon "
+            "kalıcı olur ve <b>kâğıt ile saha arasındaki farkı</b> ölçmeyi "
+            "mümkün kılar.</div></div></div>", unsafe_allow_html=True)
+        secili = []
+        for b in board[:18]:
+            lbl = b["h"] + " — " + b["a"] + "  ·  " + str(b["pk"]) + \
+                  "  ·  " + _num(b["o"])
+            if st.checkbox(lbl, key="op_" + b["id"]):
+                secili.append(b)
+        stake = st.number_input("Bahis (₺)", min_value=5.0, max_value=5000.0,
+                                value=50.0, step=5.0, key="op_stake")
+        if secili:
+            O = 1.0
+            for b in secili:
+                O *= b["o"]
+            doner = "{:,.0f}".format(stake * O).replace(",", ".")
+            st.markdown(
+                "<div class='vd' style='margin:8px 0;'><b>" + str(len(secili)) +
+                " ayak · toplam oran " + _num(O) + "</b> · " +
+                "{:.0f}".format(stake) + " ₺ yatırırsan tutarsa " + doner +
+                " ₺ döner.</div>", unsafe_allow_html=True)
+        if st.button("✓ Gerçekte oynadım — kaydet", type="primary",
+                     use_container_width=True, disabled=not secili):
+            try:
+                import manual_book as mb
+                res = mb.play_custom([b["id"] for b in secili],
+                                     stake=float(stake))
+            except Exception as e:
+                res = {"ok": False, "msg": "Hata: %s: %s" % (type(e).__name__, e)}
+            if res.get("ok"):
+                st.success(res["msg"])
+                for b in secili:
+                    st.session_state["op_" + b["id"]] = False
+                load_opus.clear()
+                st.rerun()
+            else:
+                st.error(res.get("msg", "kaydedilemedi"))
+
+
+PAGES = {"◧ Desk": page_desk, "🧑‍💻 OPUS 5": page_opus}
+
+
+def main() -> None:
+    st.markdown(V2_CSS, unsafe_allow_html=True)
+    if "v2_page" not in st.session_state:
+        st.session_state["v2_page"] = "◧ Desk"
+    # ⚠️ AÇIK KEY ŞART: Streamlit widget kimliğini etiket + parametrelerden
+    # türetir. `type` her yeniden çizimde primary<->secondary arasında
+    # değiştiği için kimlik de değişiyor ve tıklama kayboluyordu — sayfa
+    # hiç geçmiyordu. Sabit key kimliği çakılar.
+    cols = st.columns([1, 1, 6])
+    for i, (name, _fn) in enumerate(PAGES.items()):
+        with cols[i]:
+            if st.button(name, key=f"v2nav_{i}", use_container_width=True,
+                         type=("primary" if st.session_state["v2_page"] == name
+                               else "secondary")):
+                st.session_state["v2_page"] = name
+                st.rerun()
+    _rail()
+    PAGES[st.session_state["v2_page"]]()
+
+
 if __name__ == "__main__":
-    page_desk()
+    main()
