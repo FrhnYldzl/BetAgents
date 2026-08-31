@@ -459,6 +459,97 @@ def load_havuz() -> dict:
     return {"n": n, "hit": hit, "exp": exp, "edge": hit - exp, "flat": flat}
 
 
+KIRMIZI = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
+
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_lig() -> dict:
+    """Dönem-kapsamlı ajan ligi — mavi ve kırmızı AYRI.
+
+    ⚠️ Dönem (era) filtresi şart: Era-1 arşivlendi, Era-2 2026-08-23'te
+    1.000 TL ile başladı. Era-1 sonuçlarını Era-2 karnesine karıştırmak,
+    kapanmış bir hesabı açık gibi göstermektir.
+
+    Sıralama İSABETE göre değil, FİYATA GÖRE ÜSTÜNLÜĞE göre — Desk ile
+    aynı ölçü. İkisi farklı sıralama verdiği için tutarlılık şart."""
+    rows = _rows(
+        "SELECT pb.portfolio_id p, pb.odds o, pb.status s "
+        "FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)",
+        sessiz=True)
+    pf = _rows("SELECT portfolio_id p, current_bankroll cb, initial_bankroll ib, "
+               "era_no, benched, ihtar_count ih FROM paper_portfolio", sessiz=True)
+    kasa = {x["p"]: x for x in pf}
+    by: dict = {}
+    for r in rows:
+        by.setdefault(r["p"], []).append(r)
+
+    def kur(pid, v):
+        n = len(v)
+        won = sum(1 for x in v if x["s"] == "won")
+        hit = won / n if n else 0.0
+        exp = (sum(1.0 / float(x["o"]) for x in v) / n) if n else 0.0
+        ret = [((float(x["o"]) - 1.0) if x["s"] == "won" else -1.0) for x in v]
+        skill = (sum(ret) / n) if n else 0.0
+        var = (sum((x - skill) ** 2 for x in ret) / max(n - 1, 1)) if n > 1 else 0.0
+        se = math.sqrt(var / n) if (var > 0 and n) else 0.0
+        perfect = n > 0 and (won == 0 or won == n)
+        k = kasa.get(pid, {})
+        ib = float(k.get("ib") or 1000)
+        cb = float(k.get("cb") or 0)
+        return {"pid": pid, "ad": pid.rsplit("_", 1)[0],
+                "em": EMOJI.get(pid, "•"), "n": n, "hit": hit, "exp": exp,
+                "edge": hit - exp, "skill": skill,
+                "t": (skill / se) if (se > 1e-9 and not perfect) else None,
+                "perfect": perfect, "kasa": cb, "ilk": ib,
+                "yuzde": (cb / ib * 100) if ib else 0.0,
+                "era": k.get("era_no"), "benched": bool(k.get("benched")),
+                "ihtar": int(k.get("ih") or 0),
+                "odds": (sum(float(x["o"]) for x in v) / n) if n else 0.0}
+
+    tum = [kur(p, v) for p, v in by.items()]
+    # hic bahsi olmayan (ornegin susan kirmizi ajanlar) da listede dursun
+    for p in kasa:
+        if p not in by and p in KIRMIZI:
+            tum.append(kur(p, []))
+    mavi = [x for x in tum if x["pid"] not in KIRMIZI
+            and x["pid"] not in ("PAPER_V1", "OPUS5_V1")]
+    kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
+    mavi.sort(key=lambda z: -z["edge"])
+    kirmizi.sort(key=lambda z: -z["edge"])
+    return {"mavi": mavi, "kirmizi": kirmizi}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_defter() -> list[dict]:
+    """Ölçüm defteri — her bulgunun son hükmü + değişim geçmişi."""
+    rows = _rows("SELECT ts, finding_id f, n, value v, passed g, detail d "
+                 "FROM measurement_runs ORDER BY ts", sessiz=True)
+    if not rows:
+        return []
+    by: dict = {}
+    for r in rows:
+        by.setdefault(r["f"], []).append(r)
+    out = []
+    for fid, v in by.items():
+        son = v[-1]
+        degisim = sum(1 for i in range(1, len(v))
+                      if bool(v[i]["g"]) != bool(v[i - 1]["g"]))
+        onceki = v[-2] if len(v) > 1 else None
+        out.append({
+            "id": fid, "ts": str(son["ts"])[:16], "n": son["n"],
+            "v": float(son["v"] or 0), "gecti": bool(son["g"]),
+            "detay": son["d"], "kosu": len(v), "degisim": degisim,
+            "trend": (float(son["v"] or 0) - float(onceki["v"] or 0))
+                     if onceki else None,
+        })
+    out.sort(key=lambda z: (not z["gecti"], z["id"]))
+    return out
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -778,7 +869,134 @@ def page_opus() -> None:
                 st.error(res.get("msg", "kaydedilemedi"))
 
 
-PAGES = {"◧ Desk": page_desk, "🧑‍💻 OPUS 5": page_opus}
+def _takim_tablo(rows, baslik, alt, renk):
+    if not rows:
+        return ("<div class='v2card'><div class='v2head'><h2>" + baslik +
+                "</h2><div class='hint'>" + alt + "</div></div>"
+                "<div class='v2body'><div class='dq'>Bu takımda dönem içi "
+                "kapanmış bahis yok.</div></div></div>")
+    body = []
+    for i, a in enumerate(rows, 1):
+        if a["n"] == 0:
+            g, txt = "g2", "SESSİZ"
+        elif a["perfect"]:
+            g, txt = "g2", "ÖLÇÜLEMEZ"
+        elif a["t"] is None:
+            g, txt = "g2", "GÜRÜLTÜ"
+        elif a["t"] <= -1.96:
+            g, txt = "g3", "KÖTÜ"
+        elif a["t"] >= 1.96:
+            g, txt = "g1", "İYİ"
+        else:
+            g, txt = "g2", "GÜRÜLTÜ"
+        # ⚠️ n=1'lik bir farki yesil cip ile one cikarmak, gurultuyu
+        # avantaj gibi sunmaktir. KAVSAK n=1 ile +36,8p gosteriyordu.
+        # Vurgu icin hem anlamli fark hem asgari orneklem sart.
+        yeter = a["n"] >= 10
+        adv = " class='adv'" if (a["edge"] >= 0.005 and yeter) else ""
+        uyari = ""
+        if a["benched"]:
+            uyari = " <span class='gr g3'>KADRO DIŞI</span>"
+        elif a["ihtar"]:
+            uyari = " <span class='gr g2'>" + str(a["ihtar"]) + " İHTAR</span>"
+        kasa_cls = "dp" if a["yuzde"] >= 100 else "dm"
+        body.append(
+            "<tr" + adv + "><td class='rk'>" + str(i) + "</td>"
+            "<td><span class='ag'>" + a["em"] + " " + a["ad"] + "</span>" + uyari +
+            "<span class='sb'>n=" + str(a["n"]) +
+            (" · oran " + _num(a["odds"]) if a["n"] else " · oynamadı") +
+            "</span></td>"
+            "<td class='r n'>" + ("{:,.0f}".format(a["kasa"]).replace(",", ".")) + "</td>"
+            "<td class='r'><span class='" + kasa_cls + "'>" +
+            "{:.0f}".format(a["yuzde"]) + "%</span></td>"
+            "<td class='r n'>" + (_pct(a["hit"]) if a["n"] else "—") + "</td>"
+            "<td class='r n'>" + (_pct(a["exp"]) if a["n"] else "—") + "</td>"
+            "<td class='r'>" + (
+                "<span class='" + ("dp" if (a["edge"] >= 0.005 and yeter)
+                                   else "dm") + "'>" +
+                _sgn(a["edge"]) + "</span>" if a["n"] else "—") + "</td>"
+            "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
+    return ("<div class='v2card' style='border-top:3px solid " + renk + ";'>"
+            "<div class='v2head'><h2>" + baslik + "</h2>"
+            "<div class='hint'>" + alt + "</div></div><div class='v2body'>"
+            "<table class='v2'><thead><tr><th></th><th>Ajan</th>"
+            "<th class='r'>Kasa</th><th class='r'>%</th><th class='r'>İsabet</th>"
+            "<th class='r'>Fiyat bekler</th><th class='r'>Fark</th>"
+            "<th class='r'>Hüküm</th></tr></thead><tbody>" +
+            "".join(body) + "</tbody></table></div></div>")
+
+
+def page_lig() -> None:
+    """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
+    d = load_lig()
+    st.markdown(
+        "<div class='v2mb'><b>Sıralama isabete göre değil, fiyata göre "
+        "üstünlüğe göre.</b> İki ölçü farklı sıralama veriyor ve doğrusu "
+        "bu — %75 isabet oran 1,24'te kötüdür. Rakamlar <b>yürürlükteki "
+        "dönemi</b> kapsar; arşivlenen dönem karneye karışmaz.</div>",
+        unsafe_allow_html=True)
+    st.markdown(_takim_tablo(d["mavi"], "🔵 Mavi Takım",
+                             "sinyal motoru · " + str(len(d["mavi"])) + " ajan",
+                             "#2563a8"), unsafe_allow_html=True)
+    st.markdown(_takim_tablo(d["kirmizi"], "🔴 Kırmızı Takım",
+                             "kombo pazarları · " + str(len(d["kirmizi"])) + " ajan",
+                             "#a82f22"), unsafe_allow_html=True)
+    st.markdown(
+        "<div class='dq'>Kırmızı takımın sessizliği <b>arıza değil</b>: "
+        "ölçüldü, iddaa kombo pazarlarında korelasyonu doğru fiyatlıyor "
+        "(1X2_OU +%0,1 · 1X2_BTTS −%0,3 · OU_BTTS −%1,2) ve marj %19-20. "
+        "Sürekli skor modeli sahte edge üretmiyor — 450 adaydan 0'ı eşiği "
+        "geçiyor. <i>Faz 2 · model</i></div>", unsafe_allow_html=True)
+
+
+def page_defter() -> None:
+    """📓 Ölçüm Defteri — her bulgunun ön kayıtlı kurala karşı hükmü."""
+    rows = load_defter()
+    if not rows:
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
+            "<div class='hint'>henüz koşmadı</div></div><div class='v2body'>"
+            "<div class='dq'>Defter henüz koşmadı. Worker her gün 04:20'de "
+            "hafif ölçümleri, pazartesi 03:10'da tam takımı koşar. Elle: "
+            "<code>python 02_VERI/olcum_defteri.py</code></div></div></div>",
+            unsafe_allow_html=True)
+        return
+    gecen = sum(1 for r in rows if r["gecti"])
+    body = []
+    for r in rows:
+        g = "g1" if r["gecti"] else "g3"
+        txt = "KURAL SAĞLANDI" if r["gecti"] else "sağlanmadı"
+        tr = ""
+        if r["trend"] is not None and abs(r["trend"]) > 1e-9:
+            cls = "dp" if r["trend"] > 0 else "dm"
+            tr = ("<span class='" + cls + "' style='font-size:10px;'>" +
+                  ("+" if r["trend"] > 0 else "−") +
+                  _num(abs(r["trend"]), 3) + "</span>")
+        dg = ("<span class='gr g2'>🔔 " + str(r["degisim"]) + " KEZ DÖNDÜ</span>"
+              if r["degisim"] else "")
+        body.append(
+            "<tr><td><span class='ag'>" + r["id"] + "</span>" + dg +
+            "<span class='sb'>" + str(r["detay"] or "")[:96] + "</span></td>"
+            "<td class='r n'>" + "{:,}".format(r["n"]).replace(",", ".") + "</td>"
+            "<td class='r n'>" + _num(r["v"], 3) + " " + tr + "</td>"
+            "<td class='r n'>" + str(r["kosu"]) + "</td>"
+            "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
+    st.markdown(
+        "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
+        "<div class='hint'>" + str(gecen) + "/" + str(len(rows)) +
+        " kural sağlıyor</div></div><div class='v2body'>"
+        "<div class='v2mb'><b>Kurallar sonuç görülmeden yazıldı</b> ki "
+        "sonradan esnetilemesin. 'Sağlanmadı' bir arıza değil, bir "
+        "<b>hükümdür</b> — konsept o kadar. Bir bulgunun çürümesi de "
+        "güçlenmesi de karar gerektirir.</div>"
+        "<table class='v2'><thead><tr><th>Ölçüm</th><th class='r'>n</th>"
+        "<th class='r'>Değer</th><th class='r'>Koşu</th>"
+        "<th class='r'>Hüküm</th></tr></thead><tbody>" +
+        "".join(body) + "</tbody></table></div></div>", unsafe_allow_html=True)
+
+
+PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig,
+         "📓 Defter": page_defter, "🧑‍💻 OPUS 5": page_opus}
 
 
 def main() -> None:
@@ -789,7 +1007,7 @@ def main() -> None:
     # türetir. `type` her yeniden çizimde primary<->secondary arasında
     # değiştiği için kimlik de değişiyor ve tıklama kayboluyordu — sayfa
     # hiç geçmiyordu. Sabit key kimliği çakılar.
-    cols = st.columns([1, 1, 6])
+    cols = st.columns([1, 1, 1, 1, 4])
     for i, (name, _fn) in enumerate(PAGES.items()):
         with cols[i]:
             if st.button(name, key=f"v2nav_{i}", use_container_width=True,
