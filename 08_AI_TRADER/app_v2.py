@@ -137,15 +137,30 @@ CODE = {"E0": "ENG", "I1": "ITA", "SP1": "ESP", "D1": "GER", "T1": "TUR",
 LEAGUE = {"E0": "Premier Lig", "I1": "Serie A", "SP1": "La Liga",
           "D1": "Bundesliga", "T1": "Süper Lig", "F1": "Ligue 1",
           "BRA1": "Brasileirão", "USA1": "MLS"}
-EMOJI = {
-    "TEMKINLI_V1": "🛡", "AVCI_V1": "🎯", "MEMUR_V1": "📋", "HOCA_V1": "🧮",
-    "SIMYACI_V1": "🧪", "POPULER_V1": "🔥", "ERKENKUS_V1": "⏰",
-    "CESUR_V1": "🦁", "JOKER_V1": "🃏", "KALECI_V1": "🧤", "KONSEY_V1": "🏛",
-    "TERS_V1": "🪞", "CARPAN_V1": "🎰", "SIMETRI_V1": "🔺", "KAVSAK_V1": "✖️",
-    "BANT_V1": "🥅", "DEVRE_V1": "⏱", "TRIVOX_V1": "🇹🇷", "EUVOX_V1": "🇪🇺",
-    "OPUS5_V1": "🧑‍💻", "KURUCU_V2": "👑", "PAPER_V1": "📚",
+# Ajan monogramlari — emoji yerine borsa sembolu mantigi.
+# Emoji finansal panelde laubali durur ve Windows'ta bir kismi
+# render olmaz (bayraklar harf ciftine duser). Iki harf her yerde
+# ayni gorunur, hizalanir ve takima gore renklenir.
+MONO = {
+    "TEMKINLI_V1": "TK", "AVCI_V1": "AV", "MEMUR_V1": "MM", "HOCA_V1": "HC",
+    "SIMYACI_V1": "SM", "POPULER_V1": "PP", "ERKENKUS_V1": "EK",
+    "CESUR_V1": "CS", "JOKER_V1": "JK", "KALECI_V1": "KL", "KONSEY_V1": "KN",
+    "TERS_V1": "TR", "CARPAN_V1": "KM", "SIMETRI_V1": "SI", "KAVSAK_V1": "KV",
+    "BANT_V1": "BN", "DEVRE_V1": "DV", "TRIVOX_V1": "TV", "EUVOX_V1": "EU",
+    "OPUS5_V1": "O5", "KURUCU_V2": "KU", "PAPER_V1": "PA",
 }
-NAME = {k: k.rsplit("_", 1)[0].replace("KURUCU", "KURUCU") for k in EMOJI}
+_KIRMIZI_PID = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
+
+
+def _rozet(pid: str) -> str:
+    """Ajan monogramı — kırmızı takım sıcak, mavi takım nötr."""
+    m = MONO.get(pid)
+    if not m:
+        m = str(pid or "?")[:2].upper()
+    k = " kr" if pid in _KIRMIZI_PID else ""
+    # Sondaki bosluk KASITLI: gorsel araligi margin verir ama metin
+    # olarak bitisik okunuyordu ("EUEUVOX"). Ekran okuyucu icin ayrilmali.
+    return "<i class='mono" + k + "'>" + m + "</i> "
 
 
 @st.cache_data(ttl=180, show_spinner=False)
@@ -178,7 +193,7 @@ def load_agents() -> list[dict]:
         perfect = (won == 0 or won == n)
         t = (skill / se) if (se > 1e-9 and not perfect) else None
         out.append({
-            "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": EMOJI.get(pid, "•"),
+            "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
             "n": n, "hit": hit, "exp": exp, "edge": hit - exp,
             "odds": sum(float(x["o"]) for x in v) / n,
             "skill": skill, "t": t, "perfect": perfect,
@@ -204,7 +219,7 @@ def load_board() -> list[dict]:
         lg = (r["lg"] or "ALL")
         out.append({
             "id": str(r["bet_id"]), "pid": r["p"],
-            "em": EMOJI.get(r["p"], "•"), "ad": str(r["p"]).rsplit("_", 1)[0],
+            "em": r["p"], "ad": str(r["p"]).rsplit("_", 1)[0],
             "h": r["h"], "a": r["a"], "lg": lg,
             "code": CODE.get(lg, "—"), "lig": LEAGUE.get(lg, "lig kodlanmamış"),
             "mk": r["mk"], "pk": r["pk"], "o": float(r["o"]),
@@ -240,260 +255,314 @@ def load_rail() -> dict:
 
 V2_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+/* ══════════════════════════════════════════════════════════════
+   ÖLÇEK — tek kaynak. Her boyut buradan türer.
+   Önceki sürüm fazla sıkışıktı: gövde 13,5px, etiket 9,5px.
+   Profesyonel panel gövdede 14-15px, etikette 11px kullanır;
+   altına inince ekran "yoğun" değil "okunmaz" olur.
+   ══════════════════════════════════════════════════════════════ */
 :root{
-  --ground:#fcfdfe; --panel:#ffffff; --panel-2:#f6f9fb;
-  --rail:#0b1420; --rail-ink:#e8edf2; --rail-dim:#7f8fa1;
-  --ink:#0a1220; --ink-2:#3c4a5a; --muted:#66768a;
-  --line:#e6ebf0; --line-2:#cfd8e1;
-  --brand:#9a6410; --brand-fill:#f5ead6;
-  --pos:#0e6b4b; --pos-fill:#e0f0e9;
-  --neg:#a82f22; --neg-fill:#fae7e4;
-  --warn:#8a6314; --warn-fill:#f8efdb;
+  --s1:4px;  --s2:8px;  --s3:12px; --s4:16px; --s5:22px; --s6:32px;
+  --t-etiket:11px;   /* sütun başlığı, rozet, üst etiket */
+  --t-alt:12.5px;    /* satır altı bilgi */
+  --t-govde:14px;    /* tablo hücresi */
+  --t-metin:15px;    /* açıklama, düz yazı */
+  --t-kart:13px;     /* kart başlığı */
+  --t-sayfa:21px;    /* sayfa başlığı */
+  --t-okuma:20px;    /* okuma rakamı */
+  --t-dev:30px;      /* tek büyük rakam */
+  --yan:252px;
+  --kart-ic:18px 20px;
+  --satir-y:14px;
+  --r:3px;           /* köşe yarıçapı — panel işi, yuvarlak değil */
+
+  --ground:#fbfcfd; --panel:#ffffff; --panel-2:#f4f7f9; --panel-3:#eef3f6;
+  --rail:#0b1420; --rail-ink:#e8edf2; --rail-dim:#8496a8;
+  --ink:#0a1220; --ink-2:#38485a; --muted:#6b7c8e;
+  --line:#e8edf1; --line-2:#d2dbe3;
+  --brand:#8f5d0d; --brand-fill:#f7edda;
+  --pos:#0b6b49; --pos-fill:#e3f2ec;
+  --neg:#a02c1f; --neg-fill:#fbe8e5;
+  --warn:#7f5a10; --warn-fill:#f9f1dd;
 }
-.stApp, [data-testid="stAppViewContainer"]{background:var(--ground);}
-[data-testid="stHeader"]{background:transparent;}
-.block-container{padding:0.6rem 1.4rem 3rem!important;max-width:1620px;}
-html, body, [class*="css"]{font-family:Archivo,"Segoe UI",system-ui,sans-serif;}
-
-.v2rail{
-  background:var(--rail);color:var(--rail-ink);
-  padding:11px 20px;display:flex;align-items:center;gap:28px;
-  flex-wrap:wrap;margin:0 0 14px;
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0a1017; --panel:#111a24; --panel-2:#16212d; --panel-3:#1b2734;
+    --rail:#060c13; --rail-ink:#dbe4ed; --rail-dim:#71828f;
+    --ink:#e8eff6; --ink-2:#b2c1d0; --muted:#7d8d9e;
+    --line:#1f2c39; --line-2:#2c3c4c;
+    --brand:#dda94b; --brand-fill:#251e11;
+    --pos:#45c795; --pos-fill:#0e2820;
+    --neg:#ea8071; --neg-fill:#2b1614;
+    --warn:#dda94b; --warn-fill:#251e11;
+  }
 }
-.v2rail .bm{display:flex;align-items:baseline;gap:9px;}
-.v2rail .bm b{font-size:16px;font-weight:700;letter-spacing:-0.01em;}
-.v2rail .bm span{font-family:"JetBrains Mono",monospace;font-size:9.5px;
-  color:var(--brand);letter-spacing:0.18em;text-transform:uppercase;}
-.v2rail .st label{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--rail-dim);}
-.v2rail .st b{font-family:"JetBrains Mono",monospace;font-size:14px;
-  font-weight:500;font-variant-numeric:tabular-nums;}
-.v2rail .st b.dn{color:#f08a78;} .v2rail .st b.up{color:#4ecf9a;}
-
-.v2card{background:var(--panel);border:1px solid var(--line);margin-bottom:12px;}
-.v2head{display:flex;justify-content:space-between;align-items:center;gap:10px;
-  padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel-2);}
-.v2head h2{margin:0;font-size:11px;font-weight:700;letter-spacing:0.14em;
-  text-transform:uppercase;font-family:"JetBrains Mono",monospace;color:var(--ink);}
-.v2head .hint{font-family:"JetBrains Mono",monospace;font-size:9.5px;
-  color:var(--muted);letter-spacing:0.06em;}
-.v2body{padding:12px 14px;}
-/* ⚠️ Dar ekranda tablo kolonu tasip komsu panelin uzerine biniyordu.
-   Genis icerik KENDI kutusunda kaysin, sayfa govdesi asla yatay
-   kaymasin. */
-.v2card{overflow:hidden;}
-.v2body:has(table){overflow-x:auto;}
-table.v2{min-width:330px;}
-div[data-testid='column']{min-width:0;overflow:hidden;}
-
-.v2mb{border:1px solid var(--line);border-left:3px solid var(--brand);
-  background:var(--panel-2);padding:11px 13px;margin:0 0 12px;
-  font-size:12.5px;color:var(--ink-2);line-height:1.55;}
-.v2mb b{color:var(--ink);}
-
-table.v2{width:100%;border-collapse:collapse;
-  font-variant-numeric:tabular-nums;}
-table.v2 th{font-family:"JetBrains Mono",monospace;font-size:9px;
-  letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);
-  font-weight:500;text-align:left;padding:0 8px 7px 0;
-  border-bottom:1px solid var(--line-2);white-space:nowrap;}
-table.v2 th.r,table.v2 td.r{text-align:right;padding-right:0;}
-table.v2 td{padding:7px 8px 7px 0;border-bottom:1px solid var(--line);
-  font-size:13px;color:var(--ink);}
-table.v2 td.n{font-family:"JetBrains Mono",monospace;font-size:12.5px;}
-table.v2 .rk{font-family:"JetBrains Mono",monospace;font-size:10px;
-  color:var(--muted);width:18px;}
-table.v2 .ag{font-weight:600;font-size:12.5px;}
-table.v2 .sb{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:9.5px;color:var(--muted);}
-/* AVANTAJ GORUNUR OLMALI. Negatifler cok, pozitifler az — o yuzden
-   pozitif VURGULANIR (yesil cip), negatif sadece renklenir. Boylece
-   goz tabloyu tararken "bakilacaklari" aninda bulur.
-   Semantik renk (iyi/kotu) marka renginden (amber) AYRIDIR. */
-.dp{color:var(--pos);font-family:"JetBrains Mono",monospace;font-weight:700;
-  background:var(--pos-fill);padding:2px 7px;border-radius:2px;
-  display:inline-block;white-space:nowrap;}
-.dm{color:var(--neg);font-family:"JetBrains Mono",monospace;font-weight:500;}
-.dp::before{content:"▲ ";font-size:8px;vertical-align:1px;}
-.dm::before{content:"▼ ";font-size:8px;vertical-align:1px;opacity:.55;}
-/* avantajli satir: ajan hucresinde ince yesil serit — tarama isareti */
-table.v2 tr.adv td:first-child{box-shadow:inset 2px 0 0 var(--pos);}
-table.v2 tr.adv .ag{color:var(--pos);}
-/* buyuk okumalar */
-.ro b.ps{color:var(--pos);} .ro b.ng{color:var(--neg);}
-.ro.big b.ps{background:var(--pos-fill);padding:2px 10px;border-radius:3px;}
-.gr{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:9px;
-  font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;}
-.g1{background:var(--pos-fill);color:var(--pos);}
-.g2{background:var(--warn-fill);color:var(--warn);}
-.g3{background:var(--neg-fill);color:var(--neg);}
-
-.cc{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:9px;
-  font-weight:700;letter-spacing:0.06em;min-width:26px;text-align:center;
-  padding:2px 4px;margin-right:7px;border:1px solid var(--line-2);
-  border-radius:2px;color:var(--ink-2);background:var(--panel-2);}
-.cc.no{color:var(--muted);border-style:dashed;opacity:.75;}
-
-.dq{font-family:"JetBrains Mono",monospace;font-size:10.5px;line-height:1.6;
-  color:var(--muted);background:var(--warn-fill);border:1px solid var(--line);
-  border-left:3px solid var(--warn);padding:8px 11px;margin:0 0 10px;}
-.dq b{color:var(--warn);}
-
-.ro{display:flex;justify-content:space-between;align-items:baseline;
-  padding:8px 0;border-bottom:1px solid var(--line);}
-.ro span{font-family:"JetBrains Mono",monospace;font-size:9.5px;
-  letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
-.ro b{font-family:"JetBrains Mono",monospace;font-size:18px;font-weight:500;
-  font-variant-numeric:tabular-nums;color:var(--ink);}
-.ro.big b{font-size:26px;letter-spacing:-0.02em;}
-.ro b.ng{color:var(--neg);} .ro b.ps{color:var(--pos);}
-.meter{height:5px;background:var(--line);margin:4px 0 12px;}
-.meter i{display:block;height:100%;background:var(--neg);}
-.vd{font-size:12.5px;line-height:1.55;padding:10px 12px;border:1px solid var(--line);
-  background:var(--panel-2);color:var(--ink-2);}
-.vd b{color:var(--ink);}
-
-/* ══════════════════════════════════════════════════════════
-   ÖLÇÜ SİSTEMİ — 4px tabanlı, tek yerden
-   Rastgele padding yerine ölçek: her boşluk bir katı.
-   ══════════════════════════════════════════════════════════ */
-:root{
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
-  --t-mikro:9.5px;   /* sütun başlığı, rozet */
-  --t-kucuk:11px;    /* alt satır, ipucu */
-  --t-govde:13.5px;  /* tablo hücresi */
-  --t-orta:15px;     /* açıklama metni */
-  --t-buyuk:19px;    /* okuma rakamı */
-  --t-dev:27px;      /* tek büyük rakam */
-  --yan:248px;       /* kenar çubuğu genişliği */
+:root[data-theme="dark"]{
+  --ground:#0a1017; --panel:#111a24; --panel-2:#16212d; --panel-3:#1b2734;
+  --rail:#060c13; --rail-ink:#dbe4ed; --rail-dim:#71828f;
+  --ink:#e8eff6; --ink-2:#b2c1d0; --muted:#7d8d9e;
+  --line:#1f2c39; --line-2:#2c3c4c;
+  --brand:#dda94b; --brand-fill:#251e11;
+  --pos:#45c795; --pos-fill:#0e2820;
+  --neg:#ea8071; --neg-fill:#2b1614;
+  --warn:#dda94b; --warn-fill:#251e11;
 }
 
-/* ── KENAR ÇUBUĞU ─────────────────────────────────────── */
-[data-testid="stSidebar"]{
-  background:var(--rail);
-  border-right:1px solid var(--line);
-  width:var(--yan)!important;min-width:var(--yan)!important;
+.stApp,[data-testid="stAppViewContainer"]{background:var(--ground);}
+[data-testid="stHeader"]{background:transparent;height:0;}
+.block-container{padding:var(--s5) var(--s6) var(--s6)!important;max-width:1680px;}
+html,body,[class*="css"]{font-family:Archivo,"Segoe UI",system-ui,sans-serif;}
+
+/* ── SAYFA BAŞLIĞI ─────────────────────────────────────────
+   Önceki sürümde koyu şerit sol panelin bilgisini TEKRAR
+   ediyordu ve sayfa başlığı yoktu — nerede olduğunu sadece
+   menüden anlıyordun. Şerit artık sayfaya ait: başlık solda,
+   O SAYFANIN ölçüleri sağda.                                */
+.v2ph{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:var(--s5);flex-wrap:wrap;
+  padding:0 0 var(--s3);margin:0 0 var(--s5);
+  border-bottom:1px solid var(--line-2);
 }
+.v2ph .sol h1{
+  margin:0;font-size:var(--t-sayfa);font-weight:600;letter-spacing:-0.015em;
+  color:var(--ink);line-height:1.2;}
+.v2ph .sol p{
+  margin:3px 0 0;font-size:var(--t-alt);color:var(--muted);max-width:62ch;}
+.v2ph .sag{display:flex;gap:var(--s5);flex-wrap:wrap;}
+.v2kpi{display:flex;flex-direction:column;gap:2px;}
+.v2kpi span{font-family:"JetBrains Mono",monospace;font-size:10px;
+  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
+.v2kpi b{font-family:"JetBrains Mono",monospace;font-size:var(--t-okuma);
+  font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink);
+  line-height:1.15;}
+.v2kpi b.ps{color:var(--pos);} .v2kpi b.ng{color:var(--neg);}
+
+/* ── KENAR ÇUBUĞU ──────────────────────────────────────── */
+[data-testid="stSidebar"]{background:var(--rail);border-right:0;
+  width:var(--yan)!important;min-width:var(--yan)!important;}
 [data-testid="stSidebar"] [data-testid="stSidebarContent"]{
-  padding:var(--s5) var(--s3) var(--s4);
-}
-[data-testid="stSidebar"] *{color:var(--rail-ink);}
+  padding:var(--s5) var(--s3) var(--s4);}
 .v2brand{padding:0 var(--s2) var(--s5);}
-.v2brand b{display:block;font-size:17px;font-weight:700;
-  letter-spacing:-0.01em;line-height:1.1;}
+.v2brand b{display:block;font-size:18px;font-weight:700;letter-spacing:-0.015em;
+  line-height:1.1;}
 .v2brand span{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:var(--t-mikro);color:var(--brand);letter-spacing:0.2em;
-  text-transform:uppercase;margin-top:3px;}
-.v2navlbl{font-family:"JetBrains Mono",monospace;font-size:var(--t-mikro);
-  letter-spacing:0.16em;text-transform:uppercase;color:var(--rail-dim);
+  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px;}
+.v2navlbl{font-family:"JetBrains Mono",monospace;font-size:10px;
+  letter-spacing:0.16em;text-transform:uppercase;
   padding:var(--s4) var(--s2) var(--s2);}
-/* Streamlit butonlarini menu satirina cevir */
 [data-testid="stSidebar"] .stButton>button{
   width:100%;text-align:left;justify-content:flex-start;
   background:transparent;border:0;border-left:2px solid transparent;
-  border-radius:0;padding:9px var(--s3);margin:0;
-  font-size:var(--t-orta);font-weight:500;color:var(--rail-ink);
-  min-height:40px;transition:background .12s,border-color .12s;
-}
+  border-radius:0;padding:10px var(--s3);margin:0;min-height:42px;
+  font-weight:500;transition:background .12s,border-color .12s;}
 [data-testid="stSidebar"] .stButton>button:hover{
-  background:rgba(255,255,255,.05);border-left-color:var(--rail-dim);}
+  background:rgba(255,255,255,.055);border-left-color:var(--rail-dim);}
 [data-testid="stSidebar"] .stButton>button[kind="primary"]{
-  background:rgba(255,255,255,.08);border-left-color:var(--brand);
-  color:#fff;font-weight:600;}
-/* ⚠️ ÜÇÜNCÜ KEZ AYNI ÇATIŞMA: yukarıdaki
-   [data-testid="stMarkdownContainer"] p{color:var(--ink)} kuralı
-   özgüllükte (0,1,1) kenar çubuğunun (0,1,0) önüne geçiyor ve KOYU
-   zemine KOYU yazı basıyor — sadece emoji görünüyordu. Kenar çubuğu
-   metinleri burada AÇIKÇA boyanır, kalıtıma bırakılmaz. */
+  background:rgba(255,255,255,.09);border-left-color:var(--brand);}
+.v2yan-alt{margin-top:var(--s5);padding:var(--s4) var(--s2) 0;
+  border-top:1px solid rgba(255,255,255,.08);
+  font-family:"JetBrains Mono",monospace;line-height:1.9;letter-spacing:0.04em;}
+
+/* ⚠️ DÖRDÜNCÜ KEZ: [stMarkdownContainer] p{color} kuralı özgüllükte
+   kenar çubuğunun önüne geçiyor. Renkler burada AÇIKÇA verilir. */
+[data-testid="stSidebar"] *{color:var(--rail-ink);}
 [data-testid="stSidebar"] .stButton>button p,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] *{
-  font-size:var(--t-orta)!important;margin:0!important;
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p{
+  font-size:var(--t-metin)!important;margin:0!important;
   color:var(--rail-ink)!important;}
 [data-testid="stSidebar"] .stButton>button[kind="primary"] p{
-  color:#ffffff!important;}
+  color:#fff!important;font-weight:600!important;}
 [data-testid="stSidebar"] .v2brand span{color:var(--brand)!important;
-  font-size:var(--t-mikro)!important;}
+  font-size:10px!important;}
 [data-testid="stSidebar"] .v2navlbl{color:var(--rail-dim)!important;
-  font-size:var(--t-mikro)!important;}
+  font-size:10px!important;}
 [data-testid="stSidebar"] .v2yan-alt,
 [data-testid="stSidebar"] .v2yan-alt *{color:var(--rail-dim)!important;
-  font-size:var(--t-mikro)!important;}
+  font-size:10.5px!important;}
 [data-testid="stSidebar"] .v2yan-alt b{color:var(--rail-ink)!important;}
 [data-testid="stSidebar"] .v2yan-alt b.uyari{color:#f08a78!important;}
-.v2yan-alt{
-  margin-top:var(--s5);padding:var(--s3) var(--s2) 0;
-  border-top:1px solid rgba(255,255,255,.09);
-  font-family:"JetBrains Mono",monospace;font-size:var(--t-mikro);
-  line-height:1.7;color:var(--rail-dim);letter-spacing:0.04em;}
-.v2yan-alt b{color:var(--rail-ink);font-weight:500;}
-.v2yan-alt .uyari{color:#f08a78;}
 
-/* ── ÖLÇÜ: tipografi tek ölçekten ─────────────────────── */
-table.v2 th{font-size:var(--t-mikro);padding:0 var(--s2) 7px 0;}
-table.v2 td{font-size:var(--t-govde);padding:9px var(--s2) 9px 0;}
-table.v2 .sb{font-size:var(--t-kucuk);}
-table.v2 .ag{font-size:var(--t-govde);}
-.v2head h2{font-size:var(--t-kucuk);}
-.v2head .hint{font-size:var(--t-mikro);}
-.v2body{padding:var(--s3) var(--s4);}
-.v2mb{font-size:var(--t-orta);padding:var(--s3);}
-.ro b{font-size:var(--t-buyuk);}
-.ro.big b{font-size:var(--t-dev);}
-.vd{font-size:var(--t-orta);padding:var(--s3);}
-.dq{font-size:var(--t-kucuk);padding:var(--s2) var(--s3);}
+/* ── KART ──────────────────────────────────────────────── */
+.v2card{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);margin-bottom:var(--s4);overflow:hidden;}
+.v2head{display:flex;justify-content:space-between;align-items:baseline;
+  gap:var(--s3);padding:var(--s3) 20px;border-bottom:1px solid var(--line);
+  background:var(--panel-2);}
+.v2head h2{margin:0;font-size:var(--t-kart);font-weight:600;
+  letter-spacing:0.01em;color:var(--ink);text-transform:none;
+  font-family:Archivo,sans-serif;}
+.v2head .hint{font-family:"JetBrains Mono",monospace;font-size:10px;
+  color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;
+  white-space:nowrap;}
+.v2body{padding:var(--kart-ic);}
+.v2body:has(table){overflow-x:auto;}
 
-/* ── MOBİL ────────────────────────────────────────────────
-   Tablo mobilde daralmaz, ÖNCELİKLENİR: ikincil sütunlar
-   (.opt) gizlenir, taşıyıcı sütunlar kalır. Yatay kaydırma
-   son çare — parmakla tablo sürüklemek okuma değildir.     */
-@media (max-width:820px){
-  :root{--yan:230px;}
-  .v2rail{gap:var(--s4);padding:var(--s3) var(--s4);}
-  .v2rail .st b{font-size:var(--t-govde);}
-}
-@media (max-width:640px){
-  .block-container{padding:var(--s2) var(--s3) var(--s6)!important;}
-  table.v2 th.opt, table.v2 td.opt{display:none;}
-  table.v2 td{padding:11px var(--s2) 11px 0;}   /* dokunma alanı */
-  .v2rail{gap:var(--s3) var(--s4);}
-  .v2rail .bm{width:100%;margin-bottom:var(--s1);}
-  .ro.big b{font-size:23px;}
-  .pick, [data-testid="stCheckbox"] label{min-height:44px;}
-  [data-testid="stCheckbox"] label p{font-size:var(--t-govde)!important;}
-  .v2card{margin-bottom:var(--s2);}
-}
+/* ── TABLO ZANAATI ─────────────────────────────────────── */
+table.v2{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
+  min-width:340px;}
+table.v2 th{
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-etiket);
+  letter-spacing:0.09em;text-transform:uppercase;color:var(--muted);
+  font-weight:500;text-align:left;white-space:nowrap;
+  padding:0 var(--s4) 10px 0;border-bottom:1px solid var(--line-2);}
+table.v2 th:last-child,table.v2 td:last-child{padding-right:0;}
+table.v2 th.r,table.v2 td.r{text-align:right;}
+table.v2 td{padding:var(--satir-y) var(--s4) var(--satir-y) 0;
+  border-bottom:1px solid var(--line);font-size:var(--t-govde);
+  color:var(--ink);vertical-align:middle;}
+table.v2 tbody tr{transition:background .1s;}
+table.v2 tbody tr:hover{background:var(--panel-2);}
+table.v2 tbody tr:last-child td{border-bottom:0;}
+table.v2 td.n{font-family:"JetBrains Mono",monospace;font-size:13.5px;}
+table.v2 .rk{font-family:"JetBrains Mono",monospace;font-size:11px;
+  color:var(--muted);width:22px;padding-right:var(--s2);}
+table.v2 .ag{font-weight:600;font-size:var(--t-govde);letter-spacing:-0.005em;
+  display:block;}
+table.v2 .sb{display:block;font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-alt);color:var(--muted);margin-top:3px;
+  letter-spacing:0.02em;white-space:nowrap;}
+/* ilk sutun icerigi kirilmasin, sayisal sutunlar daralsin */
+table.v2 td:first-child,table.v2 th:first-child{padding-right:var(--s5);}
+table.v2 td.n,table.v2 th.r{white-space:nowrap;}
 
-/* Streamlit onay kutusu — tahtada satır gibi görünsün.
-   ⚠️ Streamlit'in kendi teması koyu olursa yazı rengi beyaz gelir ve
-   beyaz zeminde GÖRÜNMEZ olur (emoji görünür, metin kaybolur — ilk
-   koşuda tam bu oldu). Renk burada ZORLANIR, temaya bırakılmaz. */
-[data-testid="stCheckbox"]{margin:0!important;}
-[data-testid="stCheckbox"] label,
-[data-testid="stCheckbox"] label *,
-[data-testid="stCheckbox"] label p,
-[data-testid="stCheckbox"] div[data-testid="stMarkdownContainer"] p{
-  font-size:12.5px!important;color:var(--ink)!important;
-  margin:0!important;line-height:1.45!important;}
-[data-testid="stCheckbox"] label:hover p{color:var(--brand)!important;}
-div[data-testid="column"]{padding:0 4px;}
-/* Streamlit'in kendi metinleri (widget etiketleri, markdown) koyu kalsın.
-   ⚠️ GENIS SECICI KULLANMA: '.stApp div{color:...}' yazmak durum
-   seridini de vurur ve koyu zemin uzerine koyu yazi uretir — ilk
-   denemede tam bu oldu. Yalniz Streamlit'in KENDI ciktilarini hedefle,
-   kendi bilesenlerimize (v2rail, v2card) dokunma. */
+/* ── SEMANTİK ──────────────────────────────────────────── */
+.dp{color:var(--pos);font-family:"JetBrains Mono",monospace;font-weight:600;
+  background:var(--pos-fill);padding:3px 9px;border-radius:var(--r);
+  display:inline-block;white-space:nowrap;font-size:13px;}
+.dm{color:var(--neg);font-family:"JetBrains Mono",monospace;font-weight:500;
+  white-space:nowrap;font-size:13px;}
+.dp::before{content:"▲ ";font-size:8px;vertical-align:1.5px;}
+.dm::before{content:"▼ ";font-size:8px;vertical-align:1.5px;opacity:.5;}
+table.v2 tr.adv td:first-child{box-shadow:inset 2px 0 0 var(--pos);}
+table.v2 tr.adv .ag{color:var(--pos);}
+.gr{display:inline-block;font-family:"JetBrains Mono",monospace;
+  font-size:10px;font-weight:600;letter-spacing:0.07em;
+  padding:4px 8px;border-radius:var(--r);white-space:nowrap;}
+.g1{background:var(--pos-fill);color:var(--pos);}
+.g2{background:var(--warn-fill);color:var(--warn);}
+.g3{background:var(--neg-fill);color:var(--neg);}
+.cc{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;
+  font-weight:600;letter-spacing:0.05em;min-width:30px;text-align:center;
+  padding:3px 5px;margin-right:9px;border:1px solid var(--line-2);
+  border-radius:var(--r);color:var(--ink-2);background:var(--panel-2);}
+.cc.no{color:var(--muted);border-style:dashed;opacity:.7;}
+
+/* ── AÇIKLAMA KUTULARI ─────────────────────────────────── */
+.v2mb{border:1px solid var(--line);border-left:3px solid var(--brand);
+  background:var(--panel-2);padding:var(--s3) var(--s4);margin:0 0 var(--s4);
+  font-size:var(--t-metin);color:var(--ink-2);line-height:1.6;
+  border-radius:0 var(--r) var(--r) 0;}
+.v2mb b{color:var(--ink);font-weight:600;}
+.dq{font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.75;
+  color:var(--muted);background:var(--warn-fill);border:1px solid var(--line);
+  border-left:3px solid var(--warn);padding:10px var(--s3);margin:0 0 var(--s3);
+  border-radius:0 var(--r) var(--r) 0;}
+.dq b{color:var(--warn);}
+.vd{font-size:var(--t-metin);line-height:1.6;padding:var(--s3) var(--s4);
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  border-radius:var(--r);}
+.vd b{color:var(--ink);font-weight:600;}
+
+/* ── OKUMA SATIRLARI ───────────────────────────────────── */
+.ro{display:flex;justify-content:space-between;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line);}
+.ro:last-of-type{border-bottom:0;}
+.ro span{font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  letter-spacing:0.11em;text-transform:uppercase;color:var(--muted);}
+.ro b{font-family:"JetBrains Mono",monospace;font-size:var(--t-okuma);
+  font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink);}
+.ro.big b{font-size:var(--t-dev);letter-spacing:-0.02em;}
+.ro b.ps{color:var(--pos);} .ro b.ng{color:var(--neg);}
+.ro.big b.ps{background:var(--pos-fill);padding:3px 11px;border-radius:var(--r);}
+.meter{height:5px;background:var(--line);margin:var(--s1) 0 var(--s3);
+  border-radius:99px;overflow:hidden;}
+.meter i{display:block;height:100%;background:var(--neg);}
+
+/* ── TAHTA (seçim satırları) ───────────────────────────── */
+.pick{display:grid;grid-template-columns:1fr auto;gap:4px var(--s3);
+  padding:11px var(--s3);border:1px solid var(--line);border-radius:var(--r);
+  background:var(--panel);margin-bottom:var(--s2);cursor:pointer;
+  transition:border-color .12s,background .12s;align-items:center;}
+.pick:hover{border-color:var(--brand);background:var(--panel-2);}
+.pick.on{border-color:var(--brand);background:var(--brand-fill);}
+.pick .match{font-weight:600;font-size:var(--t-govde);}
+.pick .meta{font-family:"JetBrains Mono",monospace;font-size:var(--t-alt);
+  color:var(--muted);margin-top:2px;}
+.pick .odds{font-family:"JetBrains Mono",monospace;font-size:18px;
+  font-weight:500;text-align:right;line-height:1.1;}
+.pick .odds em{display:block;font-style:normal;font-size:9px;
+  color:var(--muted);letter-spacing:0.1em;margin-top:2px;}
+.fl{display:none;}
+/* ── AJAN MONOGRAMI ────────────────────────────────────
+   Emoji yerine iki harf: hizalanir, her yerde ayni gorunur,
+   takim rengini tasir. Borsa sembolu gibi okunur.          */
+.mono{
+  font-style:normal;font-family:"JetBrains Mono",monospace;
+  font-size:10px;font-weight:700;letter-spacing:0.04em;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:20px;margin-right:3px;vertical-align:-4px;
+  border:1px solid var(--line-2);border-radius:var(--r);
+  color:var(--ink-2);background:var(--panel-2);flex:0 0 auto;}
+.mono.kr{color:var(--neg);border-color:var(--neg);
+  background:var(--neg-fill);}
+table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
+  background:var(--pos-fill);}
+.em{display:none;}
+
+/* ── Streamlit bileşenleri ─────────────────────────────── */
 [data-testid="stMarkdownContainer"] p,
 [data-testid="stMarkdownContainer"] li,
-[data-testid="stWidgetLabel"] p,
-.stApp > header ~ div [data-testid="stText"]{color:var(--ink);}
-.v2rail, .v2rail *{color:var(--rail-ink);}
-.v2rail .st label{color:var(--rail-dim);}
-.v2rail .bm span{color:var(--brand);}
-.v2rail .st b.dn{color:#f08a78;} .v2rail .st b.up{color:#4ecf9a;}
+[data-testid="stWidgetLabel"] p{color:var(--ink);}
+[data-testid="stCheckbox"]{margin:0!important;}
+[data-testid="stCheckbox"] label,
+[data-testid="stCheckbox"] label p,
+[data-testid="stCheckbox"] div[data-testid="stMarkdownContainer"] p{
+  font-size:var(--t-govde)!important;color:var(--ink)!important;
+  margin:0!important;line-height:1.5!important;}
+[data-testid="stCheckbox"] label:hover p{color:var(--brand)!important;}
+div[data-testid="column"]{padding:0 var(--s2);min-width:0;}
+div[data-testid="column"]:first-child{padding-left:0;}
+div[data-testid="column"]:last-child{padding-right:0;}
+
+/* ── MOBİL: küçültme değil önceliklendirme ─────────────── */
+@media (max-width:900px){
+  :root{--yan:236px;--s6:20px;}
+  .block-container{padding:var(--s4) var(--s4) var(--s6)!important;}
+  .v2ph{flex-direction:column;align-items:flex-start;gap:var(--s3);}
+  .v2ph .sag{gap:var(--s4);}
+}
+@media (max-width:640px){
+  :root{--kart-ic:14px 15px;--satir-y:15px;--t-sayfa:19px;}
+  table.v2 th.opt,table.v2 td.opt{display:none;}
+  .v2kpi b{font-size:17px;}
+  .ro.big b{font-size:25px;}
+  .pick,[data-testid="stCheckbox"] label{min-height:44px;}
+  .v2card{margin-bottom:var(--s3);}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 """
+
+
+def _sayfa_basligi(baslik: str, alt: str, kpi: list | None = None) -> None:
+    """Sayfa başlığı + O SAYFAYA ait ölçüler.
+
+    Genel durum şeridi kaldırıldı: sol panelin bilgisini tekrar ediyordu
+    ve sayfa başlığı yoktu — kullanıcı nerede olduğunu sadece menüden
+    anlıyordu. Şerit artık sayfaya ait."""
+    k = ""
+    for x in (kpi or []):
+        cls = x.get("cls", "")
+        k += ("<div class='v2kpi'><span>" + x["ad"] + "</span><b class='" +
+              cls + "'>" + x["deger"] + "</b></div>")
+    st.markdown(
+        "<div class='v2ph'><div class='sol'><h1>" + baslik + "</h1>"
+        "<p>" + alt + "</p></div>"
+        "<div class='sag'>" + k + "</div></div>", unsafe_allow_html=True)
+
 
 
 def _pct(v: float) -> str:
@@ -629,7 +698,7 @@ def load_lig() -> dict:
         ib = float(k.get("ib") or 1000)
         cb = float(k.get("cb") or 0)
         return {"pid": pid, "ad": pid.rsplit("_", 1)[0],
-                "em": EMOJI.get(pid, "•"), "n": n, "hit": hit, "exp": exp,
+                "em": pid, "n": n, "hit": hit, "exp": exp,
                 "edge": hit - exp, "skill": skill,
                 "t": (skill / se) if (se > 1e-9 and not perfect) else None,
                 "perfect": perfect, "kasa": cb, "ilk": ib,
@@ -1087,7 +1156,7 @@ def load_pozisyon() -> list[dict]:
         if not L:
             continue
         out.append({
-            "p": k["p"], "em": EMOJI.get(k["p"], "•"),
+            "p": k["p"], "em": k["p"],
             "ad": str(k["p"]).rsplit("_", 1)[0],
             "n": len(L), "co": float(k["co"] or 0), "sk": float(k["sk"] or 0),
             "pr": float(k["pr"] or 0), "ko": str(L[0]["ko"])[5:16].replace("T", " "),
@@ -1129,7 +1198,7 @@ def load_risk() -> list[dict]:
         else:
             dur, sev = "İZLEMEDE", "g2"
         out.append({
-            "p": r["p"], "em": EMOJI.get(r["p"], "•"),
+            "p": r["p"], "em": r["p"],
             "ad": str(r["p"]).rsplit("_", 1)[0], "cb": cb, "ib": ib,
             "oran": oran, "tepe": pk,
             "dusus": ((cb - pk) / pk) if pk > 0 else 0.0,
@@ -1174,7 +1243,18 @@ def _rail() -> None:
 
 
 def page_desk() -> None:
-    left, mid, right = st.columns([1.08, 1.55, 1.0], gap="small")
+    r = load_rail()
+    _sayfa_basligi(
+        "Karar Masası",
+        "Kime güvenilir, bugün ne var, ne kuruyorsun — üçü bir arada.",
+        [{"ad": "Açık pozisyon", "deger": str(r["acik"])},
+         {"ad": "Kapanmış bahis",
+          "deger": "{:,}".format(r["kapali"]).replace(",", ".")},
+         {"ad": "Beceri k",
+          "deger": ("henüz yok" if r["k"] is None
+                    else ("%+.3f" % r["k"]).replace(".", ",")),
+          "cls": ("ps" if r["k_gecti"] else "ng")}])
+    left, mid, right = st.columns([1.32, 1.42, 0.98], gap="medium")
 
     # ── SOL: ajan güveni ──────────────────────────────────────
     with left:
@@ -1205,7 +1285,7 @@ def page_desk() -> None:
             adv = " class='adv'" if a["edge"] >= 0.005 else ""
             body.append(
                 f"<tr{adv}><td class='rk'>{i}</td>"
-                f"<td><span class='ag'>{a['em']} {a['ad']}</span>"
+                f"<td><span class='ag'>{_rozet(a['pid'])}{a['ad']}</span>"
                 f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>"
                 f"<td class='r n opt'>{_pct(a['hit'])}</td>"
                 f"<td class='r n opt'>{_pct(a['exp'])}</td>"
@@ -1244,15 +1324,16 @@ def page_desk() -> None:
           </div></div>""", unsafe_allow_html=True)
         sel = []
         for b in board[:22]:
-            c1, c2 = st.columns([5.2, 1], gap="small")
+            c1, c2 = st.columns([4.3, 1.35], gap="small")
             with c1:
-                lbl = (f"{b['h']} — {b['a']}  ·  {b['em']} {b['ad']}"
+                lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}"
                        f"  ·  {b['mk']} {b['pk']}  ·  {b['ko']}")
                 on = st.checkbox(lbl, key=f"v2_{b['id']}")
             with c2:
                 st.markdown(
                     f"<div style='text-align:right;font-family:\"JetBrains Mono\",monospace;"
-                    f"font-size:16px;color:var(--ink);padding-top:2px;'>"
+                    f"font-size:17px;color:var(--ink);padding-top:3px;"
+                    f"white-space:nowrap;'>"
                     f"<span class='cc{' no' if b['lg']=='ALL' else ''}'>{b['code']}</span>"
                     f"{_num(b['o'])}</div>", unsafe_allow_html=True)
             if on:
@@ -1318,7 +1399,7 @@ def page_desk() -> None:
             ayaklar = " + ".join(
                 str(x["h"])[:12] + " " + str(x["pk"])[:10] for x in k["ayak"])
             sat.append(
-                "<tr><td><span class='ag'>" + k["em"] + " " + k["ad"] +
+                "<tr><td><span class='ag'>" + _rozet(k["p"]) + k["ad"] +
                 "</span><span class='sb'>" + ayaklar[:92] + "</span></td>"
                 "<td class='r n opt'>" + str(k["n"]) + "</td>"
                 "<td class='r n'>" + _num(k["co"]) + "</td>"
@@ -1351,6 +1432,16 @@ def page_opus() -> None:
     """🧑‍💻 OPUS 5 — gerçekte oynananların defteri."""
     o = load_opus()
     h = load_havuz()
+    _k = []
+    if o.get("var"):
+        _f = o["edge"] - h["edge"] if h.get("n") else 0.0
+        _k = [{"ad": "Kupon", "deger": str(o["kupon"])},
+              {"ad": "Havuzdan fark", "deger": _sgn(_f),
+               "cls": ("ps" if _f >= 0 else "ng")}]
+    _sayfa_basligi(
+        "OPUS 5 Defteri",
+        "Gerçekte oynananlar. Kâğıt ile saha arasındaki fark ancak "
+        "burada ölçülebilir.", _k)
     left, right = st.columns([1.15, 1.0], gap="small")
 
     with left:
@@ -1383,7 +1474,7 @@ def page_opus() -> None:
                 "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
                 "</tr></thead><tbody>"
                 "<tr" + (" class='adv'" if o["edge"] > h.get("edge", 0) else "") +
-                "><td><span class='ag'>🧑‍💻 OPUS 5 · sen</span>"
+                "><td><span class='ag'>OPUS 5 · sen</span>"
                 "<span class='sb'>" + str(o["kupon"]) + " kupon · " +
                 str(o["acik"]) + " açık</span></td>"
                 "<td class='r n'>" + str(o["ayak"]) + "</td>"
@@ -1392,7 +1483,7 @@ def page_opus() -> None:
                 "<td class='r'><span class='" +
                 ("dp" if o["edge"] >= 0 else "dm") + "'>" + _sgn(o["edge"]) +
                 "</span></td></tr>"
-                "<tr><td><span class='ag'>📊 Kâğıt ajanlar · havuz</span>"
+                "<tr><td><span class='ag'>Kâğıt ajanlar · havuz</span>"
                 "<span class='sb'>kıyas tabanı</span></td>"
                 "<td class='r n'>" + hn + "</td>"
                 "<td class='r n'>" + _pct(h.get("hit", 0)) + "</td>"
@@ -1519,7 +1610,7 @@ def _takim_tablo(rows, baslik, alt, renk):
         kasa_cls = "dp" if a["yuzde"] >= 100 else "dm"
         body.append(
             "<tr" + adv + "><td class='rk'>" + str(i) + "</td>"
-            "<td><span class='ag'>" + a["em"] + " " + a["ad"] + "</span>" + uyari +
+            "<td><span class='ag'>" + _rozet(a["pid"]) + a["ad"] + "</span>" + uyari +
             "<span class='sb'>n=" + str(a["n"]) +
             (" · oran " + _num(a["odds"]) if a["n"] else " · oynamadı") +
             "</span></td>"
@@ -1548,6 +1639,20 @@ def page_lig() -> None:
     """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
     d = load_lig()
     e = load_egri()
+    kpi = [{"ad": "Mavi takım", "deger": str(len(d["mavi"])) + " ajan"},
+           {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"}]
+    if e.get("n", 0) >= 10:
+        kpi += [
+            {"ad": "Net", "deger": ("+" if e["son"] >= 0 else "−") +
+             "{:,.0f}".format(abs(e["son"])).replace(",", ".") + " ₺",
+             "cls": ("ps" if e["son"] >= 0 else "ng")},
+            {"ad": "ROI", "deger": ("+" if e["roi"] >= 0 else "−") +
+             _num(abs(e["roi"]) * 100, 1) + "%",
+             "cls": ("ps" if e["roi"] >= 0 else "ng")}]
+    _sayfa_basligi(
+        "Ajan Ligi",
+        "Yürürlükteki dönem. Sıralama isabete göre değil, fiyata göre "
+        "üstünlüğe göre — iki ölçü farklı sıralama verir.", kpi)
     if e.get("n", 0) >= 10:
         poz = e["son"] >= 0
         st.markdown(
@@ -1584,10 +1689,10 @@ def page_lig() -> None:
         "bu — %75 isabet oran 1,24'te kötüdür. Rakamlar <b>yürürlükteki "
         "dönemi</b> kapsar; arşivlenen dönem karneye karışmaz.</div>",
         unsafe_allow_html=True)
-    st.markdown(_takim_tablo(d["mavi"], "🔵 Mavi Takım",
+    st.markdown(_takim_tablo(d["mavi"], "Mavi Takım",
                              "sinyal motoru · " + str(len(d["mavi"])) + " ajan",
                              "#2563a8"), unsafe_allow_html=True)
-    st.markdown(_takim_tablo(d["kirmizi"], "🔴 Kırmızı Takım",
+    st.markdown(_takim_tablo(d["kirmizi"], "Kırmızı Takım",
                              "kombo pazarları · " + str(len(d["kirmizi"])) + " ajan",
                              "#a82f22"), unsafe_allow_html=True)
     st.markdown(
@@ -1601,6 +1706,20 @@ def page_lig() -> None:
 def page_defter() -> None:
     """📓 Ölçüm Defteri — her bulgunun ön kayıtlı kurala karşı hükmü."""
     rows = load_defter()
+    if rows:
+        _g = sum(1 for r in rows if r["gecti"])
+        _c = load_clv()
+        _k = [{"ad": "Kural sağlayan", "deger": str(_g) + "/" + str(len(rows)),
+               "cls": ("ps" if _g * 2 >= len(rows) else "ng")}]
+        if _c.get("n", 0) >= 50:
+            _k.append({"ad": "CLV",
+                       "deger": ("+" if _c["ort"] >= 0 else "−") +
+                       _num(abs(_c["ort"]) * 100, 2) + "%",
+                       "cls": ("ps" if _c["t"] > 1.96 else "ng")})
+        _sayfa_basligi(
+            "Ölçüm Defteri",
+            "Her bulgunun ön kayıtlı kurala karşı hükmü. Kural sonuç "
+            "görülmeden yazıldı ki sonradan esnetilemesin.", _k)
     if not rows:
         st.markdown(
             "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
@@ -1739,6 +1858,16 @@ def page_sistem() -> None:
     """🩺 Sistem — sessizlik meşru mu, arıza mı?"""
     d = load_sistem()
     sy = d["sistem"]
+    _durum = str(sy["status"]) if sy else "—"
+    _bos = sum(1 for f in d["alan"] if f["pay"] < 0.5)
+    _sayfa_basligi(
+        "Sistem Sağlığı",
+        "Bir ajanın oynamaması meşru PAS da olabilir tıkanıklık da — "
+        "ikisini karıştırmak haftalar sürer.",
+        [{"ad": "Veri hattı", "deger": _durum.split(" ")[-1][:14],
+          "cls": ("ng" if "TIKANIKLIK" in _durum else "ps")},
+         {"ad": "Zayıf alan", "deger": str(_bos) + " / " + str(len(d["alan"])),
+          "cls": ("ng" if _bos else "ps")}])
     if sy:
         kirik = "TIKANIKLIK" in str(sy["status"])
         st.markdown(
@@ -1763,7 +1892,7 @@ def page_sistem() -> None:
                 g = "g2"
             pid = str(a["pid"])
             body.append(
-                "<tr><td><span class='ag'>" + EMOJI.get(pid, "•") + " " +
+                "<tr><td><span class='ag'>" + _rozet(pid) +
                 pid.rsplit("_", 1)[0] + "</span>"
                 "<span class='sb'>" + str(a["detail"] or "")[:88] + "</span></td>"
                 "<td class='r'><span class='gr " + g + "'>" +
@@ -1829,7 +1958,7 @@ def page_sistem() -> None:
                 continue
             kc = "dp" if x["oran"] >= 1.0 else "dm"
             sat.append(
-                "<tr><td><span class='ag'>" + x["em"] + " " + x["ad"] +
+                "<tr><td><span class='ag'>" + _rozet(x["p"]) + x["ad"] +
                 "</span><span class='sb'>dönem " + str(x["era"] or "—") +
                 " · başlangıç " + "{:,.0f}".format(x["ib"]).replace(",", ".") +
                 " ₺</span></td>"
@@ -1877,6 +2006,16 @@ def _mini(baslik, ipucu, basliklar, satirlar):
 def page_inceleme() -> None:
     """🔍 İnceleme — kazanan/kaybeden ayrıştırması + gerekçe defteri."""
     d = load_inceleme()
+    if d.get("n"):
+        gg = d["genel"]
+        _sayfa_basligi(
+            "İnceleme",
+            "Kayıp modelden mi, pazardan mı, veriden mi geliyor — üçü ayrılır.",
+            [{"ad": "Kapanmış bahis", "deger": str(gg["n"])},
+             {"ad": "İsabet", "deger": _pct(gg["hit"])},
+             {"ad": "Getiri", "deger": ("+" if gg["roi"] >= 0 else "−") +
+              _num(abs(gg["roi"]) * 100, 1) + "%",
+              "cls": ("ps" if gg["roi"] >= 0 else "ng")}])
     if not d.get("n"):
         st.markdown("<div class='dq'>Dönem içinde kapanmış bahis yok.</div>",
                     unsafe_allow_html=True)
@@ -1963,7 +2102,7 @@ def page_inceleme() -> None:
         for x in d["defter"]:
             ok = "dp" if x["won"] else "dm"
             sat.append(
-                ["<span class='ag'>" + EMOJI.get(x["p"], "•") + " " +
+                ["<span class='ag'>" + _rozet(x["p"]) +
                  str(x["h"])[:14] + " — " + str(x["a"])[:14] + "</span>"
                  "<span class='sb'>" + str(x["rsn"] or "—")[:110] + "</span>",
                  "<span class='" + ok + "'>" + str(x["pk"])[:16] + "</span>",
@@ -1975,15 +2114,17 @@ def page_inceleme() -> None:
             unsafe_allow_html=True)
 
 
-PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig,
-         "🔍 İnceleme": page_inceleme, "📓 Defter": page_defter,
-         "🩺 Sistem": page_sistem, "🧑‍💻 OPUS 5": page_opus}
+# Menü etiketleri sade: aktif durumdaki amber şerit zaten yönlendiriyor,
+# emoji sadece gürültü ekliyordu.
+PAGES = {"Desk": page_desk, "Lig": page_lig, "İnceleme": page_inceleme,
+         "Defter": page_defter, "Sistem": page_sistem,
+         "OPUS 5": page_opus}
 
 
 def main() -> None:
     st.markdown(V2_CSS, unsafe_allow_html=True)
     if "v2_page" not in st.session_state:
-        st.session_state["v2_page"] = "◧ Desk"
+        st.session_state["v2_page"] = "Desk"
 
     with st.sidebar:
         st.markdown(
@@ -2008,7 +2149,6 @@ def main() -> None:
             "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
             "</div>", unsafe_allow_html=True)
 
-    _rail()
     PAGES[st.session_state["v2_page"]]()
 
 
