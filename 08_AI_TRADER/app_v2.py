@@ -1296,6 +1296,134 @@ def load_ajan_detay(pid: str) -> dict:
     return {"bet": bet, "acik": acik, "teshis": (tes[0] if tes else None)}
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_veri_ozet() -> dict:
+    """Verinin ÖZETİ, KALİTESİ ve TAZELİĞİ.
+
+    Doluluk oranı tek başına yetmez: 26.000 satırın %90'ı dolu olabilir
+    ama hepsi iki yıl önceden ise sistem kördür. Üç soru ayrı ayrı
+    sorulmalı — ne kadar var, ne kadarı dolu, ne kadarı taze."""
+    t = _rows("SELECT COUNT(*) n FROM matches_v2", sessiz=True)
+    st_ = _rows("SELECT COUNT(*) n FROM matches_v2 WHERE is_settled=1",
+                sessiz=True)
+    ac = _rows("SELECT COUNT(*) n FROM matches_v2 WHERE is_settled=0 "
+               "AND kickoff_utc > ?", (_simdi(),), sessiz=True)
+    tz = _rows("SELECT MAX(refreshed_at) v FROM matches_v2", sessiz=True)
+    # kaynak dagilimi ve tarih araligi
+    kay = _rows("SELECT closing_source k, COUNT(*) n, "
+                "MIN(substr(CAST(kickoff_utc AS TEXT),1,7)) ilk, "
+                "MAX(substr(CAST(kickoff_utc AS TEXT),1,7)) son "
+                "FROM matches_v2 WHERE is_settled=1 AND closing_1 IS NOT NULL "
+                "GROUP BY closing_source ORDER BY n DESC", sessiz=True)
+    # tablo boyutlari — sistemin hafizasi
+    tablolar = []
+    for tb, ad in (("matches_v2", "maç"), ("market_odds", "pazar fiyatı"),
+                   ("paper_bets", "bahis"), ("paper_coupons", "kupon"),
+                   ("odds_history", "fiyat geçmişi"),
+                   ("measurement_runs", "ölçüm koşusu"),
+                   ("injuries", "sakatlık"), ("xg_data", "xG")):
+        r = _rows(f"SELECT COUNT(*) n FROM {tb}", sessiz=True)
+        if r:
+            tablolar.append({"ad": ad, "tb": tb, "n": int(r[0]["n"] or 0)})
+    return {
+        "toplam": int(t[0]["n"]) if t else 0,
+        "sonuclanmis": int(st_[0]["n"]) if st_ else 0,
+        "yaklasan": int(ac[0]["n"]) if ac else 0,
+        "tazelik": str(tz[0]["v"])[:16] if (tz and tz[0]["v"]) else None,
+        "kaynak": kay, "tablolar": tablolar,
+    }
+
+
+def _simdi() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+
+
+@st.cache_data(ttl=240, show_spinner=False)
+def load_egri_ham() -> list[dict]:
+    """Ham kupon akışı — süzgeç uygulanabilsin diye toplanmadan.
+
+    Eğri sunucuda değil, süzgeçten SONRA hesaplanır. Önceden toplanmış
+    seri süzülemez: ajan çıkarınca eğrinin baştan kurulması gerekir."""
+    return _rows(
+        "SELECT pc.portfolio_id p, pc.settled_at sa, pc.pnl, pc.stake, "
+        "pc.coupon_type ct, pc.num_legs nl, "
+        "(SELECT string_agg(DISTINCT pb.market, ',') FROM paper_bets pb "
+        " WHERE pb.coupon_id = pc.coupon_id) mk "
+        "FROM paper_coupons pc "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        "ORDER BY pc.settled_at", sessiz=True)
+
+
+def _svg_zaman(nokta: list, w: int = 900, h: int = 260) -> str:
+    """Zaman eksenli kasa eğrisi — Bloomberg/Alpaca usulü.
+
+    Eksen olmadan grafik bir şekilden ibarettir: 'yükseliyor' dersin ama
+    'ne zaman' diyemezsin. Burada X tarih, Y para; ikisi de etiketli,
+    seyrek ızgaralı. Izgara soluk çünkü işi hizalamak, dikkat çekmek
+    değil."""
+    if len(nokta) < 2:
+        return ("<div class='dq'>Eğri için en az iki sonuçlanmış kupon "
+                "gerekiyor.</div>")
+    SOL, ALT, UST, SAG = 58, 26, 10, 12
+    gw, gh = w - SOL - SAG, h - ALT - UST
+    ys = [p["k"] for p in nokta] + [0.0]
+    lo, hi = min(ys), max(ys)
+    if hi - lo < 1e-9:
+        hi = lo + 1
+    pad = (hi - lo) * 0.10
+    lo, hi = lo - pad, hi + pad
+    n = len(nokta)
+
+    def X(i):
+        return SOL + i * gw / max(n - 1, 1)
+
+    def Y(v):
+        return UST + gh - (v - lo) / (hi - lo) * gh
+
+    parts = []
+    # yatay izgara + para etiketleri
+    for f in (0.0, 0.25, 0.5, 0.75, 1.0):
+        v = lo + (hi - lo) * f
+        y = Y(v)
+        parts.append(
+            f"<line x1='{SOL}' y1='{y:.1f}' x2='{w-SAG}' y2='{y:.1f}' "
+            f"stroke='var(--line)' stroke-width='1'/>"
+            f"<text x='{SOL-8}' y='{y+3.5:.1f}' text-anchor='end' "
+            f"font-size='10' fill='var(--muted)' "
+            f"font-family='JetBrains Mono,monospace'>"
+            f"{('+' if v>=0 else '−')}{abs(v):,.0f}</text>".replace(",", "."))
+    # sifir cizgisi belirgin
+    parts.append(
+        f"<line x1='{SOL}' y1='{Y(0):.1f}' x2='{w-SAG}' y2='{Y(0):.1f}' "
+        f"stroke='var(--line-2)' stroke-width='1.2' stroke-dasharray='4 3'/>")
+    # dikey izgara + tarih etiketleri (en fazla 6)
+    adim = max(1, n // 6)
+    for i in range(0, n, adim):
+        x = X(i)
+        t = str(nokta[i]["t"])[5:10].replace("-", ".")
+        parts.append(
+            f"<line x1='{x:.1f}' y1='{UST}' x2='{x:.1f}' y2='{UST+gh}' "
+            f"stroke='var(--line)' stroke-width='1'/>"
+            f"<text x='{x:.1f}' y='{h-8}' text-anchor='middle' font-size='10' "
+            f"fill='var(--muted)' font-family='JetBrains Mono,monospace'>"
+            f"{t}</text>")
+    cizgi = " ".join(f"{X(i):.1f},{Y(p['k']):.1f}" for i, p in enumerate(nokta))
+    alan = f"{X(0):.1f},{Y(0):.1f} {cizgi} {X(n-1):.1f},{Y(0):.1f}"
+    poz = nokta[-1]["k"] >= 0
+    renk = "var(--pos)" if poz else "var(--neg)"
+    parts.append(f"<polygon points='{alan}' fill='{renk}' opacity='0.09'/>")
+    parts.append(f"<polyline points='{cizgi}' fill='none' stroke='{renk}' "
+                 f"stroke-width='1.9' stroke-linejoin='round'/>")
+    parts.append(f"<circle cx='{X(n-1):.1f}' cy='{Y(nokta[-1]['k']):.1f}' "
+                 f"r='4' fill='{renk}'/>")
+    return (f"<svg viewBox='0 0 {w} {h}' width='100%' height='{h}' "
+            f"role='img' aria-label='Kasa eğrisi, zaman eksenli'>"
+            + "".join(parts) + "</svg>")
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -1852,51 +1980,80 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
 def page_lig() -> None:
     """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
     d = load_lig()
-    e = load_egri()
+    ham = load_egri_ham()
     kpi = [{"ad": "Mavi takım", "deger": str(len(d["mavi"])) + " ajan"},
            {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"}]
-    if e.get("n", 0) >= 10:
+    if ham:
+        _t = sum(float(x["pnl"] or 0) for x in ham)
+        _c = sum(float(x["stake"] or 0) for x in ham)
         kpi += [
-            {"ad": "Net", "deger": ("+" if e["son"] >= 0 else "−") +
-             "{:,.0f}".format(abs(e["son"])).replace(",", ".") + " ₺",
-             "cls": ("ps" if e["son"] >= 0 else "ng")},
-            {"ad": "ROI", "deger": ("+" if e["roi"] >= 0 else "−") +
-             _num(abs(e["roi"]) * 100, 1) + "%",
-             "cls": ("ps" if e["roi"] >= 0 else "ng")}]
+            {"ad": "Net", "deger": ("+" if _t >= 0 else "−") +
+             "{:,.0f}".format(abs(_t)).replace(",", ".") + " ₺",
+             "cls": ("ps" if _t >= 0 else "ng")},
+            {"ad": "ROI", "deger": ("+" if _t >= 0 else "−") +
+             _num(abs(_t / _c) * 100, 1) + "%" if _c else "—",
+             "cls": ("ps" if _t >= 0 else "ng")}]
     _sayfa_basligi(
         "Ajan Ligi",
         "Yürürlükteki dönem. Sıralama isabete göre değil, fiyata göre "
         "üstünlüğe göre — iki ölçü farklı sıralama verir.", kpi)
-    if e.get("n", 0) >= 10:
-        poz = e["son"] >= 0
+
+    # ── KASA EĞRİSİ · süzgeçli, zaman eksenli
+    if ham:
+        tum_ajan = sorted({str(x["p"]) for x in ham})
+        tum_tur = sorted({str(x["ct"] or "?") for x in ham})
+        f1, f2 = st.columns([1.0, 1.0], gap="small")
+        with f1:
+            sec_ajan = st.multiselect(
+                "Ajan", tum_ajan, default=[], key="v2_eg_ajan",
+                placeholder="tümü",
+                help="Boş bırakırsan hepsi. Eğri süzgeçten SONRA yeniden "
+                     "hesaplanır — önceden toplanmış seri süzülemez.")
+        with f2:
+            sec_tur = st.multiselect(
+                "Oyun türü", tum_tur, default=[], key="v2_eg_tur",
+                placeholder="tümü",
+                help="Kupon türü: tek, kombine, sistem…")
+        sz = [x for x in ham
+              if (not sec_ajan or str(x["p"]) in sec_ajan)
+              and (not sec_tur or str(x["ct"] or "?") in sec_tur)]
+        kum, tepe, dus, nokta, ciro = 0.0, 0.0, 0.0, [], 0.0
+        for x in sz:
+            try:
+                kum += float(x["pnl"] or 0)
+                ciro += float(x["stake"] or 0)
+            except Exception:
+                continue
+            tepe = max(tepe, kum)
+            dus = min(dus, kum - tepe)
+            nokta.append({"t": str(x["sa"])[:10], "k": kum})
+        etiket = ("tümü" if not (sec_ajan or sec_tur)
+                  else " · ".join(sec_ajan + sec_tur)[:60])
         st.markdown(
             "<div class='v2card'><div class='v2head'><h2>Kasa Eğrisi</h2>"
-            "<div class='hint'>dönem içi · " + str(e["n"]) +
-            " sonuçlanmış kupon</div></div><div class='v2body'>" +
-            _svg_egri(e) +
-            "<div style='display:flex;gap:var(--s5);flex-wrap:wrap;"
-            "margin-top:var(--s3);'>"
-            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
-            "align-items:flex-start;gap:2px;'><span>Net</span><b class='" +
-            ("ps" if poz else "ng") + "'>" +
-            ("+" if poz else "−") + "{:,.0f}".format(abs(e["son"])).replace(",", ".") +
-            " ₺</b></div>"
-            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
-            "align-items:flex-start;gap:2px;'><span>Ciro</span><b>" +
-            "{:,.0f}".format(e["ciro"]).replace(",", ".") + " ₺</b></div>"
-            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
-            "align-items:flex-start;gap:2px;'><span>ROI</span><b class='" +
-            ("ps" if e["roi"] >= 0 else "ng") + "'>" +
-            ("+" if e["roi"] >= 0 else "−") +
-            _num(abs(e["roi"]) * 100, 1) + "%</b></div>"
-            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
-            "align-items:flex-start;gap:2px;'><span>En büyük düşüş</span>"
-            "<b class='ng'>−" + "{:,.0f}".format(abs(e["dusus"])).replace(",", ".") +
-            " ₺</b></div>"
-            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
-            "align-items:flex-start;gap:2px;'><span>Tepe</span><b>" +
-            "{:,.0f}".format(e["tepe"]).replace(",", ".") + " ₺</b></div>"
-            "</div></div></div>", unsafe_allow_html=True)
+            "<div class='hint'>" + etiket + " · " + str(len(sz)) +
+            " kupon</div></div><div class='v2body'>" +
+            _svg_zaman(nokta) +
+            ("<div style='display:flex;gap:var(--s5);flex-wrap:wrap;"
+             "margin-top:var(--s3);border-top:1px solid var(--line);"
+             "padding-top:var(--s3);'>"
+             "<div class='v2kpi'><span>Net</span><b class='" +
+             ("ps" if kum >= 0 else "ng") + "'>" +
+             ("+" if kum >= 0 else "−") +
+             "{:,.0f}".format(abs(kum)).replace(",", ".") + " ₺</b></div>"
+             "<div class='v2kpi'><span>Ciro</span><b>" +
+             "{:,.0f}".format(ciro).replace(",", ".") + " ₺</b></div>"
+             "<div class='v2kpi'><span>ROI</span><b class='" +
+             ("ps" if kum >= 0 else "ng") + "'>" +
+             (("+" if kum >= 0 else "−") + _num(abs(kum / ciro) * 100, 1) + "%"
+              if ciro else "—") + "</b></div>"
+             "<div class='v2kpi'><span>En büyük düşüş</span><b class='ng'>−" +
+             "{:,.0f}".format(abs(dus)).replace(",", ".") + " ₺</b></div>"
+             "<div class='v2kpi'><span>Tepe</span><b>" +
+             "{:,.0f}".format(tepe).replace(",", ".") + " ₺</b></div></div>"
+             if nokta else "") +
+            "</div></div>", unsafe_allow_html=True)
+
     st.markdown(
         "<div class='v2mb'><b>Sıralama isabete göre değil, fiyata göre "
         "üstünlüğe göre.</b> İki ölçü farklı sıralama veriyor ve doğrusu "
@@ -2186,6 +2343,49 @@ def page_sistem() -> None:
             "<th class='r'>Oran</th></tr></thead><tbody>" +
             "".join(body) + "</tbody></table></div></div>",
             unsafe_allow_html=True)
+
+    vo = load_veri_ozet()
+    if vo.get("toplam"):
+        tsat = "".join(
+            "<tr><td><span class='ag'>" + x["ad"] + "</span>"
+            "<span class='sb'>" + x["tb"] + "</span></td>"
+            "<td class='r n'>" + "{:,}".format(x["n"]).replace(",", ".") +
+            "</td></tr>" for x in vo["tablolar"])
+        ksat = "".join(
+            "<tr><td><span class='ag'>" + str(k["k"] or "?") + "</span>"
+            "<span class='sb'>" + str(k["ilk"]) + " → " + str(k["son"]) +
+            "</span></td><td class='r n'>" +
+            "{:,}".format(int(k["n"])).replace(",", ".") + "</td></tr>"
+            for k in vo["kaynak"])
+        s1, s2 = st.columns([1.0, 1.0], gap="small")
+        with s1:
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Veri Özeti</h2>"
+                "<div class='hint'>sistemin hafızası</div></div>"
+                "<div class='v2body'>"
+                "<div class='ro'><span>Toplam maç</span><b>" +
+                "{:,}".format(vo["toplam"]).replace(",", ".") + "</b></div>"
+                "<div class='ro'><span>Sonuçlanmış</span><b>" +
+                "{:,}".format(vo["sonuclanmis"]).replace(",", ".") + "</b></div>"
+                "<div class='ro'><span>Yaklaşan</span><b>" +
+                str(vo["yaklasan"]) + "</b></div>"
+                "<div class='ro'><span>Son tazeleme</span><b style='font-size:14px;'>" +
+                str(vo["tazelik"] or "—") + "</b></div>"
+                "<table class='v2' style='margin-top:var(--s3);'><thead><tr>"
+                "<th>Tablo</th><th class='r'>Satır</th></tr></thead><tbody>" +
+                tsat + "</tbody></table></div></div>", unsafe_allow_html=True)
+        with s2:
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Fiyat Kaynağı</h2>"
+                "<div class='hint'>kapsam ve dönem</div></div>"
+                "<div class='v2body'>"
+                "<div class='v2mb'>Hangi fiyattan ölçtüğün, ne ölçtüğünü "
+                "belirler. Pinnacle marjı ~%3, iddaa ~%17,6 — aynı modeli "
+                "iki kaynakta sınamak <b>iki farklı sonuç</b> verir. "
+                "Kaynakların <b>çakışmadığına</b> dikkat et.</div>"
+                "<table class='v2'><thead><tr><th>Kaynak · dönem</th>"
+                "<th class='r'>Maç</th></tr></thead><tbody>" + ksat +
+                "</tbody></table></div></div>", unsafe_allow_html=True)
 
     rk = load_risk()
     if rk:
