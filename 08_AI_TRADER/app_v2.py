@@ -980,6 +980,165 @@ def load_mihenk() -> dict:
                                      for r in rows]}
 
 
+@st.cache_data(ttl=240, show_spinner=False)
+def load_egri() -> dict:
+    """Kasa eğrisi ve düşüş — dönem kapsamlı, tüm ajanlar birleşik.
+
+    ⚠️ Sıralama kuponun SONUÇLANDIĞI ana göre yapılır, kurulduğu ana
+    göre değil. Kasa gerçekte para değiştiğinde hareket eder; kurulma
+    sırasına göre çizilen eğri, olmamış bir geçmişi gösterir."""
+    rows = _rows(
+        "SELECT pc.settled_at sa, pc.pnl, pc.stake, pc.status st "
+        "FROM paper_coupons pc "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        "ORDER BY pc.settled_at", sessiz=True)
+    if len(rows) < 10:
+        return {"n": len(rows)}
+    kum, tepe, dusus = 0.0, 0.0, 0.0
+    nokta, ciro = [], 0.0
+    for r in rows:
+        try:
+            kum += float(r["pnl"] or 0)
+            ciro += float(r["stake"] or 0)
+        except Exception:
+            continue
+        tepe = max(tepe, kum)
+        dusus = min(dusus, kum - tepe)
+        nokta.append({"t": str(r["sa"])[:10], "k": kum, "tepe": tepe})
+    son = nokta[-1]["k"] if nokta else 0.0
+    return {"n": len(nokta), "nokta": nokta, "son": son, "tepe": tepe,
+            "dusus": dusus, "ciro": ciro,
+            "roi": (son / ciro) if ciro else 0.0,
+            "dusus_pay": (dusus / tepe) if tepe > 0 else 0.0}
+
+
+def _svg_egri(d: dict, w: int = 560, h: int = 150) -> str:
+    """Kasa eğrisi — satır içi SVG, temaya duyarlı.
+
+    Kütüphane yok: plotly bir grafik için 3 MB bağımlılık demek. Alan
+    dolgusu, sıfır çizgisi, vurgulanmış son nokta ve düşüş gölgesi
+    elle çizilir — okunurluk kütüphaneden değil, seçimlerden gelir."""
+    p = d["nokta"]
+    if len(p) < 2:
+        return ""
+    ys = [x["k"] for x in p] + [0.0]
+    lo, hi = min(ys), max(ys)
+    if hi - lo < 1e-9:
+        hi = lo + 1
+    pad = (hi - lo) * 0.12
+    lo, hi = lo - pad, hi + pad
+    n = len(p)
+
+    def X(i):
+        return 4 + i * (w - 8) / max(n - 1, 1)
+
+    def Y(v):
+        return h - 6 - (v - lo) / (hi - lo) * (h - 12)
+
+    cizgi = " ".join(f"{X(i):.1f},{Y(x['k']):.1f}" for i, x in enumerate(p))
+    alan = (f"{X(0):.1f},{Y(0):.1f} " + cizgi +
+            f" {X(n-1):.1f},{Y(0):.1f}")
+    y0 = Y(0)
+    poz = d["son"] >= 0
+    renk = "var(--pos)" if poz else "var(--neg)"
+    return (
+        f"<svg viewBox='0 0 {w} {h}' width='100%' height='{h}' "
+        f"preserveAspectRatio='none' role='img' "
+        f"aria-label='Kasa eğrisi, son değer {d['son']:.0f} lira'>"
+        f"<line x1='0' y1='{y0:.1f}' x2='{w}' y2='{y0:.1f}' "
+        f"stroke='var(--line-2)' stroke-width='1' stroke-dasharray='3 3'/>"
+        f"<polygon points='{alan}' fill='{renk}' opacity='0.10'/>"
+        f"<polyline points='{cizgi}' fill='none' stroke='{renk}' "
+        f"stroke-width='1.8' stroke-linejoin='round'/>"
+        f"<circle cx='{X(n-1):.1f}' cy='{Y(p[-1]['k']):.1f}' r='3.5' "
+        f"fill='{renk}'/></svg>")
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def load_pozisyon() -> list[dict]:
+    """Açık kuponlar — kupon düzeyinde, ayaklarıyla (V1 pozisyon+emir).
+
+    Tahta tek tek seçimleri gösterir; burası KUPONU gösterir: kaç ayak,
+    toplam oran, ne kadar yatırıldı, tutarsa ne döner. İkisi farklı
+    sorulara cevap verir."""
+    kup = _rows(
+        "SELECT pc.coupon_id cid, pc.portfolio_id p, pc.num_legs nl, "
+        "pc.combined_odds co, pc.stake sk, pc.potential_return pr, "
+        "pc.created_at ca FROM paper_coupons pc "
+        "WHERE pc.status='open' ORDER BY pc.created_at DESC LIMIT 40",
+        sessiz=True)
+    if not kup:
+        return []
+    ids = [k["cid"] for k in kup]
+    qs = ",".join("?" for _ in ids)
+    ayak = _rows(
+        f"SELECT coupon_id cid, home_team h, away_team a, market mk, "
+        f"pick pk, odds o, kickoff_utc ko FROM paper_bets "
+        f"WHERE coupon_id IN ({qs}) ORDER BY kickoff_utc", tuple(ids),
+        sessiz=True)
+    by: dict = {}
+    for x in ayak:
+        by.setdefault(x["cid"], []).append(x)
+    out = []
+    for k in kup:
+        L = by.get(k["cid"], [])
+        if not L:
+            continue
+        out.append({
+            "p": k["p"], "em": EMOJI.get(k["p"], "•"),
+            "ad": str(k["p"]).rsplit("_", 1)[0],
+            "n": len(L), "co": float(k["co"] or 0), "sk": float(k["sk"] or 0),
+            "pr": float(k["pr"] or 0), "ko": str(L[0]["ko"])[5:16].replace("T", " "),
+            "ayak": [{"h": x["h"], "a": x["a"], "mk": x["mk"],
+                      "pk": x["pk"], "o": float(x["o"] or 0)} for x in L],
+        })
+    out.sort(key=lambda z: z["ko"])
+    return out
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_risk() -> list[dict]:
+    """Ajan risk durumu — kasa tabanı, dönem, ihtar, lisans (V1 risk+ayarlar).
+
+    Prop-firm mantığı: her ajanın kendi kasası, kendi tabanı ve kendi
+    sözleşmesi var. Taban altına düşen ajan koruma moduna girer; iki
+    ihtar kadro dışı demektir. Bu sayfa o sözleşmenin durumunu gösterir."""
+    rows = _rows(
+        "SELECT portfolio_id p, current_bankroll cb, initial_bankroll ib, "
+        "peak_bankroll pk, period_status ps, period_start_bankroll pb, "
+        "ihtar_count ih, benched bn, era_no en, status st "
+        "FROM paper_portfolio ORDER BY current_bankroll DESC", sessiz=True)
+    out = []
+    for r in rows:
+        ib = float(r["ib"] or 1000)
+        cb = float(r["cb"] or 0)
+        pk = float(r["pk"] or ib)
+        oran = (cb / ib) if ib else 0
+        if bool(r["bn"]):
+            dur, sev = "KADRO DIŞI", "g3"
+        elif oran < 0.50:
+            dur, sev = "TABAN FRENİ", "g3"
+        elif int(r["ih"] or 0) >= 2:
+            dur, sev = "2 İHTAR", "g3"
+        elif int(r["ih"] or 0) == 1:
+            dur, sev = "1 İHTAR", "g2"
+        elif oran >= 1.0:
+            dur, sev = "SAĞLIKLI", "g1"
+        else:
+            dur, sev = "İZLEMEDE", "g2"
+        out.append({
+            "p": r["p"], "em": EMOJI.get(r["p"], "•"),
+            "ad": str(r["p"]).rsplit("_", 1)[0], "cb": cb, "ib": ib,
+            "oran": oran, "tepe": pk,
+            "dusus": ((cb - pk) / pk) if pk > 0 else 0.0,
+            "ihtar": int(r["ih"] or 0), "era": r["en"],
+            "dur": dur, "sev": sev,
+        })
+    return out
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -1151,6 +1310,34 @@ def page_desk() -> None:
           <div class="hint">marj canlı hesaplanır</div></div>
           <div class="v2body">{legs}{ro}{meter}
           <div class="vd">{vd}</div></div></div>""", unsafe_allow_html=True)
+
+    poz = load_pozisyon()
+    if poz:
+        sat = []
+        for k in poz[:14]:
+            ayaklar = " + ".join(
+                str(x["h"])[:12] + " " + str(x["pk"])[:10] for x in k["ayak"])
+            sat.append(
+                "<tr><td><span class='ag'>" + k["em"] + " " + k["ad"] +
+                "</span><span class='sb'>" + ayaklar[:92] + "</span></td>"
+                "<td class='r n opt'>" + str(k["n"]) + "</td>"
+                "<td class='r n'>" + _num(k["co"]) + "</td>"
+                "<td class='r n opt'>" + "{:.0f}".format(k["sk"]) + " ₺</td>"
+                "<td class='r n'>" + "{:,.0f}".format(k["pr"]).replace(",", ".") +
+                " ₺</td><td class='r n opt'>" + k["ko"] + "</td></tr>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Açık Kuponlar</h2>"
+            "<div class='hint'>" + str(len(poz)) + " kupon · kupon düzeyi"
+            "</div></div><div class='v2body'>"
+            "<div class='v2mb'>Tahta tek tek <b>seçimleri</b> gösterir; "
+            "burası <b>kuponu</b>: kaç ayak, toplam oran, tutarsa ne döner. "
+            "İkisi farklı sorulara cevap verir.</div>"
+            "<table class='v2'><thead><tr><th>Ajan ve ayaklar</th>"
+            "<th class='r opt'>Ayak</th><th class='r'>Oran</th>"
+            "<th class='r opt'>Yatan</th><th class='r'>Döner</th>"
+            "<th class='r opt'>Başlangıç</th></tr></thead><tbody>" +
+            "".join(sat) + "</tbody></table></div></div>",
+            unsafe_allow_html=True)
 
     st.markdown(
         "<div style='font-family:\"JetBrains Mono\",monospace;font-size:10px;"
@@ -1360,6 +1547,37 @@ def _takim_tablo(rows, baslik, alt, renk):
 def page_lig() -> None:
     """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
     d = load_lig()
+    e = load_egri()
+    if e.get("n", 0) >= 10:
+        poz = e["son"] >= 0
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Kasa Eğrisi</h2>"
+            "<div class='hint'>dönem içi · " + str(e["n"]) +
+            " sonuçlanmış kupon</div></div><div class='v2body'>" +
+            _svg_egri(e) +
+            "<div style='display:flex;gap:var(--s5);flex-wrap:wrap;"
+            "margin-top:var(--s3);'>"
+            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
+            "align-items:flex-start;gap:2px;'><span>Net</span><b class='" +
+            ("ps" if poz else "ng") + "'>" +
+            ("+" if poz else "−") + "{:,.0f}".format(abs(e["son"])).replace(",", ".") +
+            " ₺</b></div>"
+            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
+            "align-items:flex-start;gap:2px;'><span>Ciro</span><b>" +
+            "{:,.0f}".format(e["ciro"]).replace(",", ".") + " ₺</b></div>"
+            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
+            "align-items:flex-start;gap:2px;'><span>ROI</span><b class='" +
+            ("ps" if e["roi"] >= 0 else "ng") + "'>" +
+            ("+" if e["roi"] >= 0 else "−") +
+            _num(abs(e["roi"]) * 100, 1) + "%</b></div>"
+            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
+            "align-items:flex-start;gap:2px;'><span>En büyük düşüş</span>"
+            "<b class='ng'>−" + "{:,.0f}".format(abs(e["dusus"])).replace(",", ".") +
+            " ₺</b></div>"
+            "<div class='ro' style='border:0;padding:0;flex-direction:column;"
+            "align-items:flex-start;gap:2px;'><span>Tepe</span><b>" +
+            "{:,.0f}".format(e["tepe"]).replace(",", ".") + " ₺</b></div>"
+            "</div></div></div>", unsafe_allow_html=True)
     st.markdown(
         "<div class='v2mb'><b>Sıralama isabete göre değil, fiyata göre "
         "üstünlüğe göre.</b> İki ölçü farklı sıralama veriyor ve doğrusu "
@@ -1601,6 +1819,41 @@ def page_sistem() -> None:
             "<table class='v2'><thead><tr><th>Alan</th><th class='r'>Dolu</th>"
             "<th class='r'>Oran</th></tr></thead><tbody>" +
             "".join(body) + "</tbody></table></div></div>",
+            unsafe_allow_html=True)
+
+    rk = load_risk()
+    if rk:
+        sat = []
+        for x in rk:
+            if x["p"] in ("PAPER_V1",):
+                continue
+            kc = "dp" if x["oran"] >= 1.0 else "dm"
+            sat.append(
+                "<tr><td><span class='ag'>" + x["em"] + " " + x["ad"] +
+                "</span><span class='sb'>dönem " + str(x["era"] or "—") +
+                " · başlangıç " + "{:,.0f}".format(x["ib"]).replace(",", ".") +
+                " ₺</span></td>"
+                "<td class='r n'>" + "{:,.0f}".format(x["cb"]).replace(",", ".") +
+                " ₺</td>"
+                "<td class='r'><span class='" + kc + "'>" +
+                "{:.0f}".format(x["oran"] * 100) + "%</span></td>"
+                "<td class='r n opt'>" +
+                ("−" + _num(abs(x["dusus"]) * 100, 0) + "%"
+                 if x["dusus"] < 0 else "—") + "</td>"
+                "<td class='r'><span class='gr " + x["sev"] + "'>" +
+                x["dur"] + "</span></td></tr>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Risk ve Sözleşme</h2>"
+            "<div class='hint'>prop-firm mantığı</div></div>"
+            "<div class='v2body'>"
+            "<div class='v2mb'>Her ajanın <b>kendi kasası ve kendi "
+            "sözleşmesi</b> var. Taban altına düşen koruma moduna girer, "
+            "iki ihtar kadro dışı demektir. Sistemin ajanı susturması "
+            "bir arıza değil, sözleşmenin işlemesidir.</div>"
+            "<table class='v2'><thead><tr><th>Ajan</th><th class='r'>Kasa</th>"
+            "<th class='r'>%</th><th class='r opt'>Tepeden</th>"
+            "<th class='r'>Durum</th></tr></thead><tbody>" +
+            "".join(sat) + "</tbody></table></div></div>",
             unsafe_allow_html=True)
 
 
