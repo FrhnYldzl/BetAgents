@@ -911,6 +911,75 @@ def load_inceleme() -> dict:
             "lig": grupla("lg"), "anat": anat, "defter": gd[:22]}
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_clv() -> dict:
+    """CLV kırılımı — pazar ve lig bazında kapanış çizgisi performansı.
+
+    CLV neden önemli: girdiğin fiyat kapanıştan iyiyse, piyasadan ÖNCE
+    doğru tarafı görmüşsün demektir. Sonuçtan bağımsızdır — kaybettiğin
+    bahiste bile pozitif CLV seçimin doğruluğunu söyler.
+
+    ⚠️ Tek başına marjı YENMEZ. iddaa'nın %17,6'sını aşmak için +%17,6
+    CLV gerekir; öyle bir şey yok. CLV bir kâr vaadi değil, ÖNCÜ
+    GÖSTERGEDİR."""
+    rows = _rows(
+        "SELECT market mk, league lg, clv FROM paper_bets "
+        "WHERE clv IS NOT NULL", sessiz=True)
+    if len(rows) < 50:
+        return {"n": len(rows)}
+    v = []
+    for r in rows:
+        try:
+            v.append({"mk": str(r["mk"] or "—"), "lg": str(r["lg"] or "—"),
+                      "c": float(r["clv"])})
+        except Exception:
+            continue
+    n = len(v)
+    m = sum(x["c"] for x in v) / n
+    sd = math.sqrt(sum((x["c"] - m) ** 2 for x in v) / max(n - 1, 1)) / math.sqrt(n)
+
+    def kir(key, en_az=30):
+        d = {}
+        for x in v:
+            d.setdefault(x[key], []).append(x["c"])
+        out = []
+        for k, g in d.items():
+            if len(g) < en_az:
+                continue
+            mm = sum(g) / len(g)
+            out.append({"ad": k, "n": len(g), "ort": mm,
+                        "beat": sum(1 for z in g if z > 0) / len(g)})
+        out.sort(key=lambda z: -z["ort"])
+        return out[:8]
+
+    return {"n": n, "ort": m, "t": (m / sd) if sd > 1e-12 else 0.0,
+            "beat": sum(1 for x in v if x["c"] > 0) / n,
+            "sifir": sum(1 for x in v if abs(x["c"]) < 1e-9) / n,
+            "pazar": kir("mk"), "lig": kir("lg")}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_mihenk() -> dict:
+    """Mihenk — 2 günde bir arşivlenen yönetici özeti (V1'den taşındı).
+
+    V2 raporu yeniden ÜRETMEZ, arşivi okur. Rapor üretimi
+    02_VERI/exec_report.py'de kalır; burası okuma yüzeyidir. Bir işin
+    iki yerde yapılması, V1'in en büyük hatasıydı."""
+    rows = _rows("SELECT report_no no, ts, payload FROM exec_reports "
+                 "ORDER BY report_no DESC LIMIT 6", sessiz=True)
+    if not rows:
+        return {"var": False}
+    import json
+    son = rows[0]
+    try:
+        p = json.loads(son["payload"])
+    except Exception:
+        p = {}
+    return {"var": True, "no": son["no"], "ts": str(son["ts"])[:16],
+            "payload": p, "gecmis": [{"no": r["no"], "ts": str(r["ts"])[:16]}
+                                     for r in rows]}
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -1355,6 +1424,97 @@ def page_defter() -> None:
         "<th class='r'>Değer</th><th class='r opt'>Koşu</th>"
         "<th class='r'>Hüküm</th></tr></thead><tbody>" +
         "".join(body) + "</tbody></table></div></div>", unsafe_allow_html=True)
+
+    sol, sag = st.columns([1.0, 1.0], gap="small")
+
+    # ── CLV: V1'in ayri sayfasi, artik olcum katmaninin icinde
+    with sol:
+        c = load_clv()
+        if c.get("n", 0) < 50:
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>CLV</h2>"
+                "<div class='hint'>kapanış çizgisi</div></div>"
+                "<div class='v2body'><div class='dq'>Yeterli CLV kaydı yok."
+                "</div></div></div>", unsafe_allow_html=True)
+        else:
+            iyi = c["t"] > 1.96
+            sat = []
+            for x in c["pazar"]:
+                cls = "dp" if x["ort"] > 0.002 else "dm"
+                sat.append("<tr><td><span class='ag'>" + x["ad"][:14] +
+                           "</span></td><td class='r n opt'>" + str(x["n"]) +
+                           "</td><td class='r'><span class='" + cls + "'>" +
+                           ("+" if x["ort"] >= 0 else "−") +
+                           _num(abs(x["ort"]) * 100, 2) + "%</span></td>"
+                           "<td class='r n'>" + _pct(x["beat"]) + "</td></tr>")
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>CLV · Kapanış Çizgisi</h2>"
+                "<div class='hint'>öncü gösterge</div></div><div class='v2body'>"
+                "<div class='v2mb'>Girdiğin fiyat kapanıştan iyiyse piyasadan "
+                "<b>önce</b> doğru tarafı görmüşsün demektir — sonuçtan "
+                "bağımsız. Ama tek başına marjı yenmez: %17,6'yı aşmak için "
+                "+%17,6 CLV gerekir.</div>"
+                "<div class='ro'><span>Ortalama CLV</span><b class='" +
+                ("ps" if iyi else "ng") + "'>" +
+                ("+" if c["ort"] >= 0 else "−") + _num(abs(c["ort"]) * 100, 2) +
+                "%</b></div>"
+                "<div class='ro'><span>t değeri</span><b class='" +
+                ("ps" if iyi else "ng") + "'>" + _num(c["t"], 2) + "</b></div>"
+                "<div class='ro'><span>Kapanışı geçen</span><b>" +
+                _pct(c["beat"]) + "</b></div>"
+                "<div class='ro'><span>Hiç oynamayan</span><b>" +
+                _pct(c["sifir"]) + "</b></div>"
+                "<table class='v2' style='margin-top:12px;'><thead><tr>"
+                "<th>Pazar</th><th class='r opt'>n</th><th class='r'>CLV</th>"
+                "<th class='r'>Geçen</th></tr></thead><tbody>" +
+                "".join(sat) + "</tbody></table></div></div>",
+                unsafe_allow_html=True)
+
+    # ── MIHENK: arsivi OKU, yeniden uretme
+    with sag:
+        mh = load_mihenk()
+        if not mh.get("var"):
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Mihenk</h2>"
+                "<div class='hint'>yönetici özeti</div></div>"
+                "<div class='v2body'><div class='dq'>Henüz arşivlenmiş rapor "
+                "yok. Üretim: <code>python 02_VERI/exec_report.py</code>"
+                "</div></div></div>", unsafe_allow_html=True)
+        else:
+            p = mh["payload"]
+            bul = p.get("findings") or p.get("bulgular") or []
+            kap = p.get("gates") or []
+            ic = ""
+            if bul:
+                ic += ("<div class='v2mb'><b>Bulgular</b><br>" +
+                       "<br>".join("· " + str(b)[:150] for b in bul[:6]) +
+                       "</div>")
+            if kap:
+                sat = []
+                for gt in kap[:6]:
+                    ad = str(gt.get("name") or gt.get("ad") or "?")[:30]
+                    ok = bool(gt.get("ok") or gt.get("passed"))
+                    sat.append("<tr><td><span class='ag'>" + ad + "</span></td>"
+                               "<td class='r'><span class='gr " +
+                               ("g1" if ok else "g3") + "'>" +
+                               ("GEÇTİ" if ok else "geçmedi") +
+                               "</span></td></tr>")
+                ic += ("<table class='v2'><thead><tr><th>Gerçek para kapısı</th>"
+                       "<th class='r'>Durum</th></tr></thead><tbody>" +
+                       "".join(sat) + "</tbody></table>")
+            if not ic:
+                ic = ("<div class='dq'>Rapor #" + str(mh["no"]) +
+                      " arşivde ama okunabilir bulgu alanı yok.</div>")
+            gec = " · ".join("#" + str(g["no"]) for g in mh["gecmis"])
+            st.markdown(
+                "<div class='v2card'><div class='v2head'>"
+                "<h2>Mihenk · Rapor #" + str(mh["no"]) + "</h2>"
+                "<div class='hint'>" + mh["ts"] + "</div></div>"
+                "<div class='v2body'>" + ic +
+                "<div class='dq' style='margin:10px 0 0;'>Arşiv: " + gec +
+                " · rapor <b>üretimi</b> exec_report.py'de kalır, burası "
+                "okuma yüzeyidir. Bir işin iki yerde yapılması V1'in en "
+                "büyük hatasıydı.</div></div></div>", unsafe_allow_html=True)
 
 
 def page_sistem() -> None:

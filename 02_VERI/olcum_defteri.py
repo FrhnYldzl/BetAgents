@@ -429,6 +429,42 @@ def m_kirilganlik(conn) -> dict:
     }
 
 
+def m_clv(conn) -> dict:
+    """CLV — kapanış çizgisini yenebiliyor muyuz?
+
+    Bahiste beceriye dair en güçlü TEK gösterge budur: girdiğin fiyat,
+    kapanış fiyatından iyiyse piyasadan önce doğru tarafı görmüşsün
+    demektir. Sonuçtan bağımsızdır — kaybettiğin bahiste bile pozitif
+    CLV, seçimin doğru olduğunu söyler.
+
+    ⚠️ CLV tek başına marjı YENMEZ. iddaa'nın %17,6'lık marjını aşmak
+    için +%17,6 CLV gerekir; öyle bir şey yok. CLV'nin işi kâr vaadi
+    değil, ÖNCÜ GÖSTERGE: pozitifse sinyalde bilgi var demektir."""
+    rows = conn.execute(
+        "SELECT clv FROM paper_bets WHERE clv IS NOT NULL").fetchall()
+    v = []
+    for r in rows:
+        try:
+            v.append(float(dict(r)["clv"]))
+        except Exception:
+            continue
+    if len(v) < 200:
+        return {"n": len(v), "yetersiz": True}
+    n = len(v)
+    m = sum(v) / n
+    sd = math.sqrt(sum((x - m) ** 2 for x in v) / (n - 1)) / math.sqrt(n)
+    t = (m / sd) if sd > 1e-12 else 0.0
+    beat = sum(1 for x in v if x > 0) / n
+    sifir = sum(1 for x in v if abs(x) < 1e-9) / n
+    return {
+        "n": n, "deger": m * 100,
+        "detay": (f"ortalama {m*100:+.2f}% (t={t:+.2f}) · "
+                  f"kapanışı geçen %{beat*100:.1f} · "
+                  f"hiç oynamayan %{sifir*100:.1f}"),
+        "gecti": t > 1.96,      # kural: sıfırdan ANLAMLI şekilde büyük
+    }
+
+
 # ══════════════════════════════════════════════════════════════
 # DEFTER — kural ve hedef, sonuç görülmeden yazılır
 # ══════════════════════════════════════════════════════════════
@@ -475,6 +511,13 @@ FINDINGS = {
         "hedef": "iddaa ile eşzamanlı keskin fiyat toplanınca tekrar",
         "onceki": "+%5,6 (±2,7) · ÖRNEK-DIŞI DOĞRULANDI (31.08, 54.366 seçim)",
         "fn": m_hareket_sinyali, "agir": False,
+    },
+    "CLV": {
+        "baslik": "Kapanış çizgisini yenebiliyor muyuz",
+        "kural": "ortalama CLV sıfırdan ANLAMLI büyük (t > 1,96) olmalı",
+        "hedef": "her koşuda · bahis biriktikçe güçlenir",
+        "onceki": "ilk ölçüm (31.08.2026)",
+        "fn": m_clv, "agir": False,
     },
     "SUREKLI_KALIBRASYON": {
         "baslik": "Sürekli skor modeli hâlâ kalibre mi",
