@@ -32,11 +32,13 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 sys.path.insert(0, str(THIS_DIR.parent / "02_VERI"))
 
-# ⚠️ "auto": masaustunde acik, MOBILDE KAPALI. "expanded" mobilde
-# paneli icerigin uzerine sereriyor ve ekrani orruyordu.
+# ⚠️ "expanded": kenar cubugu masaustunde ACIK baslar. "auto" yanlis
+# karar veriyordu — 1600px'te bile kapali aciliyor ve kullanici
+# hamburger aramak zorunda kaliyordu. Mobil davranis (uzerine acilan
+# cekmece) zaten standarttir ve CSS ile ele aliniyor.
 try:
     st.set_page_config(page_title="BetAgents Desk", page_icon="◉",
-                       layout="wide", initial_sidebar_state="auto")
+                       layout="wide", initial_sidebar_state="expanded")
 except Exception:
     pass
 
@@ -526,6 +528,110 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
 div[data-testid="column"]{padding:0 var(--s2);min-width:0;}
 div[data-testid="column"]:first-child{padding-left:0;}
 div[data-testid="column"]:last-child{padding-right:0;}
+
+/* ══════════════════════════════════════════════════════════
+   ÜRÜN DENETİMİ — buton sistemi, gezinme, form kontrolleri
+   Streamlit'in varsayılan bileşenleri "bitmemiş" hissi verir:
+   yuvarlak köşeler, mavi vurgu, gri kenarlık. Hepsi tasarım
+   sistemine çekildi.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── KENAR ÇUBUĞU: gerçek gezinme ─────────────────────── */
+[data-testid="stSidebar"]{box-shadow:1px 0 0 rgba(255,255,255,.05);}
+.v2brand{display:flex;align-items:center;gap:10px;
+  padding:0 var(--s2) var(--s5);}
+.v2brand .mark{
+  width:30px;height:30px;flex:0 0 auto;border-radius:var(--r);
+  background:var(--brand);color:#0b1420;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;
+  letter-spacing:-0.03em;}
+.v2brand .yazi b{display:block;font-size:16px;font-weight:700;
+  letter-spacing:-0.015em;line-height:1.15;}
+.v2brand .yazi span{display:block;font-family:"JetBrains Mono",monospace;
+  font-size:9.5px;letter-spacing:0.2em;text-transform:uppercase;margin-top:2px;}
+
+[data-testid="stSidebar"] .stButton{margin:0!important;}
+[data-testid="stSidebar"] .stButton>button{
+  position:relative;width:100%;text-align:left;justify-content:flex-start;
+  background:transparent;border:0;border-radius:var(--r);
+  padding:0 var(--s3) 0 34px;margin:1px 0;min-height:40px;height:40px;
+  font-weight:500;letter-spacing:-0.005em;
+  transition:background .13s ease,color .13s ease;}
+/* nokta göstergesi — aktif olanda amber, diğerlerinde soluk */
+[data-testid="stSidebar"] .stButton>button::before{
+  content:"";position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--rail-dim);
+  opacity:.45;transition:background .13s,opacity .13s,box-shadow .13s;}
+[data-testid="stSidebar"] .stButton>button:hover{
+  background:rgba(255,255,255,.06);}
+[data-testid="stSidebar"] .stButton>button:hover::before{opacity:.9;}
+[data-testid="stSidebar"] .stButton>button[kind="primary"]{
+  background:rgba(255,255,255,.10);}
+[data-testid="stSidebar"] .stButton>button[kind="primary"]::before{
+  background:var(--brand);opacity:1;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent);}
+[data-testid="stSidebar"] .stButton>button:focus-visible{
+  outline:2px solid var(--brand);outline-offset:-2px;}
+
+/* ── ANA ALAN BUTONLARI: hayalet + birincil ───────────── */
+/* ⚠️ [data-testid="stAppViewContainer"] kenar cubugunu DA kapsiyor —
+   ilk denemede aktif menu ogesi tamamen amber oldu. Kenar cubugu
+   acikca haric tutulur. */
+[data-testid="stAppViewContainer"] .stButton>button:not([data-testid="stSidebar"] *),
+section[data-testid="stMain"] .stButton>button{
+  border-radius:var(--r);border:1px solid var(--line-2);
+  background:var(--panel);color:var(--ink);
+  font-size:var(--t-govde);font-weight:500;min-height:38px;
+  padding:0 var(--s4);letter-spacing:-0.005em;
+  transition:border-color .13s,background .13s,color .13s;}
+section[data-testid="stMain"] .stButton>button:hover{
+  border-color:var(--brand);color:var(--brand);background:var(--panel-2);}
+section[data-testid="stMain"] .stButton>button:focus-visible{
+  outline:2px solid var(--brand);outline-offset:2px;}
+section[data-testid="stMain"] .stButton>button[kind="primary"]{
+  background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600;}
+section[data-testid="stMain"] .stButton>button[kind="primary"]:hover{
+  filter:brightness(1.08);color:#fff;}
+
+/* ── ALT GEZİNME ──────────────────────────────────────── */
+.v2gez{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--s4);padding-top:var(--s4);margin-top:var(--s5);
+  border-top:1px solid var(--line);}
+.v2gez-orta{font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);
+  text-align:center;}
+
+/* ── FORM KONTROLLERİ ─────────────────────────────────── */
+[data-testid="stSelectbox"] div[data-baseweb="select"]>div,
+[data-testid="stMultiSelect"] div[data-baseweb="select"]>div{
+  background:var(--panel)!important;border-color:var(--line-2)!important;
+  border-radius:var(--r)!important;min-height:38px;font-size:var(--t-govde);}
+[data-testid="stSelectbox"] div[data-baseweb="select"]>div:hover,
+[data-testid="stMultiSelect"] div[data-baseweb="select"]>div:hover{
+  border-color:var(--brand)!important;}
+/* ⚠️ SADECE form etiketleri — onay kutusu etiketleri de stWidgetLabel'dir
+   ve ilk denemede TAHTADAKI MAC ADLARI buyuk harfe dondu. Onay kutusu
+   haric tutulur. */
+[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] p,
+[data-testid="stMultiSelect"] [data-testid="stWidgetLabel"] p,
+[data-testid="stNumberInput"] [data-testid="stWidgetLabel"] p{
+  font-size:var(--t-alt)!important;color:var(--muted)!important;
+  font-family:"JetBrains Mono",monospace;letter-spacing:0.09em;
+  text-transform:uppercase;margin-bottom:5px!important;}
+[data-testid="stCheckbox"] [data-testid="stWidgetLabel"] p{
+  text-transform:none!important;letter-spacing:normal!important;
+  font-family:Archivo,sans-serif!important;}
+[data-testid="stNumberInput"] input{background:var(--panel)!important;
+  border-radius:var(--r)!important;font-family:"JetBrains Mono",monospace;}
+div[data-baseweb="tag"]{background:var(--brand-fill)!important;
+  color:var(--brand)!important;border-radius:var(--r)!important;
+  font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
+
+/* ── MOBİL: çekmece davranışı ─────────────────────────── */
+@media (max-width:768px){
+  [data-testid="stSidebar"]{box-shadow:0 0 0 100vmax rgba(0,0,0,.45);}
+}
 
 /* ── MOBİL: küçültme değil önceliklendirme ─────────────── */
 @media (max-width:900px){
@@ -1897,16 +2003,19 @@ def _gezinme_alt() -> None:
     i = ad.index(st.session_state["v2_page"])
     onc = ad[i - 1] if i > 0 else None
     son = ad[i + 1] if i < len(ad) - 1 else None
-    st.markdown("<div style='height:1px;background:var(--line);"
-                "margin:var(--s5) 0 var(--s3);'></div>",
-                unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 3, 1], gap="small")
+    st.markdown("<div class='v2gez'></div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1.1, 2.8, 1.1], gap="small")
     with c1:
         if onc and st.button("‹  " + onc, key="v2_onc",
                              use_container_width=True):
             st.session_state["v2_page"] = onc
             st.session_state["v2_ajan"] = None
             st.rerun()
+    with c2:
+        st.markdown(
+            "<div class='v2gez-orta'>" + str(i + 1) + " / " + str(len(ad)) +
+            " · " + st.session_state["v2_page"] + "</div>",
+            unsafe_allow_html=True)
     with c3:
         if son and st.button(son + "  ›", key="v2_son",
                              use_container_width=True):
@@ -2565,7 +2674,9 @@ def main() -> None:
 
     with st.sidebar:
         st.markdown(
-            "<div class='v2brand'><b>BetAgents</b><span>Desk · v2</span></div>"
+            "<div class='v2brand'><div class='mark'>BA</div>"
+            "<div class='yazi'><b>BetAgents</b>"
+            "<span>Desk · v2</span></div></div>"
             "<div class='v2navlbl'>Çalışma</div>", unsafe_allow_html=True)
         # ⚠️ ACIK KEY: Streamlit widget kimligini etiket + parametrelerden
         # turetir; `type` her cizimde degistigi icin kimlik kayardi.
