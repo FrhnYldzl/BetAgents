@@ -263,6 +263,13 @@ html, body, [class*="css"]{font-family:Archivo,"Segoe UI",system-ui,sans-serif;}
 .v2head .hint{font-family:"JetBrains Mono",monospace;font-size:9.5px;
   color:var(--muted);letter-spacing:0.06em;}
 .v2body{padding:12px 14px;}
+/* ⚠️ Dar ekranda tablo kolonu tasip komsu panelin uzerine biniyordu.
+   Genis icerik KENDI kutusunda kaysin, sayfa govdesi asla yatay
+   kaymasin. */
+.v2card{overflow:hidden;}
+.v2body:has(table){overflow-x:auto;}
+table.v2{min-width:330px;}
+div[data-testid='column']{min-width:0;overflow:hidden;}
 
 .v2mb{border:1px solid var(--line);border-left:3px solid var(--brand);
   background:var(--panel-2);padding:11px 13px;margin:0 0 12px;
@@ -284,8 +291,22 @@ table.v2 .rk{font-family:"JetBrains Mono",monospace;font-size:10px;
 table.v2 .ag{font-weight:600;font-size:12.5px;}
 table.v2 .sb{display:block;font-family:"JetBrains Mono",monospace;
   font-size:9.5px;color:var(--muted);}
-.dp{color:var(--pos);font-family:"JetBrains Mono",monospace;font-weight:500;}
+/* AVANTAJ GORUNUR OLMALI. Negatifler cok, pozitifler az — o yuzden
+   pozitif VURGULANIR (yesil cip), negatif sadece renklenir. Boylece
+   goz tabloyu tararken "bakilacaklari" aninda bulur.
+   Semantik renk (iyi/kotu) marka renginden (amber) AYRIDIR. */
+.dp{color:var(--pos);font-family:"JetBrains Mono",monospace;font-weight:700;
+  background:var(--pos-fill);padding:2px 7px;border-radius:2px;
+  display:inline-block;white-space:nowrap;}
 .dm{color:var(--neg);font-family:"JetBrains Mono",monospace;font-weight:500;}
+.dp::before{content:"▲ ";font-size:8px;vertical-align:1px;}
+.dm::before{content:"▼ ";font-size:8px;vertical-align:1px;opacity:.55;}
+/* avantajli satir: ajan hucresinde ince yesil serit — tarama isareti */
+table.v2 tr.adv td:first-child{box-shadow:inset 2px 0 0 var(--pos);}
+table.v2 tr.adv .ag{color:var(--pos);}
+/* buyuk okumalar */
+.ro b.ps{color:var(--pos);} .ro b.ng{color:var(--neg);}
+.ro.big b.ps{background:var(--pos-fill);padding:2px 10px;border-radius:3px;}
 .gr{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:9px;
   font-weight:700;letter-spacing:0.08em;padding:2px 6px;border-radius:2px;}
 .g1{background:var(--pos-fill);color:var(--pos);}
@@ -499,13 +520,16 @@ def page_desk() -> None:
                 g, txt = "g1", "İYİ"
             else:
                 g, txt = "g2", "GÜRÜLTÜ"
+            # 0,5 puandan kucuk fark isaretlenmez — +0,0p yesil
+            # gostermek, olcum gurultusunu avantaj gibi sunmaktir.
+            adv = " class='adv'" if a["edge"] >= 0.005 else ""
             body.append(
-                f"<tr><td class='rk'>{i}</td>"
+                f"<tr{adv}><td class='rk'>{i}</td>"
                 f"<td><span class='ag'>{a['em']} {a['ad']}</span>"
                 f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>"
                 f"<td class='r n'>{_pct(a['hit'])}</td>"
                 f"<td class='r n'>{_pct(a['exp'])}</td>"
-                f"<td class='r'><span class='{'dp' if a['edge']>=0 else 'dm'}'>"
+                f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
                 f"{_sgn(a['edge'])}</span></td>"
                 f"<td class='r'><span class='gr {g}'>{txt}</span></td></tr>")
         st.markdown(f"""
@@ -650,7 +674,8 @@ def page_opus() -> None:
                 "<th class='r'>Ayak</th><th class='r'>İsabet</th>"
                 "<th class='r'>Fiyat bekler</th><th class='r'>Fark</th>"
                 "</tr></thead><tbody>"
-                "<tr><td><span class='ag'>🧑‍💻 OPUS 5 · sen</span>"
+                "<tr" + (" class='adv'" if o["edge"] > h.get("edge", 0) else "") +
+                "><td><span class='ag'>🧑‍💻 OPUS 5 · sen</span>"
                 "<span class='sb'>" + str(o["kupon"]) + " kupon · " +
                 str(o["acik"]) + " açık</span></td>"
                 "<td class='r n'>" + str(o["ayak"]) + "</td>"
