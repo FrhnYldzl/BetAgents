@@ -1208,6 +1208,94 @@ def load_risk() -> list[dict]:
     return out
 
 
+@st.cache_data(ttl=240, show_spinner=False)
+def load_ajan_egri() -> dict:
+    """Her ajanın kendi kasa eğrisi — dönem kapsamlı.
+
+    Finansal terminalin küçük-çoklu (small multiples) mantığı: yan yana
+    duran küçük eğriler, tek büyük grafikten daha çok şey söyler. Göz
+    şekli karşılaştırır — hangisi yükseliyor, hangisi düz, hangisi
+    uçurumdan düşmüş."""
+    rows = _rows(
+        "SELECT pc.portfolio_id p, pc.settled_at sa, pc.pnl "
+        "FROM paper_coupons pc "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        "ORDER BY pc.settled_at", sessiz=True)
+    by: dict = {}
+    for r in rows:
+        try:
+            by.setdefault(r["p"], []).append(float(r["pnl"] or 0))
+        except Exception:
+            continue
+    out = {}
+    for pid, v in by.items():
+        kum, seri, tepe, dus = 0.0, [], 0.0, 0.0
+        for x in v:
+            kum += x
+            tepe = max(tepe, kum)
+            dus = min(dus, kum - tepe)
+            seri.append(kum)
+        out[pid] = {"seri": seri, "son": kum, "dusus": dus, "n": len(seri)}
+    return out
+
+
+def _kivilcim(seri: list, w: int = 96, h: int = 26) -> str:
+    """Kıvılcım çizgisi — tablo hücresine sığan mini eğri.
+
+    Eksen yok, etiket yok: bu bir grafik değil, bir ŞEKİL. Rakam zaten
+    yanındaki sütunda; buradan okunması gereken tek şey yön ve pürüz."""
+    if not seri or len(seri) < 2:
+        return "<span style='color:var(--muted);font-size:11px;'>—</span>"
+    lo, hi = min(seri + [0.0]), max(seri + [0.0])
+    if hi - lo < 1e-9:
+        hi = lo + 1
+    n = len(seri)
+    pts = " ".join(
+        f"{2 + i * (w - 4) / max(n - 1, 1):.1f},"
+        f"{h - 2 - (v - lo) / (hi - lo) * (h - 4):.1f}"
+        for i, v in enumerate(seri))
+    y0 = h - 2 - (0 - lo) / (hi - lo) * (h - 4)
+    renk = "var(--pos)" if seri[-1] >= 0 else "var(--neg)"
+    sx = 2 + (n - 1) * (w - 4) / max(n - 1, 1)
+    sy = h - 2 - (seri[-1] - lo) / (hi - lo) * (h - 4)
+    return (
+        f"<svg viewBox='0 0 {w} {h}' width='{w}' height='{h}' "
+        f"style='display:block;' aria-hidden='true'>"
+        f"<line x1='0' y1='{y0:.1f}' x2='{w}' y2='{y0:.1f}' "
+        f"stroke='var(--line-2)' stroke-width='1'/>"
+        f"<polyline points='{pts}' fill='none' stroke='{renk}' "
+        f"stroke-width='1.4' stroke-linejoin='round'/>"
+        f"<circle cx='{sx:.1f}' cy='{sy:.1f}' r='2' fill='{renk}'/></svg>")
+
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_ajan_detay(pid: str) -> dict:
+    """Tek ajanın dosyası — V1'de ayrı sayfaydı, artık aynı yerde açılır.
+
+    Ayrı sayfa yerine açılır panel: bağlamı kaybetmeden inceleme.
+    Ligden çıkıp geri dönmek, karşılaştırmayı bozar."""
+    bet = _rows(
+        "SELECT pb.home_team h, pb.away_team a, pb.market mk, pb.pick pk, "
+        "pb.odds o, pb.status s, pb.reason rsn, pb.postmortem pm, "
+        "pb.settled_at sat, pb.league lg "
+        "FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.portfolio_id = ? AND pb.status IN ('won','lost') "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        "ORDER BY pb.settled_at DESC LIMIT 14", (pid,), sessiz=True)
+    acik = _rows(
+        "SELECT home_team h, away_team a, market mk, pick pk, odds o, "
+        "kickoff_utc ko FROM paper_bets WHERE portfolio_id = ? "
+        "AND status = 'open' ORDER BY kickoff_utc LIMIT 8", (pid,), sessiz=True)
+    tes = _rows(
+        "SELECT status, detail, ts FROM agent_diag WHERE pid = ? "
+        "ORDER BY ts DESC LIMIT 1", (pid,), sessiz=True)
+    return {"bet": bet, "acik": acik, "teshis": (tes[0] if tes else None)}
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -1577,7 +1665,130 @@ def page_opus() -> None:
                 st.error(res.get("msg", "kaydedilemedi"))
 
 
-def _takim_tablo(rows, baslik, alt, renk):
+def _ajan_paneli(pid: str, lig: dict) -> None:
+    """Ajan dosyası — ayrı sayfa değil, ligin İÇİNDE açılır panel.
+
+    V1'de her ajanın kendi sayfası vardı (20 menü girdisi). Ayrı sayfa
+    bağlamı koparır: ligden çıkıp geri dönmek karşılaştırmayı bozar.
+    Panel, sıralamanın hemen altında açılır ve kapanır."""
+    tum = lig["mavi"] + lig["kirmizi"]
+    a = next((x for x in tum if x["pid"] == pid), None)
+    if not a:
+        return
+    d = load_ajan_detay(pid)
+    eg = load_ajan_egri().get(pid, {})
+    ust, kapat = st.columns([6, 1], gap="small")
+    with ust:
+        st.markdown(
+            "<div style='display:flex;align-items:baseline;gap:var(--s3);"
+            "margin:var(--s4) 0 var(--s3);'>"
+            "<span style='font-size:var(--t-sayfa);font-weight:600;'>" +
+            _rozet(pid) + a["ad"] + "</span>"
+            "<span style='font-family:\"JetBrains Mono\",monospace;"
+            "font-size:var(--t-alt);color:var(--muted);'>dönem " +
+            str(a["era"] or "—") + " · n=" + str(a["n"]) + " · kasa " +
+            "{:,.0f}".format(a["kasa"]).replace(",", ".") + " ₺</span></div>",
+            unsafe_allow_html=True)
+    with kapat:
+        if st.button("Kapat", key="v2_ajan_kapat", use_container_width=True):
+            st.session_state["v2_ajan"] = None
+            st.rerun()
+
+    sol, sag = st.columns([1.0, 1.0], gap="small")
+    with sol:
+        ic = ""
+        if d["teshis"]:
+            t = str(d["teshis"]["status"] or "")
+            g = ("g3" if "TIKANIKLIK" in t else
+                 "g1" if "🟢" in t else "g2")
+            temiz = t
+            for e in ("🔴 ", "🟠 ", "🟢 ", "⚪ ", "😴 ", "🧊 ", "⏸ ", "🔒 ",
+                      "🏁 ", "🛑 ", "🚫 "):
+                temiz = temiz.replace(e, "")
+            ic += ("<div class='dq' style='margin-bottom:var(--s3);'>"
+                   "<span class='gr " + g + "'>" + temiz + "</span> " +
+                   str(d["teshis"]["detail"] or "")[:120] + "</div>")
+        if eg.get("seri"):
+            ic += _svg_egri({"nokta": [{"k": v} for v in eg["seri"]],
+                             "son": eg["son"]}, 460, 120)
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Seyir ve Durum</h2>"
+            "<div class='hint'>dönem içi</div></div><div class='v2body'>" +
+            (ic or "<div class='dq'>Dönem içi veri yok.</div>") +
+            "</div></div>", unsafe_allow_html=True)
+
+        if d["acik"]:
+            sat = "".join(
+                "<tr><td><span class='ag'>" + str(x["h"])[:16] + " — " +
+                str(x["a"])[:16] + "</span><span class='sb'>" +
+                str(x["mk"]) + " · " + str(x["pk"]) + "</span></td>"
+                "<td class='r n'>" + _num(float(x["o"] or 0)) + "</td>"
+                "<td class='r n opt'>" + str(x["ko"])[5:16].replace("T", " ") +
+                "</td></tr>" for x in d["acik"])
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Açık Pozisyon</h2>"
+                "<div class='hint'>" + str(len(d["acik"])) + " bahis</div></div>"
+                "<div class='v2body'><table class='v2'><thead><tr><th>Maç</th>"
+                "<th class='r'>Oran</th><th class='r opt'>Başlangıç</th>"
+                "</tr></thead><tbody>" + sat + "</tbody></table></div></div>",
+                unsafe_allow_html=True)
+
+    with sag:
+        if d["bet"]:
+            sat = "".join(
+                "<tr><td><span class='ag'>" + str(x["h"])[:15] + " — " +
+                str(x["a"])[:15] + "</span><span class='sb'>" +
+                str(x["rsn"] or "—")[:88] + "</span></td>"
+                "<td class='r'><span class='" +
+                ("dp" if x["s"] == "won" else "dm") + "'>" +
+                str(x["pk"])[:14] + "</span>"
+                "<span class='sb' style='text-align:right;'>" +
+                str(x["pm"] or "")[:52] + "</span></td></tr>"
+                for x in d["bet"])
+            st.markdown(
+                "<div class='v2card'><div class='v2head'>"
+                "<h2>Gerekçe ve Sonuç</h2><div class='hint'>son " +
+                str(len(d["bet"])) + " bahis</div></div><div class='v2body'>"
+                "<table class='v2'><thead><tr><th>Maç ve gerekçe</th>"
+                "<th class='r'>Seçim · ne oldu</th></tr></thead><tbody>" +
+                sat + "</tbody></table></div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div class='v2card'><div class='v2head'>"
+                "<h2>Gerekçe ve Sonuç</h2><div class='hint'>boş</div></div>"
+                "<div class='v2body'><div class='dq'>Dönem içi kapanmış "
+                "bahis yok.</div></div></div>", unsafe_allow_html=True)
+
+
+def _gezinme_alt() -> None:
+    """Önceki / sonraki sayfa — okuma sırasını takip eden gezinme.
+
+    Sol panel 'nereye gidebilirim'i söyler; alttaki bu çift 'sırada ne
+    var'ı. İkisi farklı sorulardır ve panelde ikisi de gerekir."""
+    ad = list(PAGES)
+    i = ad.index(st.session_state["v2_page"])
+    onc = ad[i - 1] if i > 0 else None
+    son = ad[i + 1] if i < len(ad) - 1 else None
+    st.markdown("<div style='height:1px;background:var(--line);"
+                "margin:var(--s5) 0 var(--s3);'></div>",
+                unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 3, 1], gap="small")
+    with c1:
+        if onc and st.button("‹  " + onc, key="v2_onc",
+                             use_container_width=True):
+            st.session_state["v2_page"] = onc
+            st.session_state["v2_ajan"] = None
+            st.rerun()
+    with c3:
+        if son and st.button(son + "  ›", key="v2_son",
+                             use_container_width=True):
+            st.session_state["v2_page"] = son
+            st.session_state["v2_ajan"] = None
+            st.rerun()
+
+
+def _takim_tablo(rows, baslik, alt, renk, EG=None):
+    EG = EG or {}
     if not rows:
         return ("<div class='v2card'><div class='v2head'><h2>" + baslik +
                 "</h2><div class='hint'>" + alt + "</div></div>"
@@ -1614,6 +1825,8 @@ def _takim_tablo(rows, baslik, alt, renk):
             "<span class='sb'>n=" + str(a["n"]) +
             (" · oran " + _num(a["odds"]) if a["n"] else " · oynamadı") +
             "</span></td>"
+            "<td class='opt' style='width:100px;'>" +
+            _kivilcim(EG.get(a["pid"], {}).get("seri", [])) + "</td>"
             "<td class='r n'>" + ("{:,.0f}".format(a["kasa"]).replace(",", ".")) + "</td>"
             "<td class='r opt'><span class='" + kasa_cls + "'>" +
             "{:.0f}".format(a["yuzde"]) + "%</span></td>"
@@ -1628,6 +1841,7 @@ def _takim_tablo(rows, baslik, alt, renk):
             "<div class='v2head'><h2>" + baslik + "</h2>"
             "<div class='hint'>" + alt + "</div></div><div class='v2body'>"
             "<table class='v2'><thead><tr><th></th><th>Ajan</th>"
+            "<th class='opt'>Seyir</th>"
             "<th class='r'>Kasa</th><th class='r opt'>%</th>"
             "<th class='r opt'>İsabet</th>"
             "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
@@ -1689,12 +1903,35 @@ def page_lig() -> None:
         "bu — %75 isabet oran 1,24'te kötüdür. Rakamlar <b>yürürlükteki "
         "dönemi</b> kapsar; arşivlenen dönem karneye karışmaz.</div>",
         unsafe_allow_html=True)
+    ae = load_ajan_egri()
     st.markdown(_takim_tablo(d["mavi"], "Mavi Takım",
                              "sinyal motoru · " + str(len(d["mavi"])) + " ajan",
-                             "#2563a8"), unsafe_allow_html=True)
+                             "#2563a8", ae), unsafe_allow_html=True)
     st.markdown(_takim_tablo(d["kirmizi"], "Kırmızı Takım",
                              "kombo pazarları · " + str(len(d["kirmizi"])) + " ajan",
-                             "#a82f22"), unsafe_allow_html=True)
+                             "#a82f22", ae), unsafe_allow_html=True)
+    # ── ajan dosyasına iniş: liste + panel (ayrı sayfa değil)
+    tum = d["mavi"] + d["kirmizi"]
+    if "v2_ajan" not in st.session_state:
+        st.session_state["v2_ajan"] = None
+    secenek = ["— ajan seç —"] + [x["ad"] for x in tum]
+    simdi = st.session_state["v2_ajan"]
+    idx = 0
+    if simdi:
+        ad_simdi = next((x["ad"] for x in tum if x["pid"] == simdi), None)
+        if ad_simdi in secenek:
+            idx = secenek.index(ad_simdi)
+    sec = st.selectbox("Ajan dosyası aç", secenek, index=idx,
+                       key="v2_ajan_sec",
+                       help="Ajanın seyri, açık pozisyonları, gerekçeleri "
+                            "ve teşhisi — ligden çıkmadan.")
+    yeni = next((x["pid"] for x in tum if x["ad"] == sec), None)
+    if yeni != st.session_state["v2_ajan"]:
+        st.session_state["v2_ajan"] = yeni
+        st.rerun()
+    if st.session_state["v2_ajan"]:
+        _ajan_paneli(st.session_state["v2_ajan"], d)
+
     st.markdown(
         "<div class='dq'>Kırmızı takımın sessizliği <b>arıza değil</b>: "
         "ölçüldü, iddaa kombo pazarlarında korelasyonu doğru fiyatlıyor "
@@ -2150,6 +2387,7 @@ def main() -> None:
             "</div>", unsafe_allow_html=True)
 
     PAGES[st.session_state["v2_page"]]()
+    _gezinme_alt()
 
 
 if __name__ == "__main__":
