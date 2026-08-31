@@ -550,6 +550,71 @@ def load_defter() -> list[dict]:
     return out
 
 
+@st.cache_data(ttl=180, show_spinner=False)
+def load_sistem() -> dict:
+    """Sistem sağlığı — sessizlik meşru mu, arıza mı?
+
+    Bu sayfanın tezi: bir ajanın oynamaması iki farklı şey olabilir ve
+    ikisini karıştırmak haftalarca sürebilir. 'Meşru PAS' (aday yok) ile
+    'TIKANIKLIK' (kod/veri kırık) ayrı ayrı işaretlenir. Bir kez fetch
+    çöktüğünde tüm ajanlar masum sessizlik gibi görünmüştü — SİSTEM
+    satırı tam bunun için var."""
+    diag = _rows(
+        "SELECT DISTINCT ON (pid) pid, ts, status, detail FROM agent_diag "
+        "ORDER BY pid, ts DESC", sessiz=True)
+    if not diag:                        # SQLite: DISTINCT ON yok
+        diag = _rows(
+            "SELECT d.pid, d.ts, d.status, d.detail FROM agent_diag d "
+            "JOIN (SELECT pid p, MAX(ts) m FROM agent_diag GROUP BY pid) x "
+            "ON x.p = d.pid AND x.m = d.ts", sessiz=True)
+    sistem = next((d for d in diag if d["pid"] == "SISTEM"), None)
+    ajan = [d for d in diag if d["pid"] != "SISTEM"]
+
+    def sinif(st_):
+        t = str(st_ or "")
+        if "TIKANIKLIK" in t:
+            return 0
+        if "🟠" in t or "MONTAJ" in t or "KUYRUK" in t:
+            return 1
+        if "MEŞRU PAS" in t or "SESSİZ" in t:
+            return 2
+        return 3
+
+    ajan.sort(key=lambda d: (sinif(d["status"]), d["pid"]))
+
+    # veri doluluk — yol haritasının Faz 1 listesi
+    tot = _rows("SELECT COUNT(*) n FROM matches_v2 WHERE is_settled=1",
+                sessiz=True)
+    T = int(tot[0]["n"]) if tot else 0
+    alanlar = []
+    for kol, ad, neden in (
+        ("external_id_af", "api-football kimliği",
+         "keskin fiyat hattının önkoşulu"),
+        ("home_score_ht", "ilk yarı skoru",
+         "çıpaların ulaşamadığı tek boyut · HT_FT marjı %25,8"),
+        ("closing_btts_yes", "KG kapanış fiyatı", "KG pazarı fiyatlaması"),
+        ("home_xg", "xG", "hareket öngörüsü için girdi"),
+        ("h2h_n", "karşılaşma geçmişi", "zenginleştirme"),
+    ):
+        r = _rows(f"SELECT COUNT(*) n FROM matches_v2 WHERE is_settled=1 "
+                  f"AND {kol} IS NOT NULL", sessiz=True)
+        n = int(r[0]["n"]) if r else 0
+        alanlar.append({"kol": kol, "ad": ad, "neden": neden, "n": n,
+                        "pay": (n / T) if T else 0.0})
+
+    lig = _rows("SELECT COUNT(*) n FROM matches_v2 "
+                "WHERE kickoff_utc > '2026-08-24' AND league_code = 'ALL'",
+                sessiz=True)
+    lig_tum = _rows("SELECT COUNT(*) n FROM matches_v2 "
+                    "WHERE kickoff_utc > '2026-08-24'", sessiz=True)
+    la = int(lig[0]["n"]) if lig else 0
+    lt = int(lig_tum[0]["n"]) if lig_tum else 0
+    alanlar.append({"kol": "league_code", "ad": "lig sınıflandırması",
+                    "neden": "ülke rozeti · lig bazlı analiz",
+                    "n": lt - la, "pay": ((lt - la) / lt) if lt else 0.0})
+    return {"sistem": sistem, "ajan": ajan, "alan": alanlar, "mac": T}
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -995,8 +1060,95 @@ def page_defter() -> None:
         "".join(body) + "</tbody></table></div></div>", unsafe_allow_html=True)
 
 
-PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig,
-         "📓 Defter": page_defter, "🧑‍💻 OPUS 5": page_opus}
+def page_sistem() -> None:
+    """🩺 Sistem — sessizlik meşru mu, arıza mı?"""
+    d = load_sistem()
+    sy = d["sistem"]
+    if sy:
+        kirik = "TIKANIKLIK" in str(sy["status"])
+        st.markdown(
+            "<div class='" + ("dq" if kirik else "v2mb") + "'>"
+            "<b>" + str(sy["status"]) + "</b> — " + str(sy["detail"] or "") +
+            "<br><span style='font-size:10.5px;opacity:.75;'>son teşhis " +
+            str(sy["ts"])[:16] + "</span></div>", unsafe_allow_html=True)
+
+    left, right = st.columns([1.25, 1.0], gap="small")
+
+    with left:
+        body = []
+        for a in d["ajan"]:
+            t = str(a["status"] or "")
+            if "TIKANIKLIK" in t:
+                g = "g3"
+            elif "🟠" in t or "MONTAJ" in t:
+                g = "g2"
+            elif "🟢" in t:
+                g = "g1"
+            else:
+                g = "g2"
+            pid = str(a["pid"])
+            body.append(
+                "<tr><td><span class='ag'>" + EMOJI.get(pid, "•") + " " +
+                pid.rsplit("_", 1)[0] + "</span>"
+                "<span class='sb'>" + str(a["detail"] or "")[:88] + "</span></td>"
+                "<td class='r'><span class='gr " + g + "'>" +
+                t.replace("🔴 ", "").replace("🟠 ", "").replace("🟢 ", "")
+                 .replace("⚪ ", "").replace("😴 ", "").replace("🧊 ", "")
+                 .replace("⏸ ", "").replace("🔒 ", "").replace("🏁 ", "")
+                 .replace("🛑 ", "").replace("🚫 ", "") + "</span></td></tr>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Ajan Teşhisi</h2>"
+            "<div class='hint'>günlük · sorunlu üstte</div></div>"
+            "<div class='v2body'>"
+            "<div class='v2mb'>Bir ajanın oynamaması iki ayrı şey olabilir: "
+            "<b>meşru PAS</b> (eşiği geçen aday yok) ya da <b>tıkanıklık</b> "
+            "(kod/veri kırık). İkisini karıştırmak haftalar sürebilir — "
+            "bu yüzden sebep her gün kayda geçer.</div>"
+            "<table class='v2'><thead><tr><th>Ajan</th>"
+            "<th class='r'>Durum</th></tr></thead><tbody>" +
+            "".join(body) + "</tbody></table></div></div>",
+            unsafe_allow_html=True)
+
+    with right:
+        body = []
+        for f in d["alan"]:
+            p = f["pay"]
+            if p >= 0.90:
+                g, txt = "g1", "TAM"
+            elif p >= 0.50:
+                g, txt = "g2", "KISMÎ"
+            elif p > 0:
+                g, txt = "g3", "ZAYIF"
+            else:
+                g, txt = "g3", "BOŞ"
+            bar = int(round(p * 100))
+            body.append(
+                "<tr><td><span class='ag'>" + f["ad"] + "</span>"
+                "<span class='sb'>" + f["neden"] + "</span>"
+                "<div style='height:3px;background:var(--line);margin-top:5px;'>"
+                "<i style='display:block;height:3px;width:" + str(bar) + "%;"
+                "background:" + ("var(--pos)" if p >= 0.5 else "var(--neg)") +
+                ";'></i></div></td>"
+                "<td class='r n'>" + "{:,}".format(f["n"]).replace(",", ".") +
+                "</td>"
+                "<td class='r'><span class='gr " + g + "'>" +
+                "{:.0f}".format(p * 100) + "% " + txt + "</span></td></tr>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Veri Doluluğu</h2>"
+            "<div class='hint'>yol haritası · faz 1</div></div>"
+            "<div class='v2body'>"
+            "<div class='v2mb'>Boş sütun, yapılamayan analiz demektir. "
+            "<b>İlk yarı skoru</b> hiç yok — oysa iddaa'nın çıpa pazarları "
+            "golün <b>ne zaman</b> atıldığını belirlemiyor; kitabın en az "
+            "güvendiği yer orası (HT_FT marjı %25,8).</div>"
+            "<table class='v2'><thead><tr><th>Alan</th><th class='r'>Dolu</th>"
+            "<th class='r'>Oran</th></tr></thead><tbody>" +
+            "".join(body) + "</tbody></table></div></div>",
+            unsafe_allow_html=True)
+
+
+PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig, "📓 Defter": page_defter,
+         "🩺 Sistem": page_sistem, "🧑‍💻 OPUS 5": page_opus}
 
 
 def main() -> None:
@@ -1007,7 +1159,7 @@ def main() -> None:
     # türetir. `type` her yeniden çizimde primary<->secondary arasında
     # değiştiği için kimlik de değişiyor ve tıklama kayboluyordu — sayfa
     # hiç geçmiyordu. Sabit key kimliği çakılar.
-    cols = st.columns([1, 1, 1, 1, 4])
+    cols = st.columns([1, 1, 1, 1, 1, 3])
     for i, (name, _fn) in enumerate(PAGES.items()):
         with cols[i]:
             if st.button(name, key=f"v2nav_{i}", use_container_width=True,
