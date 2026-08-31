@@ -238,12 +238,99 @@ def c_secilen(u):
     return [x for x in u if x["crowd"] >= 1]
 
 
+# ── 🧠 KÖLN AİLESİ — "tercihin olasılığı" konsepti ────────────────────
+# TEZ: ajanlar edge'i NOKTA TAHMİNİ gibi kullanıyor. Oysa (a) tahmin
+# gürültülü, (b) argmax gürültünün yukarı saptığı adayı seçiyor. KÖLN
+# aynı aday havuzundan, ham edge yerine SONSAL edge ile seçer.
+# Matematik shrinkage.py'de; burada yalnız geçmişte SINANIYOR.
+#
+# WALK-FORWARD: k YALNIZ eğitim döneminde (2024 öncesi) ölçülür, sınav
+# dönemine uygulanır. Sınav satırı gerçek testtir; eğitim satırı örnek-içidir.
+
+def _edge_of(x: dict) -> float:
+    """Getiri cinsinden edge — measure_k.py ile AYNI tanım."""
+    return x["o"] * x["mp"] - 1.0
+
+
+def _fit_on_train(u: list[dict]):
+    """k'yı yalnız eğitim döneminden ölç (sızıntısız)."""
+    import shrinkage
+    train = [{"e": _edge_of(x), "o": x["o"],
+              "r": (x["o"] - 1.0) if x["won"] else -1.0}
+             for x in u if x["date"] < SPLIT_DATE]
+    return shrinkage.estimate_k(train, control_odds=True), len(train)
+
+
+def _daily_counts(u: list[dict]) -> dict:
+    """Gün başına aday sayısı — seçicinin laneti cezası buna bağlı."""
+    c: dict = {}
+    for x in u:
+        c[x["date"]] = c.get(x["date"], 0) + 1
+    return c
+
+
+def _koln(u: list[dict], use_selection_penalty: bool, min_pi: float,
+          label: str) -> list[dict]:
+    import shrinkage
+    fit, n_train = _fit_on_train(u)
+    if not fit:
+        print(f"  [{label}] eğitim örneklemi yetersiz (n={n_train}) → seçim yok")
+        return []
+    print(f"  [{label}] eğitimde ölçülen k = {fit['k_raw']:+.3f} "
+          f"±{fit['se_k']:.3f} (t={fit['t']:+.2f}, n={n_train})  "
+          f"μ₀={fit['mu0'] * 100:+.1f}%")
+    if fit["degenerate"]:
+        print(f"  [{label}] ⛔ k ≤ 0 → edge sıralaması bilgi taşımıyor. "
+              f"HİÇBİR BAHİS SEÇİLMEDİ. Bu bir arıza değil, konseptin hükmü.")
+        return []
+    sh = shrinkage.Shrinker.from_fit(fit, min_pi=min_pi)
+    counts = _daily_counts(u)
+    out = []
+    for x in u:
+        n_c = counts.get(x["date"], 1) if use_selection_penalty else 1
+        if sh.judge(_edge_of(x), n_candidates=n_c)["bet"]:
+            out.append(x)
+    print(f"  [{label}] {len(u)} adaydan {len(out)} seçildi "
+          f"(σ={sh.sigma * 100:.1f}p, π*≥{min_pi:.0%}"
+          f"{', seçim cezası AÇIK' if use_selection_penalty else ', seçim cezası KAPALI'})")
+    return out
+
+
+def c_koln(u):
+    """🧠 KÖLN: seçicinin laneti + küçültme + π*≥%55 (tam konsept)."""
+    return _koln(u, use_selection_penalty=True, min_pi=0.55, label="KOLN")
+
+
+def c_koln_ham(u):
+    """🧠 KÖLN-HAM: yalnız küçültme (seçim cezası KAPALI) — hangi katmanın
+    iş yaptığını ayırmak için."""
+    return _koln(u, use_selection_penalty=False, min_pi=0.55, label="KOLN_HAM")
+
+
+def c_edge_q5(u):
+    """🚫 Kontrol: ham edge'in EN YÜKSEK beşte biri — ajanların bugün fiilen
+    yaptığı seçim. KÖLN'ün yenmesi gereken taban budur."""
+    d = sorted(u, key=_edge_of)
+    return d[4 * (len(d) // 5):]
+
+
+def c_edge_q1(u):
+    """🚫 Kontrol: ham edge'in EN DÜŞÜK beşte biri. k<0 ise bu dilim Q5'i
+    YENER — vekil veride görülen tersine sıralamanın 9 sezonluk sınavı."""
+    d = sorted(u, key=_edge_of)
+    return d[:len(d) // 5]
+
+
 CONCEPTS = {
     "YALNIZ": (c_yalniz, "👤 Yalnız seçim + oran≥1.45 + büyük lig"),
     "YALNIZ_HAM": (c_yalniz_ham, "👤 Yalnız seçim (filtresiz)"),
     "KALABALIK": (c_kalabalik, "🚫 Kontrol: 2+ ajan buluşması"),
     "SECILEN": (c_secilen, "🔎 Kontrol: en az 1 ajanın seçtikleri"),
     "HEPSI": (c_hepsi, "🌐 Kontrol: motorun tüm sinyalleri"),
+    "KOLN": (c_koln, "🧠 KÖLN: seçim cezası + küçültme + π*≥%55"),
+    "KOLN_HAM": (c_koln_ham, "🧠 KÖLN: yalnız küçültme (katman ayrımı)"),
+    "EDGE_Q5": (c_edge_q5, "🚫 Kontrol: en yüksek edge %20 (bugünkü davranış)"),
+    "EDGE_Q1": (c_edge_q1, "🚫 Kontrol: en düşük edge %20 (ters sıralama testi)"),
 }
 
 
