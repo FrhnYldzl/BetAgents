@@ -77,32 +77,47 @@ def _kaynak() -> str:
     return "SQLite · YEREL"
 
 
-def _rows(sql: str, params: tuple = (), sessiz: bool = False) -> list[dict]:
-    """Sorgu başına taze bağlantı + 1 yeniden deneme.
-    (Railway PG proxy'si bağlantıyı sorgu ortasında düşürebiliyor.)
+@st.cache_resource(show_spinner=False)
+def _conn():
+    """TEK paylasilan baglanti — rerun'lar arasinda yasar.
 
-    sessiz=True: tablo henüz yoksa boş liste dön. Ölçüm defteri tablosu
-    (measurement_runs) ilk koşudan önce yoktur; bunun yüzünden tüm sayfa
-    çökmemeli — eksik bir panel, çöken bir sayfadan iyidir."""
+    NEDEN: Railway PG proxy'sinde baglanti KURMAK pahali (~1,5 sn),
+    sorgunun kendisi ucuz. Eskiden her sorgu yeni baglanti aciyordu:
+    Sistem sayfasi 10 baglanti ~ 15 sn soguk acilis demekti. Sayfa
+    gecislerindeki SOLMA bundandi — Streamlit ekrani soldurup baglanti
+    kurulmasini bekliyordu.
+
+    Bayat baglanti riski var (proxy dusurebilir), o yuzden _rows hata
+    alinca onbellegi temizleyip TAZE baglantiyla bir kez daha dener."""
     import db as _db
-    last: Exception | None = None
-    for _ in (1, 2):
-        conn = None
+    return _db.connect()
+
+
+def _rows(sql: str, params: tuple = (), sessiz: bool = False) -> list[dict]:
+    """Paylasilan baglanti uzerinden sorgu + bayatlarsa 1 tazeleme.
+
+    sessiz=True: tablo henuz yoksa bos liste don. Olcum defteri tablosu
+    (measurement_runs) ilk kosudan once yoktur; bunun yuzunden tum sayfa
+    cokmemeli — eksik bir panel, coken bir sayfadan iyidir."""
+    last = None
+    for deneme in (1, 2):
         try:
-            conn = _db.connect()
-            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+            return [dict(r) for r in _conn().execute(sql, params).fetchall()]
         except Exception as e:
             last = e
             msg = str(e).lower()
-            if sessiz and ("no such table" in msg or "does not exist" in msg
-                           or "undefinedtable" in msg):
+            yok = ("no such table" in msg or "does not exist" in msg
+                   or "undefinedtable" in msg)
+            # PG'de basarisiz ifade islemi ABORT eder — sonraki her sorgu
+            # da patlar. Geri almadan devam etmek tum sayfayi cokertir.
+            try:
+                _conn().rollback()
+            except Exception:
+                _conn.clear()
+            if sessiz and yok:
                 return []
-        finally:
-            if conn is not None:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
+            if deneme == 1 and not yok:
+                _conn.clear()          # bayat/kirik baglanti: taze ac
     if sessiz:
         return []
     raise last
