@@ -743,6 +743,174 @@ def load_sistem() -> dict:
     return {"sistem": sistem, "ajan": ajan, "alan": alanlar, "mac": T}
 
 
+@st.cache_data(ttl=240, show_spinner=False)
+def load_inceleme() -> dict:
+    """Kazanan/kaybeden ayrıştırması — DATA · MODEL · TRADE.
+
+    V1'in kupon analizi sayfasının yerine geçer, üç farkla:
+      1) Edge MARJSIZ ölçülür (mp/q − 1). V1 marjlı edge kullanıyordu;
+         o tanımda varyansın çoğu marj farkıdır, tahmin hatası değil.
+      2) Dönem kapsamlı — arşivlenen dönem karneye karışmaz.
+      3) KAYIP ANATOMİSİ eklendi: kombine kaybettiğinde hangi ayak
+         düşürdü? Ölçüldü ki altı hücrenin altısında zayıf halka
+         SONUÇ (1X2) ayağı — kaybın ~yarısı gol ayağı tuttuğu hâlde.
+    """
+    rows = _rows(
+        "SELECT pb.market mk, pb.pick pk, pb.odds o, pb.model_prob mp, "
+        "pb.status s, pb.league lg, pb.home_score hs, pb.away_score aws, "
+        "pb.reason rsn, pb.postmortem pm, pb.settled_at sat, "
+        "pb.home_team h, pb.away_team a, pb.portfolio_id p, "
+        "pc.coupon_type ct, "
+        "m.closing_1 c1, m.closing_X cx, m.closing_2 c2, "
+        "m.closing_over25 cu, m.closing_under25 ca, "
+        "m.closing_btts_yes bv, m.closing_btts_no bn "
+        "FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "LEFT JOIN matches_v2 m ON m.match_id = pb.match_id "
+        "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)",
+        sessiz=True)
+    if not rows:
+        return {"n": 0}
+
+    D = []
+    for r in rows:
+        try:
+            o = float(r["o"])
+        except Exception:
+            continue
+        mk = str(r["mk"] or "").upper()
+        pk = str(r["pk"] or "").strip()
+        # marjsız fiyat — pazarın tam vektöründen
+        q = None
+        try:
+            if mk == "1X2":
+                v = [r["c1"], r["cx"], r["c2"]]
+                i = {"1": 0, "0": 1, "X": 1, "2": 2}.get(pk.upper())
+            elif mk in ("UST_25", "ALT_25", "OU2.5"):
+                v = [r["cu"], r["ca"]]
+                i = 0 if (mk == "UST_25" or pk.upper() in ("UST", "ÜST")) else 1
+            elif mk in ("KG_VAR", "KG_YOK"):
+                v = [r["bv"], r["bn"]]
+                i = 0 if mk == "KG_VAR" else 1
+            else:
+                v, i = None, None
+            if v and i is not None and not any(
+                    x is None or float(x) <= 1.01 for x in v):
+                inv = [1.0 / float(x) for x in v]
+                q = inv[i] / sum(inv)
+        except Exception:
+            q = None
+        mp = None
+        try:
+            mp = float(r["mp"]) if r["mp"] is not None else None
+            if mp is not None and not (0 < mp < 1):
+                mp = None
+        except Exception:
+            mp = None
+        won = r["s"] == "won"
+        D.append({
+            "mk": mk, "pk": pk, "o": o, "q": q, "mp": mp, "won": won,
+            "ret": (o - 1.0) if won else -1.0,
+            "e": (mp / q - 1.0) if (mp and q) else None,
+            "lg": (r["lg"] or "—"), "ct": str(r["ct"] or "?"),
+            "rsn": r["rsn"], "pm": r["pm"], "sat": str(r["sat"] or "")[:16],
+            "h": r["h"], "a": r["a"], "p": r["p"],
+            "hs": r["hs"], "aws": r["aws"],
+        })
+
+    def blok(sel):
+        n = len(sel)
+        if not n:
+            return None
+        return {"n": n,
+                "hit": sum(1 for x in sel if x["won"]) / n,
+                "bek": sum(1.0 / x["o"] for x in sel) / n,
+                "roi": sum(x["ret"] for x in sel) / n}
+
+    # ── MODEL: kalibrasyon (model olasılığı bandına göre) ──
+    kal = []
+    for lo, hi, ad in ((0, .40, "%0-40"), (.40, .55, "%40-55"),
+                       (.55, .70, "%55-70"), (.70, .85, "%70-85"),
+                       (.85, 1.01, "%85+")):
+        g = [x for x in D if x["mp"] and lo <= x["mp"] < hi]
+        if len(g) < 5:
+            kal.append({"ad": ad, "n": len(g)})
+            continue
+        pr = sum(x["mp"] for x in g) / len(g)
+        ac = sum(1 for x in g if x["won"]) / len(g)
+        kal.append({"ad": ad, "n": len(g), "tah": pr, "ger": ac,
+                    "fark": ac - pr})
+
+    # ── MODEL: marjsız edge → gerçekleşen getiri ──
+    eb = []
+    ed = [x for x in D if x["e"] is not None]
+    if len(ed) >= 25:
+        ed.sort(key=lambda z: z["e"])
+        m = len(ed)
+        for i in range(5):
+            g = ed[i * m // 5:(i + 1) * m // 5] if i < 4 else ed[4 * m // 5:]
+            eb.append({"ad": f"Q{i+1}", "n": len(g),
+                       "e": sum(x["e"] for x in g) / len(g),
+                       "roi": sum(x["ret"] for x in g) / len(g)})
+
+    # ── TRADE: pazar · kupon türü · lig ──
+    def grupla(key, en_az=8):
+        d = {}
+        for x in D:
+            d.setdefault(x[key], []).append(x)
+        out = [{"ad": k, **blok(v)} for k, v in d.items()
+               if blok(v) and len(v) >= en_az]
+        out.sort(key=lambda z: -z["n"])
+        return out[:9]
+
+    # ── KAYIP ANATOMİSİ: kombine kaybettiğinde hangi ayak düşürdü? ──
+    anat = {"sonuc": 0, "gol": 0, "iki": 0, "n": 0}
+    for x in D:
+        if x["won"] or " ve " not in str(x["pk"]):
+            continue
+        if x["hs"] is None or x["aws"] is None:
+            continue
+        try:
+            hs, aws = int(x["hs"]), int(x["aws"])
+        except Exception:
+            continue
+        parts = [p.strip() for p in str(x["pk"]).split(" ve ", 1)]
+        if len(parts) != 2:
+            continue
+        a1, b1 = parts
+        res = "1" if hs > aws else ("0" if hs == aws else "2")
+        ok_a = (a1 == res) if a1 in ("1", "0", "2") else (
+            (hs + aws > 2.5) == (a1.upper() in ("ÜST", "UST")))
+        bu = b1.upper()
+        if bu in ("ÜST", "UST"):
+            ok_b = hs + aws > 2.5
+        elif bu == "ALT":
+            ok_b = hs + aws < 2.5
+        elif bu == "VAR":
+            ok_b = hs > 0 and aws > 0
+        elif bu == "YOK":
+            ok_b = not (hs > 0 and aws > 0)
+        else:
+            continue
+        anat["n"] += 1
+        if ok_a and not ok_b:
+            anat["gol"] += 1
+        elif ok_b and not ok_a:
+            anat["sonuc"] += 1
+        else:
+            anat["iki"] += 1
+
+    # ── gerekçe defteri: son kayıtlar ──
+    gd = [x for x in D if (x["rsn"] or x["pm"])]
+    gd.sort(key=lambda z: z["sat"], reverse=True)
+
+    return {"n": len(D), "genel": blok(D), "kal": kal, "eb": eb,
+            "pazar": grupla("mk"), "tur": grupla("ct", 5),
+            "lig": grupla("lg"), "anat": anat, "defter": gd[:22]}
+
+
 # ══════════════════════════════════════════════════════════════
 # SAYFA
 # ══════════════════════════════════════════════════════════════
@@ -1276,7 +1444,126 @@ def page_sistem() -> None:
             unsafe_allow_html=True)
 
 
-PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig, "📓 Defter": page_defter,
+def _mini(baslik, ipucu, basliklar, satirlar):
+    if not satirlar:
+        return ("<div class='v2card'><div class='v2head'><h2>" + baslik +
+                "</h2><div class='hint'>" + ipucu + "</div></div>"
+                "<div class='v2body'><div class='dq'>Yeterli örneklem yok."
+                "</div></div></div>")
+    th = "".join("<th class='r'>" + h + "</th>" if i else "<th>" + h + "</th>"
+                 for i, h in enumerate(basliklar))
+    tb = "".join("<tr>" + "".join(
+        ("<td>" + c + "</td>") if i == 0 else ("<td class='r'>" + c + "</td>")
+        for i, c in enumerate(r)) + "</tr>" for r in satirlar)
+    return ("<div class='v2card'><div class='v2head'><h2>" + baslik + "</h2>"
+            "<div class='hint'>" + ipucu + "</div></div><div class='v2body'>"
+            "<table class='v2'><thead><tr>" + th + "</tr></thead><tbody>" +
+            tb + "</tbody></table></div></div>")
+
+
+def page_inceleme() -> None:
+    """🔍 İnceleme — kazanan/kaybeden ayrıştırması + gerekçe defteri."""
+    d = load_inceleme()
+    if not d.get("n"):
+        st.markdown("<div class='dq'>Dönem içinde kapanmış bahis yok.</div>",
+                    unsafe_allow_html=True)
+        return
+    g = d["genel"]
+    st.markdown(
+        "<div class='v2mb'><b>Kaybın sebebi üç yerde olabilir:</b> modelin "
+        "olasılığı yanlıştır (MODEL), doğru olasılıkla yanlış pazarda "
+        "oynanmıştır (TRADE), ya da veri eksiktir (DATA). Bu sayfa üçünü "
+        "ayırır. Edge burada <b>marjsız</b> ölçülür — marjlı tanımda "
+        "varyansın çoğu tahmin hatası değil, marj farkıdır.</div>",
+        unsafe_allow_html=True)
+
+    sol, sag = st.columns([1.15, 1.0], gap="small")
+
+    with sol:
+        # ── MODEL: kalibrasyon
+        kr = []
+        for k in d["kal"]:
+            if k.get("n", 0) < 5:
+                kr.append([k["ad"], str(k.get("n", 0)), "—", "—", "—"])
+                continue
+            f = k["fark"]
+            cls = "dp" if abs(f) <= 0.05 else "dm"
+            kr.append([k["ad"], str(k["n"]), _pct(k["tah"]), _pct(k["ger"]),
+                       "<span class='" + cls + "'>" + _sgn(f) + "</span>"])
+        st.markdown(_mini("Model · Kalibrasyon",
+                          "model %X dediğinde gerçekten %X mi oluyor",
+                          ["Model bandı", "n", "Tahmin", "Gerçek", "Fark"], kr),
+                    unsafe_allow_html=True)
+
+        # ── MODEL: edge geçerliliği
+        er = []
+        for e in d["eb"]:
+            cls = "dp" if e["roi"] >= 0 else "dm"
+            er.append([e["ad"], str(e["n"]), _sgn(e["e"]),
+                       "<span class='" + cls + "'>" +
+                       ("+" if e["roi"] >= 0 else "−") +
+                       _num(abs(e["roi"]) * 100, 1) + "%</span>"])
+        st.markdown(_mini("Model · Edge geçerliliği",
+                          "yüksek edge gerçekten daha iyi mi",
+                          ["Dilim", "n", "Ort. edge", "Getiri"], er),
+                    unsafe_allow_html=True)
+
+        # ── KAYIP ANATOMİSİ
+        a = d["anat"]
+        if a["n"] >= 5:
+            top = a["n"]
+            sat = []
+            for anahtar, ad in (("sonuc", "Sonuç ayağı düşürdü"),
+                                ("gol", "Gol/KG ayağı düşürdü"),
+                                ("iki", "İkisi birden")):
+                v = a[anahtar]
+                sat.append([ad, str(v), _pct(v / top)])
+            zayif = ("SONUÇ (1X2)" if a["sonuc"] >= a["gol"] else "GOL/KG")
+            st.markdown(
+                _mini("Kayıp Anatomisi", str(top) + " kombine kaybı",
+                      ["Hangi ayak", "n", "Pay"], sat) +
+                "<div class='dq' style='margin-top:-6px;'>Zayıf halka: "
+                "<b>" + zayif + "</b> ayağı. Tarihsel evrende de altı "
+                "hücrenin altısında sonuç ayağıydı — kaybın ~yarısı gol "
+                "ayağı tuttuğu hâlde geliyor.</div>",
+                unsafe_allow_html=True)
+
+    with sag:
+        # ── TRADE
+        for baslik, anahtar, ipucu in (
+                ("Trade · Pazar", "pazar", "hangi pazarda iyiyiz"),
+                ("Trade · Kupon türü", "tur", "tek mi kombine mi"),
+                ("Trade · Lig", "lig", "nerede oynuyoruz")):
+            sat = []
+            for x in d[anahtar]:
+                cls = "dp" if x["roi"] >= 0 else "dm"
+                sat.append([str(x["ad"])[:18], str(x["n"]), _pct(x["hit"]),
+                            "<span class='" + cls + "'>" +
+                            ("+" if x["roi"] >= 0 else "−") +
+                            _num(abs(x["roi"]) * 100, 1) + "%</span>"])
+            st.markdown(_mini(baslik, ipucu, ["", "n", "İsabet", "Getiri"],
+                              sat), unsafe_allow_html=True)
+
+    # ── GEREKÇE DEFTERİ
+    if d["defter"]:
+        sat = []
+        for x in d["defter"]:
+            ok = "dp" if x["won"] else "dm"
+            sat.append(
+                ["<span class='ag'>" + EMOJI.get(x["p"], "•") + " " +
+                 str(x["h"])[:14] + " — " + str(x["a"])[:14] + "</span>"
+                 "<span class='sb'>" + str(x["rsn"] or "—")[:110] + "</span>",
+                 "<span class='" + ok + "'>" + str(x["pk"])[:16] + "</span>",
+                 "<span class='sb' style='text-align:right;'>" +
+                 str(x["pm"] or "—")[:64] + "</span>"])
+        st.markdown(
+            _mini("Gerekçe Defteri", "neden seçildi · ne kadar yaklaştı",
+                  ["Maç ve gerekçe", "Seçim", "Sonra ne oldu"], sat),
+            unsafe_allow_html=True)
+
+
+PAGES = {"◧ Desk": page_desk, "🏆 Lig": page_lig,
+         "🔍 İnceleme": page_inceleme, "📓 Defter": page_defter,
          "🩺 Sistem": page_sistem, "🧑‍💻 OPUS 5": page_opus}
 
 
