@@ -633,6 +633,54 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   [data-testid="stSidebar"]{box-shadow:0 0 0 100vmax rgba(0,0,0,.45);}
 }
 
+/* ── ALT SEKMELER ──────────────────────────────────────
+   Bir sayfada dört ayri soru varsa dordunu ust uste yigmak
+   "kompakt" degil OKUNMAZ yapar. Sekme, sayfayi bolmeden
+   odagi bolerek cozer.                                    */
+.v2sek{display:flex;gap:2px;border-bottom:1px solid var(--line-2);
+  margin:0 0 var(--s4);overflow-x:auto;}
+[data-testid="stSidebar"] .v2grup{
+  font-family:"JetBrains Mono",monospace;font-size:9.5px;
+  letter-spacing:0.18em;text-transform:uppercase;
+  padding:var(--s4) var(--s3) 6px;opacity:.65;}
+[data-testid="stSidebar"] .v2grup:first-of-type{padding-top:var(--s2);}
+/* alt oge — ana ogenin altinda, girintili */
+[data-testid="stSidebar"] .stButton>button.v2alt{padding-left:46px;}
+
+/* ── SEKME BUTONLARI (ana alan) ───────────────────────── */
+section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
+  .stButton>button{
+  border:0;border-bottom:2px solid transparent;border-radius:0;
+  background:transparent;color:var(--muted);font-weight:500;
+  min-height:36px;padding:0 var(--s3);}
+section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
+  .stButton>button:hover{color:var(--ink);background:transparent;
+  border-bottom-color:var(--line-2);}
+section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
+  .stButton>button[kind="primary"]{
+  background:transparent;color:var(--ink);font-weight:600;
+  border-bottom-color:var(--brand);}
+
+/* ── SUZGEC ALANI: arama kutusu sanilmasin ────────────── */
+.v2suz{display:flex;align-items:center;gap:var(--s2);
+  font-family:"JetBrains Mono",monospace;font-size:10px;
+  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 var(--s2);}
+.v2suz::before{content:"";width:11px;height:11px;flex:0 0 auto;
+  border:1.5px solid var(--muted);
+  clip-path:polygon(0 0,100% 0,62% 45%,62% 100%,38% 82%,38% 45%);}
+
+/* ── SEPET ────────────────────────────────────────────── */
+.v2sepet-satir{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--s3);padding:10px var(--s3);border:1px solid var(--line);
+  border-radius:var(--r);background:var(--panel-2);margin-bottom:6px;}
+.v2sepet-satir .ad{font-size:var(--t-govde);font-weight:500;}
+.v2sepet-satir .alt{font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
+.v2bos{border:1px dashed var(--line-2);border-radius:var(--r);
+  padding:var(--s5) var(--s3);text-align:center;color:var(--muted);
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.8;}
+
 /* ── MOBİL: küçültme değil önceliklendirme ─────────────── */
 @media (max-width:900px){
   :root{--yan:236px;--s6:20px;}
@@ -651,6 +699,33 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 """
+
+
+
+def _sekmeler(anahtar: str, adlar: list) -> str:
+    """Sayfa içi sekme çubuğu — bir sayfada dört ayrı soru varsa
+    dördünü üst üste yığmak 'kompakt' değil OKUNMAZ yapar."""
+    st.markdown("<span class='v2sekme-isaret'></span>",
+                unsafe_allow_html=True)
+    k = "v2sek_" + anahtar
+    if k not in st.session_state:
+        st.session_state[k] = adlar[0]
+    kol = st.columns(len(adlar) + 2, gap="small")
+    for i, ad in enumerate(adlar):
+        with kol[i]:
+            if st.button(ad, key=k + "_" + str(i), use_container_width=True,
+                         type=("primary" if st.session_state[k] == ad
+                               else "secondary")):
+                st.session_state[k] = ad
+                st.rerun()
+    st.markdown("<div style='height:1px;background:var(--line-2);"
+                "margin:-6px 0 var(--s4);'></div>", unsafe_allow_html=True)
+    return st.session_state[k]
+
+
+def _suzgec_basligi(metin: str) -> None:
+    st.markdown("<div class='v2suz'>" + metin + "</div>",
+                unsafe_allow_html=True)
 
 
 def _sayfa_basligi(baslik: str, alt: str, kpi: list | None = None) -> None:
@@ -1650,7 +1725,9 @@ def page_desk() -> None:
             with c1:
                 lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}"
                        f"  ·  {b['mk']} {b['pk']}  ·  {b['ko']}")
-                on = st.checkbox(lbl, key=f"v2_{b['id']}")
+                _sepette = any(x["id"] == b["id"] for x in _sepet())
+                on = st.checkbox(lbl + ("   ✓ sepette" if _sepette else ""),
+                                 key=f"v2_{b['id']}")
             with c2:
                 st.markdown(
                     f"<div style='text-align:right;font-family:\"JetBrains Mono\",monospace;"
@@ -1661,58 +1738,45 @@ def page_desk() -> None:
             if on:
                 sel.append(b)
 
-    # ── SAĞ: kupon tezgahı ────────────────────────────────────
+    # ── SAĞ: sepete gönder ─────────────────────────────────────
     with right:
-        n = len(sel)
-        if n:
+        sp = _sepet()
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Seçtiklerin</h2>"
+            "<div class='hint'>sepete gönder</div></div><div class='v2body'>",
+            unsafe_allow_html=True)
+        if sel:
             O = 1.0
-            p = 1.0
             for b in sel:
                 O *= b["o"]
-                p *= (1.0 / b["o"]) / b["m"]
-            ev = p * O - 1.0
-            same = len({(b["h"], b["a"]) for b in sel}) < n
-            legs = "".join(
-                f"<div style='display:flex;justify-content:space-between;"
-                f"font-size:12px;padding:6px 8px;background:var(--panel-2);"
-                f"border:1px solid var(--line);margin-bottom:6px;'>"
-                f"<span>{b['h'][:16]} · <b>{b['pk']}</b></span>"
-                f"<span style='font-family:\"JetBrains Mono\",monospace;'>"
-                f"{_num(b['o'])}</span></div>" for b in sel)
-            vd = (f"<b>{n} ayak · {_pct(p)} tutma şansı.</b> Hiçbir şeyde "
-                  f"yanılmadan önce <b>{_num(abs(ev)*100,1)}%</b> geride "
-                  f"başlıyorsun — bu, ayakların marjlarının çarpımı.")
-            if same:
-                vd += (" <b>Uyarı:</b> aynı maçtan birden fazla ayak var; "
-                       "bunlar bağımsız değil, gerçek olasılık gösterilenden farklı.")
-            if n >= 3:
-                vd += " Üç ayakta maliyet, ölçülen en pahalı bölgeyi (−%22) geçiyor."
-            elif n == 1 and ev > -0.13:
-                vd += " Tek ayak, ölçülen en ucuz bölgede (−%9,8 marj tabanı)."
-            ro = (f"<div class='ro'><span>Ayak</span><b>{n}</b></div>"
-                  f"<div class='ro'><span>Toplam oran</span><b>{_num(O)}</b></div>"
-                  f"<div class='ro'><span>Gerçek olasılık</span><b>{_pct(p)}</b></div>"
-                  f"<div class='ro big'><span>Beklenen getiri</span>"
-                  f"<b class='{'ps' if ev>=0 else 'ng'}'>"
-                  f"{'+' if ev>=0 else '−'}{_num(abs(ev)*100,1)}%</b></div>")
-            meter = f"<div class='meter'><i style='width:{min(100,abs(ev)*220):.0f}%'></i></div>"
+            st.markdown(
+                "<div class='ro'><span>İşaretli</span><b>" + str(len(sel)) +
+                "</b></div><div class='ro'><span>Toplam oran</span><b>" +
+                _num(O) + "</b></div>", unsafe_allow_html=True)
+            if st.button("Sepete ekle  (" + str(len(sel)) + ")",
+                         type="primary", use_container_width=True,
+                         key="v2_sepete"):
+                # ⚠️ Onay kutusu durumuna DOKUNMA: Streamlit, bir widget'ın
+                # session_state'ini AYNI çalıştırmada değiştirmeyi yasaklar ve
+                # istisna firlatir — ilk denemede iki secimden biri eklendi ve
+                # sayfa hic gecmedi. Sepet zaten kimlige gore tekillestiriyor,
+                # kutular isaretli kalsa da zarar yok.
+                for b in sel:
+                    sepete_ekle(b)
+                st.session_state["v2_page"] = "Sepet"
+                st.rerun()
         else:
-            legs = ("<div style='font-family:\"JetBrains Mono\",monospace;"
-                    "font-size:11px;color:var(--muted);text-align:center;"
-                    "padding:10px 0;border:1px dashed var(--line-2);'>"
-                    "kupon boş</div>")
-            ro = ("<div class='ro'><span>Ayak</span><b>0</b></div>"
-                  "<div class='ro'><span>Toplam oran</span><b>—</b></div>"
-                  "<div class='ro'><span>Gerçek olasılık</span><b>—</b></div>"
-                  "<div class='ro big'><span>Beklenen getiri</span><b>—</b></div>")
-            meter = "<div class='meter'><i style='width:0%'></i></div>"
-            vd = ("Bir seçim işaretle. Her ayak kendi marjını taşır ve "
-                  "<b>marjlar çarpılır</b> — kupon uzadıkça maliyet katlanır.")
-        st.markdown(f"""
-        <div class="v2card"><div class="v2head"><h2>Kupon Tezgahı</h2>
-          <div class="hint">marj canlı hesaplanır</div></div>
-          <div class="v2body">{legs}{ro}{meter}
-          <div class="vd">{vd}</div></div></div>""", unsafe_allow_html=True)
+            st.markdown(
+                "<div class='v2bos'>Tahtadan seçim işaretle.<br>"
+                "Seçtiklerin sepete gider, orada tartılır.</div>",
+                unsafe_allow_html=True)
+        if sp:
+            st.markdown(
+                "<div class='dq' style='margin-top:var(--s3);'>Sepette "
+                "<b>" + str(len(sp)) + " ayak</b> bekliyor. Tartmak ve "
+                "oynamak için <b>Sepet</b> sayfasına geç.</div>",
+                unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     poz = load_pozisyon()
     if poz:
@@ -2004,9 +2068,9 @@ def _gezinme_alt() -> None:
     onc = ad[i - 1] if i > 0 else None
     son = ad[i + 1] if i < len(ad) - 1 else None
     st.markdown("<div class='v2gez'></div>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1.1, 2.8, 1.1], gap="small")
+    c1, c2, c3 = st.columns([1.4, 2.2, 1.4], gap="small")
     with c1:
-        if onc and st.button("‹  " + onc, key="v2_onc",
+        if onc and st.button("Önceki:  " + onc, key="v2_onc",
                              use_container_width=True):
             st.session_state["v2_page"] = onc
             st.session_state["v2_ajan"] = None
@@ -2017,7 +2081,7 @@ def _gezinme_alt() -> None:
             " · " + st.session_state["v2_page"] + "</div>",
             unsafe_allow_html=True)
     with c3:
-        if son and st.button(son + "  ›", key="v2_son",
+        if son and st.button("Sonraki:  " + son, key="v2_son",
                              use_container_width=True):
             st.session_state["v2_page"] = son
             st.session_state["v2_ajan"] = None
@@ -2084,6 +2148,137 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
             "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
             "<th class='r'>Hüküm</th></tr></thead><tbody>" +
             "".join(body) + "</tbody></table></div></div>")
+
+
+def _sepet() -> list:
+    if "v2_sepet" not in st.session_state:
+        st.session_state["v2_sepet"] = []
+    return st.session_state["v2_sepet"]
+
+
+def sepete_ekle(b: dict) -> None:
+    sp = _sepet()
+    if not any(x["id"] == b["id"] for x in sp):
+        sp.append(b)
+
+
+def page_sepet() -> None:
+    """Sepet — seçtiklerini topla, tart, sonra oyna.
+
+    Ayrı sayfa olmasının sebebi: seçmek ile OYNAMAK farklı kararlardır.
+    Tahtada gezerken 'bunu beğendim' demek ucuzdur; kuponu kurup parayı
+    yatırmak değildir. Sepet ikisinin arasına bir eşik koyar."""
+    sp = _sepet()
+    O, p = 1.0, 1.0
+    for b in sp:
+        O *= b["o"]
+        p *= (1.0 / b["o"]) / b["m"]
+    ev = (p * O - 1.0) if sp else 0.0
+    _sayfa_basligi(
+        "Sepet",
+        "Seçmek ile oynamak farklı kararlardır. Sepet ikisinin arasına "
+        "bir eşik koyar: burada tartılır, sonra kaydedilir.",
+        [{"ad": "Ayak", "deger": str(len(sp))},
+         {"ad": "Toplam oran", "deger": (_num(O) if sp else "—")},
+         {"ad": "Beklenen getiri",
+          "deger": (("+" if ev >= 0 else "−") + _num(abs(ev) * 100, 1) + "%"
+                    if sp else "—"),
+          "cls": ("ps" if ev >= 0 else "ng")}])
+
+    sol, sag = st.columns([1.35, 1.0], gap="medium")
+    with sol:
+        st.markdown("<div class='v2card'><div class='v2head'>"
+                    "<h2>Sepetteki Seçimler</h2><div class='hint'>"
+                    "çıkarmak için sil</div></div><div class='v2body'>",
+                    unsafe_allow_html=True)
+        if not sp:
+            st.markdown(
+                "<div class='v2bos'>Sepet boş.<br>Karar Masası'ndaki "
+                "tahtadan seçim ekle.</div>", unsafe_allow_html=True)
+        else:
+            for b in list(sp):
+                c1, c2 = st.columns([5, 1], gap="small")
+                with c1:
+                    st.markdown(
+                        "<div class='v2sepet-satir'><div>"
+                        "<div class='ad'>" + str(b["h"]) + " — " +
+                        str(b["a"]) + "</div><div class='alt'>" +
+                        str(b["ad"]) + " · " + str(b["mk"]) + " · " +
+                        str(b["pk"]) + "</div></div>"
+                        "<div style='font-family:\"JetBrains Mono\",monospace;"
+                        "font-size:17px;font-weight:500;'>" + _num(b["o"]) +
+                        "</div></div>", unsafe_allow_html=True)
+                with c2:
+                    if st.button("Sil", key="v2_sil_" + b["id"],
+                                 use_container_width=True):
+                        st.session_state["v2_sepet"] = [
+                            x for x in sp if x["id"] != b["id"]]
+                        st.rerun()
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    with sag:
+        if sp:
+            ayni = len({(b["h"], b["a"]) for b in sp}) < len(sp)
+            not_ = ("<b>" + str(len(sp)) + " ayak · " + _pct(p) +
+                    " tutma şansı.</b> Hiçbir şeyde yanılmadan önce <b>" +
+                    _num(abs(ev) * 100, 1) + "%</b> geride başlıyorsun — "
+                    "ayakların marjlarının çarpımı.")
+            if ayni:
+                not_ += (" <b>Uyarı:</b> aynı maçtan birden fazla ayak var; "
+                         "bağımsız değiller, gerçek olasılık farklı.")
+            if len(sp) >= 3:
+                not_ += (" Üç ayakta maliyet, ölçülen en pahalı bölgeyi "
+                         "(−%22) geçiyor.")
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Tartı</h2>"
+                "<div class='hint'>marj canlı</div></div><div class='v2body'>"
+                "<div class='ro'><span>Toplam oran</span><b>" + _num(O) +
+                "</b></div>"
+                "<div class='ro'><span>Gerçek olasılık</span><b>" + _pct(p) +
+                "</b></div>"
+                "<div class='ro big'><span>Beklenen getiri</span><b class='" +
+                ("ps" if ev >= 0 else "ng") + "'>" +
+                ("+" if ev >= 0 else "−") + _num(abs(ev) * 100, 1) +
+                "%</b></div>"
+                "<div class='vd' style='margin-top:var(--s3);'>" + not_ +
+                "</div></div></div>", unsafe_allow_html=True)
+            st.markdown("<div class='v2card'><div class='v2head'>"
+                        "<h2>Gerçekte Oyna</h2><div class='hint'>"
+                        "OPUS 5 defterine yazılır</div></div>"
+                        "<div class='v2body'>", unsafe_allow_html=True)
+            stake = st.number_input("Bahis (₺)", min_value=5.0,
+                                    max_value=5000.0, value=50.0, step=5.0,
+                                    key="v2_sepet_stake")
+            st.markdown(
+                "<div class='dq' style='margin:var(--s2) 0;'>Tutarsa <b>" +
+                "{:,.0f}".format(stake * O).replace(",", ".") +
+                " ₺</b> döner. Bu kayıt kâğıt ile saha arasındaki farkı "
+                "ölçmeyi mümkün kılar — iddaa arşivi siliyor.</div>",
+                unsafe_allow_html=True)
+            if st.button("Oyna ve deftere yaz", type="primary",
+                         use_container_width=True, key="v2_oyna"):
+                try:
+                    import manual_book as mb
+                    r = mb.play_custom([b["id"] for b in sp],
+                                       stake=float(stake))
+                except Exception as e:
+                    r = {"ok": False,
+                         "msg": "Hata: %s: %s" % (type(e).__name__, e)}
+                if r.get("ok"):
+                    st.success(r["msg"])
+                    st.session_state["v2_sepet"] = []
+                    load_opus.clear()
+                    st.rerun()
+                else:
+                    st.error(r.get("msg", "kaydedilemedi"))
+            st.markdown("</div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div class='v2card'><div class='v2head'><h2>Tartı</h2>"
+                "<div class='hint'>bekliyor</div></div><div class='v2body'>"
+                "<div class='v2bos'>Sepete seçim ekleyince<br>"
+                "marj ve beklenen getiri burada hesaplanır.</div>"
+                "</div></div>", unsafe_allow_html=True)
 
 
 def page_lig() -> None:
@@ -2379,7 +2574,34 @@ def page_sistem() -> None:
             "<br><span style='font-size:10.5px;opacity:.75;'>son teşhis " +
             str(sy["ts"])[:16] + "</span></div>", unsafe_allow_html=True)
 
-    left, right = st.columns([1.25, 1.0], gap="small")
+    sek = _sekmeler("sistem", ["Teşhis", "Veri", "Risk"])
+
+    if sek == "Teşhis":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> bir ajan neden oynamıyor — "
+            "<b>meşru PAS</b> mı (eşiği geçen aday yok) yoksa <b>tıkanıklık</b> "
+            "mı (kod/veri kırık)? İkisini karıştırmak haftalar sürer. En üstteki "
+            "SİSTEM satırı veri hattını bekler: fetch çökerse tüm ajanlar masum "
+            "sessizlik gibi görünür.</div>", unsafe_allow_html=True)
+    elif sek == "Veri":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> hangi analiz <b>yapılamıyor</b>? "
+            "Boş sütun, yapılamayan analiz demektir. Doluluk tek başına yetmez: "
+            "26.000 satırın %90'ı dolu ama hepsi iki yıl önceden ise sistem "
+            "kördür. Üç soru ayrı sorulur — ne kadar var, ne kadarı dolu, ne "
+            "kadarı taze.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> hangi ajan sözleşmesini "
+            "zorluyor? Prop-firm mantığı: her ajanın kendi kasası, tabanı ve "
+            "sözleşmesi var. Taban altına düşen koruma moduna girer, iki ihtar "
+            "kadro dışı demektir. <b>Sistemin ajanı susturması arıza değil, "
+            "sözleşmenin işlemesidir.</b></div>", unsafe_allow_html=True)
+
+    if sek != "Teşhis":
+        left, right = st.container(), st.container()
+    else:
+        left, right = st.columns([1.25, 1.0], gap="small")
 
     with left:
         body = []
@@ -2403,8 +2625,11 @@ def page_sistem() -> None:
                  .replace("⚪ ", "").replace("😴 ", "").replace("🧊 ", "")
                  .replace("⏸ ", "").replace("🔒 ", "").replace("🏁 ", "")
                  .replace("🛑 ", "").replace("🚫 ", "") + "</span></td></tr>")
+        if sek != "Teşhis":
+            body = []
         st.markdown(
-            "<div class='v2card'><div class='v2head'><h2>Ajan Teşhisi</h2>"
+            ("" if sek != "Teşhis" else
+             "<div class='v2card'><div class='v2head'><h2>Ajan Teşhisi</h2>"
             "<div class='hint'>günlük · sorunlu üstte</div></div>"
             "<div class='v2body'>"
             "<div class='v2mb'>Bir ajanın oynamaması iki ayrı şey olabilir: "
@@ -2413,10 +2638,12 @@ def page_sistem() -> None:
             "bu yüzden sebep her gün kayda geçer.</div>"
             "<table class='v2'><thead><tr><th>Ajan</th>"
             "<th class='r'>Durum</th></tr></thead><tbody>" +
-            "".join(body) + "</tbody></table></div></div>",
+            "".join(body) + "</tbody></table></div></div>"),
             unsafe_allow_html=True)
 
     with right:
+        if sek != "Veri":
+            st.markdown("", unsafe_allow_html=True)
         body = []
         for f in d["alan"]:
             p = f["pay"]
@@ -2441,7 +2668,8 @@ def page_sistem() -> None:
                 "<td class='r'><span class='gr " + g + "'>" +
                 "{:.0f}".format(p * 100) + "% " + txt + "</span></td></tr>")
         st.markdown(
-            "<div class='v2card'><div class='v2head'><h2>Veri Doluluğu</h2>"
+            ("" if sek != "Veri" else
+             "<div class='v2card'><div class='v2head'><h2>Veri Doluluğu</h2>"
             "<div class='hint'>yol haritası · faz 1</div></div>"
             "<div class='v2body'>"
             "<div class='v2mb'>Boş sütun, yapılamayan analiz demektir. "
@@ -2450,10 +2678,10 @@ def page_sistem() -> None:
             "güvendiği yer orası (HT_FT marjı %25,8).</div>"
             "<table class='v2'><thead><tr><th>Alan</th><th class='r'>Dolu</th>"
             "<th class='r'>Oran</th></tr></thead><tbody>" +
-            "".join(body) + "</tbody></table></div></div>",
+            "".join(body) + "</tbody></table></div></div>"),
             unsafe_allow_html=True)
 
-    vo = load_veri_ozet()
+    vo = load_veri_ozet() if sek == "Veri" else {}
     if vo.get("toplam"):
         tsat = "".join(
             "<tr><td><span class='ag'>" + x["ad"] + "</span>"
@@ -2496,7 +2724,7 @@ def page_sistem() -> None:
                 "<th class='r'>Maç</th></tr></thead><tbody>" + ksat +
                 "</tbody></table></div></div>", unsafe_allow_html=True)
 
-    rk = load_risk()
+    rk = load_risk() if sek == "Risk" else []
     if rk:
         sat = []
         for x in rk:
@@ -2550,142 +2778,203 @@ def _mini(baslik, ipucu, basliklar, satirlar):
 
 
 def page_inceleme() -> None:
-    """🔍 İnceleme — kazanan/kaybeden ayrıştırması + gerekçe defteri."""
+    """İnceleme — kazanan/kaybeden ayrıştırması, dört ayrı soruda.
+
+    Tek sayfada dört tabloyu üst üste yığmak 'kompakt' değil OKUNMAZ
+    yapar. Her sekme TEK bir karara hizmet eder ve hangisi olduğunu
+    kendi yazar."""
     d = load_inceleme()
-    if d.get("n"):
-        gg = d["genel"]
-        _sayfa_basligi(
-            "İnceleme",
-            "Kayıp modelden mi, pazardan mı, veriden mi geliyor — üçü ayrılır.",
-            [{"ad": "Kapanmış bahis", "deger": str(gg["n"])},
-             {"ad": "İsabet", "deger": _pct(gg["hit"])},
-             {"ad": "Getiri", "deger": ("+" if gg["roi"] >= 0 else "−") +
-              _num(abs(gg["roi"]) * 100, 1) + "%",
-              "cls": ("ps" if gg["roi"] >= 0 else "ng")}])
     if not d.get("n"):
-        st.markdown("<div class='dq'>Dönem içinde kapanmış bahis yok.</div>",
+        _sayfa_basligi("İnceleme", "Dönem içinde kapanmış bahis yok.", [])
+        st.markdown("<div class='v2bos'>Veri birikince burası dolacak.</div>",
                     unsafe_allow_html=True)
         return
     g = d["genel"]
-    st.markdown(
-        "<div class='v2mb'><b>Kaybın sebebi üç yerde olabilir:</b> modelin "
-        "olasılığı yanlıştır (MODEL), doğru olasılıkla yanlış pazarda "
-        "oynanmıştır (TRADE), ya da veri eksiktir (DATA). Bu sayfa üçünü "
-        "ayırır. Edge burada <b>marjsız</b> ölçülür — marjlı tanımda "
-        "varyansın çoğu tahmin hatası değil, marj farkıdır.</div>",
-        unsafe_allow_html=True)
+    _sayfa_basligi(
+        "İnceleme",
+        "Kayıp modelden mi, pazardan mı, veriden mi geliyor — üçü ayrılır.",
+        [{"ad": "Kapanmış bahis", "deger": str(g["n"])},
+         {"ad": "İsabet", "deger": _pct(g["hit"])},
+         {"ad": "Getiri", "deger": ("+" if g["roi"] >= 0 else "−") +
+          _num(abs(g["roi"]) * 100, 1) + "%",
+          "cls": ("ps" if g["roi"] >= 0 else "ng")}])
 
-    sol, sag = st.columns([1.15, 1.0], gap="small")
+    sek = _sekmeler("inceleme",
+                    ["Model", "Trade", "Kayıp Anatomisi", "Gerekçe Defteri"])
 
-    with sol:
-        # ── MODEL: kalibrasyon
+    if sek == "Model":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> modelin ürettiği olasılığa "
+            "güvenilir mi? Kalibrasyon <i>“model %X dediğinde gerçekten %X mi "
+            "oluyor”</i>u, edge geçerliliği <i>“yüksek edge gerçekten daha iyi "
+            "mi”</i>yi sorar. İkisi de hayır derse sorun modeldedir; evet derse "
+            "kaybı başka yerde aramak gerekir.</div>", unsafe_allow_html=True)
         kr = []
         for k in d["kal"]:
             if k.get("n", 0) < 5:
                 kr.append([k["ad"], str(k.get("n", 0)), "—", "—", "—"])
                 continue
             f = k["fark"]
-            cls = "dp" if abs(f) <= 0.05 else "dm"
             kr.append([k["ad"], str(k["n"]), _pct(k["tah"]), _pct(k["ger"]),
-                       "<span class='" + cls + "'>" + _sgn(f) + "</span>"])
-        st.markdown(_mini("Model · Kalibrasyon",
-                          "model %X dediğinde gerçekten %X mi oluyor",
-                          ["Model bandı", "n", "Tahmin", "Gerçek", "Fark"], kr),
-                    unsafe_allow_html=True)
-
-        # ── MODEL: edge geçerliliği
+                       "<span class='" + ("dp" if abs(f) <= 0.05 else "dm") +
+                       "'>" + _sgn(f) + "</span>"])
         er = []
         for e in d["eb"]:
-            cls = "dp" if e["roi"] >= 0 else "dm"
             er.append([e["ad"], str(e["n"]), _sgn(e["e"]),
-                       "<span class='" + cls + "'>" +
-                       ("+" if e["roi"] >= 0 else "−") +
+                       "<span class='" + ("dp" if e["roi"] >= 0 else "dm") +
+                       "'>" + ("+" if e["roi"] >= 0 else "−") +
                        _num(abs(e["roi"]) * 100, 1) + "%</span>"])
-        st.markdown(_mini("Model · Edge geçerliliği",
-                          "yüksek edge gerçekten daha iyi mi",
-                          ["Dilim", "n", "Ort. edge", "Getiri"], er),
-                    unsafe_allow_html=True)
+        c1, c2 = st.columns([1, 1], gap="medium")
+        with c1:
+            st.markdown(_mini("Kalibrasyon",
+                              "model %X dediğinde gerçekten %X mi oluyor",
+                              ["Model bandı", "n", "Tahmin", "Gerçek", "Fark"],
+                              kr), unsafe_allow_html=True)
+        with c2:
+            st.markdown(_mini("Edge geçerliliği",
+                              "yüksek edge gerçekten daha iyi mi",
+                              ["Dilim", "n", "Ort. edge", "Getiri"], er),
+                        unsafe_allow_html=True)
 
-        # ── KAYIP ANATOMİSİ
+    elif sek == "Trade":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> doğru olasılıkla yanlış yerde mi "
+            "oynuyoruz? Aynı model farklı pazarda ve farklı kupon türünde "
+            "farklı sonuç verir — çünkü <b>marj her yerde aynı değil</b>. Bu "
+            "tablolar nereden çıkılacağını söyler.</div>",
+            unsafe_allow_html=True)
+        c1, c2, c3 = st.columns([1, 1, 1], gap="medium")
+        for kol, (bas, anh, ip) in zip(
+                (c1, c2, c3),
+                (("Pazar", "pazar", "hangi pazarda iyiyiz"),
+                 ("Kupon türü", "tur", "tek mi kombine mi"),
+                 ("Lig", "lig", "nerede oynuyoruz"))):
+            sat = []
+            for x in d[anh]:
+                sat.append([str(x["ad"])[:16], str(x["n"]), _pct(x["hit"]),
+                            "<span class='" +
+                            ("dp" if x["roi"] >= 0 else "dm") + "'>" +
+                            ("+" if x["roi"] >= 0 else "−") +
+                            _num(abs(x["roi"]) * 100, 1) + "%</span>"])
+            with kol:
+                st.markdown(_mini(bas, ip, ["", "n", "İsabet", "Getiri"], sat),
+                            unsafe_allow_html=True)
+
+    elif sek == "Kayıp Anatomisi":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> kombine kaybettiğinde hangi ayak "
+            "düşürdü? Zayıf halka belliyse o ayağı kupondan çıkarmak "
+            "<b>ölçülebilir</b> bir iyileştirmedir. Tarihsel evrende altı "
+            "hücrenin altısında zayıf halka <b>sonuç (1X2) ayağıydı</b> — "
+            "kaybın yarısı gol ayağı tuttuğu hâlde geliyordu.</div>",
+            unsafe_allow_html=True)
         a = d["anat"]
         if a["n"] >= 5:
             top = a["n"]
-            sat = []
-            for anahtar, ad in (("sonuc", "Sonuç ayağı düşürdü"),
-                                ("gol", "Gol/KG ayağı düşürdü"),
-                                ("iki", "İkisi birden")):
-                v = a[anahtar]
-                sat.append([ad, str(v), _pct(v / top)])
-            zayif = ("SONUÇ (1X2)" if a["sonuc"] >= a["gol"] else "GOL/KG")
+            sat = [[ad, str(a[k]), _pct(a[k] / top)]
+                   for k, ad in (("sonuc", "Sonuç ayağı düşürdü"),
+                                 ("gol", "Gol/KG ayağı düşürdü"),
+                                 ("iki", "İkisi birden"))]
+            zayif = "SONUÇ (1X2)" if a["sonuc"] >= a["gol"] else "GOL/KG"
+            c1, c2 = st.columns([1, 1], gap="medium")
+            with c1:
+                st.markdown(
+                    _mini("Hangi ayak düşürdü", str(top) + " kombine kaybı",
+                          ["Ayak", "n", "Pay"], sat), unsafe_allow_html=True)
+            with c2:
+                st.markdown(
+                    "<div class='v2card'><div class='v2head'><h2>Hüküm</h2>"
+                    "<div class='hint'>zayıf halka</div></div>"
+                    "<div class='v2body'><div class='ro big'>"
+                    "<span>Zayıf halka</span><b class='ng'>" + zayif +
+                    "</b></div><div class='vd' style='margin-top:var(--s3);'>"
+                    "Bu ayak kupondan çıkarılırsa kayıpların <b>" +
+                    _pct(max(a["sonuc"], a["gol"]) / top) + "</b>'i "
+                    "önlenebilirdi — diğer ayak zaten tutmuştu.</div>"
+                    "</div></div>", unsafe_allow_html=True)
+        else:
             st.markdown(
-                _mini("Kayıp Anatomisi", str(top) + " kombine kaybı",
-                      ["Hangi ayak", "n", "Pay"], sat) +
-                "<div class='dq' style='margin-top:-6px;'>Zayıf halka: "
-                "<b>" + zayif + "</b> ayağı. Tarihsel evrende de altı "
-                "hücrenin altısında sonuç ayağıydı — kaybın ~yarısı gol "
-                "ayağı tuttuğu hâlde geliyor.</div>",
+                "<div class='v2bos'>Karşı-olgusal için en az 5 kombine kaybı "
+                "gerekiyor — şu an " + str(a["n"]) + ".</div>",
                 unsafe_allow_html=True)
 
-    with sag:
-        # ── TRADE
-        for baslik, anahtar, ipucu in (
-                ("Trade · Pazar", "pazar", "hangi pazarda iyiyiz"),
-                ("Trade · Kupon türü", "tur", "tek mi kombine mi"),
-                ("Trade · Lig", "lig", "nerede oynuyoruz")):
-            sat = []
-            for x in d[anahtar]:
-                cls = "dp" if x["roi"] >= 0 else "dm"
-                sat.append([str(x["ad"])[:18], str(x["n"]), _pct(x["hit"]),
-                            "<span class='" + cls + "'>" +
-                            ("+" if x["roi"] >= 0 else "−") +
-                            _num(abs(x["roi"]) * 100, 1) + "%</span>"])
-            st.markdown(_mini(baslik, ipucu, ["", "n", "İsabet", "Getiri"],
-                              sat), unsafe_allow_html=True)
-
-    # ── GEREKÇE DEFTERİ
-    if d["defter"]:
-        sat = []
-        for x in d["defter"]:
-            ok = "dp" if x["won"] else "dm"
-            sat.append(
-                ["<span class='ag'>" + _rozet(x["p"]) +
-                 str(x["h"])[:14] + " — " + str(x["a"])[:14] + "</span>"
-                 "<span class='sb'>" + str(x["rsn"] or "—")[:110] + "</span>",
-                 "<span class='" + ok + "'>" + str(x["pk"])[:16] + "</span>",
-                 "<span class='sb' style='text-align:right;'>" +
-                 str(x["pm"] or "—")[:64] + "</span>"])
+    else:
         st.markdown(
-            _mini("Gerekçe Defteri", "neden seçildi · ne kadar yaklaştı",
-                  ["Maç ve gerekçe", "Seçim", "Sonra ne oldu"], sat),
+            "<div class='v2mb'><b>Karar yok — burası hafıza.</b> Her bahsin "
+            "<b>neden</b> seçildiği ve sonra <b>ne kadar yaklaştığı</b>. Kupon "
+            "sonucu ikilidir (tuttu/tutmadı) ama bilgi süreklidir: “bir gol "
+            "eksik” ile “3-0 ıska” aynı şey değildir.</div>",
             unsafe_allow_html=True)
-
+        if d["defter"]:
+            sat = []
+            for x in d["defter"]:
+                sat.append(
+                    ["<span class='ag'>" + _rozet(x["p"]) +
+                     str(x["h"])[:15] + " — " + str(x["a"])[:15] + "</span>"
+                     "<span class='sb'>" + str(x["rsn"] or "—")[:120] +
+                     "</span>",
+                     "<span class='" + ("dp" if x["won"] else "dm") + "'>" +
+                     str(x["pk"])[:16] + "</span>",
+                     "<span class='sb'>" + str(x["pm"] or "—")[:70] +
+                     "</span>"])
+            st.markdown(
+                _mini("Gerekçe Defteri", "neden seçildi · ne kadar yaklaştı",
+                      ["Maç ve gerekçe", "Seçim", "Sonra ne oldu"], sat),
+                unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='v2bos'>Gerekçe kaydı yok.</div>",
+                        unsafe_allow_html=True)
 
 # Menü etiketleri sade: aktif durumdaki amber şerit zaten yönlendiriyor,
 # emoji sadece gürültü ekliyordu.
-PAGES = {"Desk": page_desk, "Lig": page_lig, "İnceleme": page_inceleme,
-         "Defter": page_defter, "Sistem": page_sistem,
-         "OPUS 5": page_opus}
+# ── BİLGİ MİMARİSİ ──────────────────────────────────────────
+# Menü üç işe göre bölündü. Düz liste, yedi maddeden sonra
+# "hangisi neydi" sorusunu doğurur; grup o soruyu kaldırır.
+# OPUS 5 artık Lig'in ALTINDA: ikisi de "kim ne yaptı" sorusuna
+# bakar, biri kâğıt ajanlara biri sahaya.
+GRUPLAR = [
+    ("Karar", [("Karar Masası", page_desk), ("Sepet", page_sepet)]),
+    ("Takip", [("Ajan Ligi", page_lig), ("OPUS 5", page_opus, True),
+               ("İnceleme", page_inceleme)]),
+    ("Sistem", [("Ölçüm Defteri", page_defter), ("Sağlık", page_sistem)]),
+]
+PAGES = {}
+for _g, _ler in GRUPLAR:
+    for _x in _ler:
+        PAGES[_x[0]] = _x[1]
 
 
 def main() -> None:
     st.markdown(V2_CSS, unsafe_allow_html=True)
     if "v2_page" not in st.session_state:
-        st.session_state["v2_page"] = "Desk"
+        st.session_state["v2_page"] = "Karar Masası"
 
     with st.sidebar:
         st.markdown(
             "<div class='v2brand'><div class='mark'>BA</div>"
             "<div class='yazi'><b>BetAgents</b>"
-            "<span>Desk · v2</span></div></div>"
-            "<div class='v2navlbl'>Çalışma</div>", unsafe_allow_html=True)
+            "<span>Desk · v2</span></div></div>", unsafe_allow_html=True)
         # ⚠️ ACIK KEY: Streamlit widget kimligini etiket + parametrelerden
         # turetir; `type` her cizimde degistigi icin kimlik kayardi.
-        for i, name in enumerate(PAGES):
-            if st.button(name, key=f"v2nav_{i}", use_container_width=True,
-                         type=("primary" if st.session_state["v2_page"] == name
-                               else "secondary")):
-                st.session_state["v2_page"] = name
-                st.rerun()
+        _i = 0
+        for grup, ogeler in GRUPLAR:
+            st.markdown("<div class='v2grup'>" + grup + "</div>",
+                        unsafe_allow_html=True)
+            for oge in ogeler:
+                ad = oge[0]
+                sp = _sepet()
+                etiket = ad
+                if ad == "Sepet" and sp:
+                    etiket = ad + "  (" + str(len(sp)) + ")"
+                if st.button(etiket, key=f"v2nav_{_i}",
+                             use_container_width=True,
+                             type=("primary"
+                                   if st.session_state["v2_page"] == ad
+                                   else "secondary")):
+                    st.session_state["v2_page"] = ad
+                    st.session_state["v2_ajan"] = None
+                    st.rerun()
+                _i += 1
         r = load_rail()
         yerel = r["kaynak"].startswith("SQLite")
         st.markdown(
