@@ -51,6 +51,26 @@ def job_auto_play():
         print(f"[{_ts()}] AGENTS HATA: {e}")
 
 
+def job_olcum_defteri(tam: bool = False):
+    """📓 ÖLÇÜM DEFTERİ — her bulguyu ön kayıtlı kuralına karşı yeniden ölç.
+
+    Neden worker'da: bir bulgu, ölçüldüğü gün doğru olduğu için sonsuza
+    kadar doğru kalmaz. Bu projede ROI +%9,7'den -%0,1'e düştü ve "edge
+    sıralaması çalışıyor" hükmünün tek ajanın 15 bahsine dayandığı ancak
+    TEKRAR ÖLÇÜLDÜĞÜ için anlaşıldı. Elle koşulan ölçüm unutulur.
+
+    Günlük koşu hafif ölçümleri alır (K_BECERI her kapanan bahisle
+    değişir). Haftalık koşu ağırları da ekler (skor modeli kalibrasyonu
+    18.000 maç üzerinde lambda çözer — pahalı, ama yavaş değişir)."""
+    kip = "TAM" if tam else "hızlı"
+    print(f"[{_ts()}] >>> ÖLÇÜM DEFTERİ tetiklendi ({kip})")
+    try:
+        import olcum_defteri
+        olcum_defteri.run(hizli=not tam)
+    except Exception as e:
+        print(f"[{_ts()}] ÖLÇÜM DEFTERİ HATA: {type(e).__name__}: {e}")
+
+
 def job_fetch_program():
     """Sadece iddaa programini tazele (kupon KURMAZ). Amac:
     - kapanis oranlari kickoff'a yakin yakalansin (CLV kalitesi)
@@ -97,7 +117,8 @@ def job_auto_settle():
 
 def main():
     print(f"[{_ts()}] WORKER BAŞLADI — auto_play (06:00/15:00 UTC) + "
-          f"auto_settle (90 dk) + fetch_program (3 sa)")
+          f"auto_settle (90 dk) + fetch_program (3 sa) + "
+          f"ölçüm defteri (04:20 günlük · pzt 03:10 tam)")
 
     # Açılışta: önce settle/temizlik, sonra taze program (deploy sonrası
     # sistem dakikalar içinde güncel olsun)
@@ -119,6 +140,14 @@ def main():
                   id="auto_settle", misfire_grace_time=900, coalesce=True)
     sched.add_job(job_fetch_program, "interval", hours=3,
                   id="fetch_program", misfire_grace_time=1800, coalesce=True)
+    # 📓 ölçüm defteri — sessiz saatte, auto_play'den (06:00) önce.
+    # Günlük hafif: hızlı değişen ölçümler (K_BECERI her bahisle kayar).
+    # Pazartesi tam: ağır olanlar da (skor modeli kalibrasyonu).
+    sched.add_job(job_olcum_defteri, "cron", hour=4, minute=20,
+                  id="olcum_defteri", misfire_grace_time=3600, coalesce=True)
+    sched.add_job(job_olcum_defteri, "cron", day_of_week="mon", hour=3, minute=10,
+                  kwargs={"tam": True},
+                  id="olcum_defteri_tam", misfire_grace_time=7200, coalesce=True)
 
     try:
         sched.start()

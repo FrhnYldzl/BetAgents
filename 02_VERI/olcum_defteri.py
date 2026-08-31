@@ -508,6 +508,19 @@ def _ensure(conn) -> None:
         conn.rollback()
 
 
+def _onceki(conn, fid: str) -> dict | None:
+    """Bu ölçümün en son arşivlenmiş sonucu — hüküm değişimini yakalamak
+    için. Asıl değer sık koşmakta değil, DEĞİŞİMİ farketmekte."""
+    try:
+        r = conn.execute(
+            "SELECT ts, n, value, passed FROM measurement_runs "
+            "WHERE finding_id=? ORDER BY ts DESC LIMIT 1", (fid,)).fetchone()
+        return dict(r) if r else None
+    except Exception:
+        conn.rollback()
+        return None
+
+
 def _archive(conn, fid: str, res: dict) -> None:
     from datetime import datetime
     try:
@@ -547,6 +560,7 @@ def run(ids: list[str] | None = None, hizli: bool = False) -> None:
     print("  📓 ÖLÇÜM DEFTERİ — kurallar sonuç görülmeden yazıldı")
     print("=" * 78)
     ok = fail = skip = 0
+    degisim: list[str] = []
     for fid in sel:
         f = FINDINGS.get(fid)
         if not f:
@@ -573,12 +587,29 @@ def run(ids: list[str] | None = None, hizli: bool = False) -> None:
             continue
         print(f"    ŞİMDİ   {res['detay']}")
         print(f"    HÜKÜM   {'✅ KURAL SAĞLANDI' if res['gecti'] else '❌ kural sağlanmadı'}")
+        prev = _onceki(conn, fid)
+        if prev is not None:
+            was = bool(prev["passed"])
+            if was != bool(res["gecti"]):
+                msg = (f"{fid}: {'GEÇTİ' if was else 'kaldı'} → "
+                       f"{'GEÇTİ' if res['gecti'] else 'kaldı'}  "
+                       f"({prev['value']:+.3f} → {res['deger']:+.3f}, "
+                       f"n {prev['n']}→{res['n']})")
+                degisim.append(msg)
+                print(f"    🔔 HÜKÜM DEĞİŞTİ — önceki koşu {str(prev['ts'])[:16]}")
         _archive(conn, fid, res)
         ok += 1 if res["gecti"] else 0
         fail += 0 if res["gecti"] else 1
     conn.close()
     print("\n" + "=" * 78)
     print(f"  kural sağlayan {ok} · sağlamayan {fail} · atlanan {skip}")
+    if degisim:
+        print("\n  🔔 HÜKÜM DEĞİŞEN ÖLÇÜM — asıl haber budur:")
+        for m in degisim:
+            print(f"     • {m}")
+        print("     Bir bulgunun çürümesi de güçlenmesi de karar gerektirir.")
+    else:
+        print("  hüküm değişimi yok — bulgular önceki koşuyla aynı yönde.")
     print("  ⚠️ 'sağlamadı' bir arıza değil, bir HÜKÜMDÜR — konsept o kadar.")
     print("=" * 78)
 
