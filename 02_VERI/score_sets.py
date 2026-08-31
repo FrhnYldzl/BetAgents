@@ -107,3 +107,89 @@ def ou_btts_winner(ou: str, kg: str):
         ok2 = btts if kg == "V" else (not btts)
         return ok1 and ok2
     return f
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 🎯 SÜREKLİ MODEL (BİRİNCİL) — bantlama yerine maça özgü skor dağılımı
+# ══════════════════════════════════════════════════════════════════════
+# NEDEN: yukarıdaki SCORE_DIST maçları 11 KOVAYA atıyor. İlk kova
+# P(ev sahibi) ∈ [0, 0.33) — yani %10'luk mazlumla %32'lik mazlum aynı
+# kutuya giriyor ve ikisine de AYNI kütle veriliyor. Ölçüldü (450 canlı
+# hücre, 75 maç):
+#
+#     model p, q1=0.100 · 0.119 · 0.132 için TIPATIP %12.90
+#     kitap p,          için  %4.55 ·  %6.05 ·  %5.86
+#     → "edge" +%132.8 / +%81.2 / +%87.0   ← tamamen kova genişliği
+#
+# Ve argmax tam olarak bandın en uç maçını seçiyor; yani modelin EN YANLIŞ
+# olduğu maçı. Seçicinin laneti burada mekanik olarak üretiliyor.
+#
+# ÖLÇÜM (450 hücre, kitabın marjsız fiyatına karşı):
+#     BANTLI  : |sapma| %15.5  std %23.9  ·  edge>%8 aday: 38/450
+#     SÜREKLİ : |sapma|  %5.2  std  %6.6  ·  edge>%8 aday:  0/450
+#
+# ⚠️ Kombo pazarlarında EDGE YOK. Ölçüldü: iddaa korelasyonu doğru
+# fiyatlıyor (1X2_OU +%0.1 · 1X2_BTTS −%0.3 · OU_BTTS −%1.2 sapma;
+# 9.612 maçlık gerçek korelasyona karşı). Marj %18.6-20.4 → net −%17.
+# Sürekli modelin işi kâr bulmak değil, SAHTE edge üretmemektir.
+
+# Kalibrasyon düzeltmesi: eğitim diliminde (2024 öncesi, 153.792 gözlem)
+# 12 kovada fit edildi, SINAVDA (137.552 gözlem) doğrulandı.
+#     düzeltmesiz 0.432 puan → düzeltilmiş 0.344 puan  (+%20.4)
+CALIB_BOUND = [0.0574, 0.0772, 0.0962, 0.1174, 0.1370, 0.1613,
+               0.1820, 0.2041, 0.2427, 0.3100, 0.3937, 0.7970]
+CALIB_RATIO = [1.0336, 0.9618, 0.9339, 0.9655, 1.0093, 0.9476,
+               0.9806, 1.0363, 1.0423, 0.9948, 1.0035, 1.0099]
+
+# ⚠️ KIRILGANLIK CEZASI SÜREKLİ MODELDE YOK — ölçüldü, orada değil.
+# Kalibrasyon sonrası artık sapma (137.552 sınav gözlemi):
+#     tek-skor payı <%35 → 1.010 · %35-55 → 0.988
+#     %55-75 → 0.974     · >%75 → 1.067   ← EKSİK tahmin, fazla değil
+# FRAGILE_FACTOR (0.972) bantlı modelin hatasını yamıyordu; sürekli
+# modelde ters yönde çalışırdı. `fragile` artık yalnızca BİLGİDİR.
+# Varyans kontrolü olasılığa değil, BAHİS BÜYÜKLÜĞÜNE aittir.
+
+_CONT_CACHE: dict = {}
+
+
+def _calib(p: float) -> float:
+    for b, r in zip(CALIB_BOUND, CALIB_RATIO):
+        if p <= b:
+            return r
+    return CALIB_RATIO[-1]
+
+
+def _score_dist_cont(q1: float, qx: float, qU: float) -> list:
+    """Maça özgü skor dağılımı — marjsız 1X2 + A/Ü fiyatından λ çöz."""
+    key = (round(q1, 3), round(qx, 3), round(qU, 3))
+    d = _CONT_CACHE.get(key)
+    if d is None:
+        import goal_model as gm
+        lh, la = gm.fit(q1, qx, qU)
+        ph, pa = gm._pois(lh), gm._pois(la)
+        d = [(h, a, ph[h] * pa[a])
+             for h in range(gm.MAXG + 1) for a in range(gm.MAXG + 1)]
+        if len(_CONT_CACHE) > 4000:
+            _CONT_CACHE.clear()
+        _CONT_CACHE[key] = d
+    return d
+
+
+def score_set_prob_cont(q1: float, qx: float, qU: float, winner) -> tuple:
+    """Kazandıran skorların kütlesi — BANTSIZ, maça özgü.
+    Döner: (kalibre olasılık, etkin_skor_sayısı, tek_skor_payı, kırılgan_mı)
+    Etkin skor sayısı = 1/Σ(pay²) (perplexity) — sürekli dağılımda her
+    skorun kütlesi sıfırdan büyük olduğu için "kaç skor" ancak böyle
+    anlamlıdır."""
+    try:
+        D = _score_dist_cont(q1, qx, qU)
+    except Exception:
+        return 0.0, 0, 0.0, False
+    win = [p for h, a, p in D if winner(h, a)]
+    tot = sum(win)
+    if tot <= 0:
+        return 0.0, 0, 0.0, False
+    shares = [p / tot for p in win]
+    top = max(shares)
+    n_eff = int(round(1.0 / sum(s * s for s in shares)))
+    return min(tot * _calib(tot), 0.999), n_eff, top, top > FRAGILE_TOP_SHARE

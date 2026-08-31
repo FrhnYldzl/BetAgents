@@ -1742,12 +1742,32 @@ def diagnose_all() -> list[dict]:
                                 picks = _fade_candidates(prof, tag)
                             elif mode == "popular":
                                 picks = _popular_candidates(prof, tag)
+                            elif mode == "multiplier":
+                                # 🔴 KIRMIZI TAKIM: kendi veri hattı
+                                # (market_odds), matches_v2 havuzu değil.
+                                # Bu dal eksikti; kırmızı ajanlar
+                                # _engine_candidates'e düşüyor ve teşhisleri
+                                # yanlış çıkıyordu.
+                                picks = _multiplier_candidates(prof, tag)
                             else:
                                 picks = _engine_candidates(prof, tag, matches, eng)
                             if not picks:
                                 status = "⚪ MEŞRU PAS"
                                 detail = (f"{len(matches)} maç tarandı, "
                                           f"0 profil-geçen aday")
+                                if mode == "multiplier":
+                                    # ÖLÇÜLDÜ: iddaa kombo pazarlarında
+                                    # korelasyonu doğru fiyatlıyor
+                                    # (1X2_OU +%0.1 · 1X2_BTTS −%0.3 ·
+                                    # OU_BTTS −%1.2 sapma, 9.612 maça karşı).
+                                    # Marj %18.6-20.4 → net −%17. Sessizlik
+                                    # arıza değil, doğru cevap.
+                                    detail = (
+                                        f"kombo pazarında eşiği geçen aday yok "
+                                        f"({prof.get('combo_market','?')}) — "
+                                        f"ÖLÇÜLDÜ: iddaa korelasyonu doğru "
+                                        f"fiyatlıyor, marj ~%19 · sürekli model "
+                                        f"sahte edge üretmiyor")
                                 if data_broken:
                                     detail += " · ⚠️ SEBEP SİSTEMİK: veri hattı kesik"
                             else:

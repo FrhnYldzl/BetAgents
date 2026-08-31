@@ -211,6 +211,12 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 if qU is None:
                     _p = _norm_probs(latest, ev, "OU2.5")
                     qU = _p.get("U") if _p else None
+                # 🎯 SÜREKLİ MODEL için P(beraberlik) de lazım — λ çözümü
+                # üç marjsız fiyattan yapılır (q1, qX, qÜst).
+                qx = pa.get("0") if mk_a == "1X2" else None
+                if qx is None:
+                    _p = _norm_probs(latest, ev, "1X2")
+                    qx = _p.get("0") if _p else None
                 winner = None
                 if combo_market == "1X2_OU":
                     winner = ss.combo_winner(ca, cb)
@@ -220,14 +226,27 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                     winner = ss.ou_btts_winner(ca, cb)
                 p_set = n_sc = top_sh = 0
                 fragile = False
-                if winner is not None and q1 is not None and qU is not None:
-                    p_set, n_sc, top_sh, fragile = ss.score_set_prob(q1, qU, winner)
+                method = ""
+                # ── ÖNCE SÜREKLİ (bantsız). Bantlı model %10 ile %32'lik
+                # mazlumu aynı kovaya atıyordu ve argmax tam oraya
+                # gidiyordu: ölçülen sahte edge +%132.8 → gerçekte −%15.9.
+                if winner is not None and None not in (q1, qx, qU):
+                    p_set, n_sc, top_sh, fragile = ss.score_set_prob_cont(
+                        q1, qx, qU, winner)
+                    if p_set > 0:
+                        method = "skor kümesi (sürekli)"
+                # ── bantlıya yalnızca λ çözülemezse düş
+                if p_set <= 0 and winner is not None and None not in (q1, qU):
+                    p_set, n_sc, top_sh, fragile = ss.score_set_prob(
+                        q1, qU, winner)
+                    if p_set > 0:
+                        method = "skor kümesi (BANTLI — yedek)"
+                        # bantlı modelde kırılganlık düzeltmesi ÖLÇÜLDÜ ve
+                        # gerçek; sürekli modelde yok (kalibrasyon yutuyor).
+                        p_set *= (ss.FRAGILE_FACTOR if fragile else 1.0)
 
                 if p_set > 0:
-                    method = "skor kümesi"
-                    # 🛡 KIRILGANLIK: tek skora bağımlı kombinelerde model
-                    # %2.8 fazla iyimser (ölçüldü) — düzelt.
-                    p_joint = p_set * (ss.FRAGILE_FACTOR if fragile else 1.0)
+                    p_joint = p_set
                     sf_label = (f"{n_sc} skor · tek-skor payı %{top_sh*100:.0f}"
                                 + (" · KIRILGAN" if fragile else " · sağlam"))
                 else:
@@ -244,9 +263,14 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 ob = pb["_odds"].get(cb)
                 naive = (oa * ob) if (oa and ob) else 0
                 edge = combo / fair - 1
-                # 🛡 risk-ayarlı eşik: zayıf bölgede daha fazla marj iste
-                # kırılgan kümede daha fazla marj iste
-                need = min_edge * (1.5 if fragile else EDGE_MULT.get(sf_label, 1.0))
+                # 🛡 risk-ayarlı eşik: zayıf bölgede daha fazla marj iste.
+                # ⚠️ Kırılganlık cezası YALNIZCA bantlı/korelasyon yolunda.
+                # Sürekli modelde ölçüldü: kalibrasyon sonrası kırılgan
+                # kümelerde artık sapma yok (0.974-1.067), hatta en kırılgan
+                # kova EKSİK tahmin ediliyor. Orada 1.5x uygulamak, ölçülmemiş
+                # bir katsayıyı devralmak olurdu.
+                _frag_mult = 1.5 if (fragile and "sürekli" not in method) else 1.0
+                need = min_edge * _frag_mult * EDGE_MULT.get(sf_label, 1.0)
                 if edge < need or edge > MAX_EDGE:
                     continue                      # 🛑 akıl sağlığı tavanı
                 if not (min_odds <= combo <= max_odds):

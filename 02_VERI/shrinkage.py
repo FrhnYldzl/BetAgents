@@ -206,6 +206,27 @@ def estimate_k(rows: list[dict], control_odds: bool = True) -> dict | None:
     k = min(max(k_raw, 0.0), 1.0)        # modelde kullanılacak kırpılmış hâli
     mean_r = sum(y) / n
 
+    # ⛔ İKİ DEJENERE UÇ — ikisi de "hüküm", ikisi de sessiz geçilmez.
+    # k ≤ 0 : ê hiç bilgi taşımıyor (hatta ters sıralıyor).
+    # k ≥ 1 : τ² = k·Var(ê) > Var(ê) olurdu — ölçüm hatası NEGATİF çıkar,
+    #         yani model bu veriye OTURMUYOR. Tipik sebebi, ê'nin gerçek
+    #         edge'le aynı ölçekte olmaması. (Ölçüldü: canlı paper_bets'te
+    #         e = oran×mp−1 MARJLI edge; 1.095 bahsin 1.092'sinde negatif,
+    #         varyansının çoğu tahmin hatası değil MARJ farkı. k=+2.15
+    #         çıkıyor ve kırpılınca σ=0 oluyordu → "gereken eşik %0.0",
+    #         yani "her adayı oyna". Sessiz çöküş; artık fail-loud.)
+    deg_lo = k_raw <= 0.0
+    deg_hi = k_raw >= 1.0
+    if deg_lo:
+        deg_reason = ("k ≤ 0 — edge sıralaması bilgi TAŞIMIYOR; "
+                      "hiçbir eşik kârlı seçim yapamaz")
+    elif deg_hi:
+        deg_reason = ("k ≥ 1 — model bu veriye OTURMUYOR (τ² > Var(ê) "
+                      "imkânsız). ê büyük olasılıkla gerçek edge'le aynı "
+                      "ölçekte değil; önce edge tanımını düzelt")
+    else:
+        deg_reason = ""
+
     # μ₀, KIRPILMIŞ k ile tutarlı türetilir (α = μ₀(1-k)).
     # ⚠️ k_raw < 0 iken α/(1-k_raw) POZİTİF çıkabilir ve "ortalama bahis
     # kârlı" gibi okunur — oysa gerçekleşen ortalama eksidir. k≤0 demek
@@ -224,7 +245,9 @@ def estimate_k(rows: list[dict], control_odds: bool = True) -> dict | None:
         "tau2": k * var_e, "sigma2": (1 - k) * var_e,
         "odds_beta": (beta[2] if control_odds else None),
         "mean_e": me, "mean_r": mean_r,
-        "degenerate": k_raw <= 0.0,
+        "degenerate": deg_lo or deg_hi,       # ⛔ HER İKİ uç da dejenere
+        "degenerate_lo": deg_lo, "degenerate_hi": deg_hi,
+        "degenerate_reason": deg_reason,
         "control_odds": control_odds,
     }
 
@@ -245,17 +268,25 @@ class Shrinker:
     """
 
     def __init__(self, k: float, mu0: float, var_e: float,
-                 degenerate: bool = False, min_pi: float = 0.55):
+                 degenerate: bool = False, min_pi: float = 0.55,
+                 reason: str = ""):
         self.k = min(max(k, 0.0), 1.0)
         self.mu0 = mu0
         self.var_e = max(var_e, 1e-9)
+        # k tam 1'e kırpıldıysa σ=0 ve sd=0 olur; seçim cezası yok olur ve
+        # π* mekanik olarak %100 çıkar. Bu bir sonuç değil, bir çöküştür.
+        if self.k >= 0.999:
+            degenerate = True
+            reason = reason or "k ≥ 1 — model veriye oturmuyor"
         self.degenerate = degenerate
+        self.reason = reason
         self.min_pi = min_pi
 
     @classmethod
     def from_fit(cls, fit: dict, min_pi: float = 0.55) -> "Shrinker":
         return cls(fit["k"], fit["mu0"], fit["var_e"],
-                   degenerate=fit.get("degenerate", False), min_pi=min_pi)
+                   degenerate=fit.get("degenerate", False), min_pi=min_pi,
+                   reason=fit.get("degenerate_reason", ""))
 
     @property
     def sigma(self) -> float:
@@ -273,15 +304,18 @@ class Shrinker:
         e_adj = edge_hat - infl
 
         # ── 2) küçültme
-        if self.degenerate or self.k <= 0.0:
-            # ê hiçbir bilgi taşımıyor → koşulsuz ortalamaya düş
+        if self.degenerate or self.k <= 0.0 or self.k >= 0.999:
+            # ê güvenilir değil → koşulsuz ortalamaya düş, BAHİS YOK.
+            # (k≥1 dalı da buraya girer: orada σ=0 olduğu için formüller
+            #  sessizce π*=%100 üretirdi — hüküm değil, çöküş.)
             post = self.mu0
             sd = math.sqrt(self.var_e)
             pi = norm_cdf(post / sd) if sd > 0 else 0.0
             return {"edge_hat": edge_hat, "selection_penalty": infl,
                     "edge_adj": e_adj, "posterior": post, "sd": sd,
                     "pi_star": pi, "bet": False,
-                    "note": "k<=0 — edge sıralaması bilgi taşımıyor, PAS"}
+                    "note": (self.reason or
+                             "k<=0 — edge sıralaması bilgi taşımıyor") + ", PAS"}
 
         post = self.mu0 + self.k * (e_adj - self.mu0)
         sd = math.sqrt(max(self.k * (1 - self.k) * self.var_e, 1e-12))
@@ -294,8 +328,8 @@ class Shrinker:
     def required_edge(self, n_candidates: int = 1) -> float | None:
         """π* eşiğini geçmek için gereken HAM edge — "eşiğim ne olmalı"nın
         cevabı. Sabit %8 yerine ölçülmüş k'dan türetilir."""
-        if self.degenerate or self.k <= 0.0:
-            return None
+        if self.degenerate or self.k <= 0.0 or self.k >= 0.999:
+            return None          # eşik türetilemez — uydurma sayı dönmez
         sd = math.sqrt(max(self.k * (1 - self.k) * self.var_e, 1e-12))
         need_post = norm_ppf(self.min_pi) * sd
         e_adj = (need_post - self.mu0) / self.k + self.mu0
@@ -310,7 +344,9 @@ def fmt_fit(fit: dict | None, label: str = "") -> str:
     if not fit:
         return f"{label:22s}  (yetersiz örneklem — en az 30 kapanmış bahis gerek)"
     star = "***" if abs(fit["t"]) > 2.58 else ("**" if abs(fit["t"]) > 1.96 else "")
-    flag = "  ⛔ DEJENERE (k<=0)" if fit["degenerate"] else ""
+    flag = ("  ⛔ DEJENERE (k≤0)" if fit.get("degenerate_lo") else
+            "  ⛔ DEJENERE (k≥1 — MODEL OTURMUYOR)" if fit.get("degenerate_hi")
+            else "")
     return (f"{label:22s} n={fit['n']:5d}  k={fit['k_raw']:+.3f} ±{fit['se_k']:.3f} "
             f"t={fit['t']:+5.2f}{star:3s} "
             f"[{fit['ci_lo']:+.2f},{fit['ci_hi']:+.2f}]  "

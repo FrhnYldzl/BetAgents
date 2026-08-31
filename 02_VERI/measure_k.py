@@ -165,9 +165,15 @@ def quintile_table(rows: list[dict], title: str) -> None:
 def verdict_for(fit: dict | None) -> str:
     if not fit:
         return "ÖLÇÜLEMEDİ"
-    if fit["degenerate"]:
+    if fit.get("degenerate_lo"):
         return ("⛔ k ≤ 0 — edge sıralaması bilgi TAŞIMIYOR. Hiçbir edge eşiği "
                 "kârlı seçim yapamaz; eşiği yükseltmek de işe yaramaz.")
+    if fit.get("degenerate_hi"):
+        return ("⛔ k ≥ 1 — MODEL BU VERİYE OTURMUYOR. Sonuç 'edge sıralaması "
+                "harika' DEĞİLDİR: k=τ²/(τ²+σ²) tanımı gereği [0,1] "
+                "aralığındadır. Önce edge tanımını düzelt (marjlı edge "
+                "kullanılıyorsa varyansın çoğu marj farkıdır, tahmin "
+                "hatası değil).")
     if fit["ci_lo"] <= 0 <= fit["ci_hi"]:
         return ("⚠️ k sıfırdan ayırt edilemiyor — kanıt yetersiz. "
                 "Daha çok kapanmış bahis gerek.")
