@@ -32,9 +32,11 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 sys.path.insert(0, str(THIS_DIR.parent / "02_VERI"))
 
+# ⚠️ "auto": masaustunde acik, MOBILDE KAPALI. "expanded" mobilde
+# paneli icerigin uzerine sereriyor ve ekrani orruyordu.
 try:
     st.set_page_config(page_title="BetAgents Desk", page_icon="◉",
-                       layout="wide", initial_sidebar_state="collapsed")
+                       layout="wide", initial_sidebar_state="auto")
 except Exception:
     pass
 
@@ -352,6 +354,117 @@ table.v2 tr.adv .ag{color:var(--pos);}
 .vd{font-size:12.5px;line-height:1.55;padding:10px 12px;border:1px solid var(--line);
   background:var(--panel-2);color:var(--ink-2);}
 .vd b{color:var(--ink);}
+
+/* ══════════════════════════════════════════════════════════
+   ÖLÇÜ SİSTEMİ — 4px tabanlı, tek yerden
+   Rastgele padding yerine ölçek: her boşluk bir katı.
+   ══════════════════════════════════════════════════════════ */
+:root{
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --t-mikro:9.5px;   /* sütun başlığı, rozet */
+  --t-kucuk:11px;    /* alt satır, ipucu */
+  --t-govde:13.5px;  /* tablo hücresi */
+  --t-orta:15px;     /* açıklama metni */
+  --t-buyuk:19px;    /* okuma rakamı */
+  --t-dev:27px;      /* tek büyük rakam */
+  --yan:248px;       /* kenar çubuğu genişliği */
+}
+
+/* ── KENAR ÇUBUĞU ─────────────────────────────────────── */
+[data-testid="stSidebar"]{
+  background:var(--rail);
+  border-right:1px solid var(--line);
+  width:var(--yan)!important;min-width:var(--yan)!important;
+}
+[data-testid="stSidebar"] [data-testid="stSidebarContent"]{
+  padding:var(--s5) var(--s3) var(--s4);
+}
+[data-testid="stSidebar"] *{color:var(--rail-ink);}
+.v2brand{padding:0 var(--s2) var(--s5);}
+.v2brand b{display:block;font-size:17px;font-weight:700;
+  letter-spacing:-0.01em;line-height:1.1;}
+.v2brand span{display:block;font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-mikro);color:var(--brand);letter-spacing:0.2em;
+  text-transform:uppercase;margin-top:3px;}
+.v2navlbl{font-family:"JetBrains Mono",monospace;font-size:var(--t-mikro);
+  letter-spacing:0.16em;text-transform:uppercase;color:var(--rail-dim);
+  padding:var(--s4) var(--s2) var(--s2);}
+/* Streamlit butonlarini menu satirina cevir */
+[data-testid="stSidebar"] .stButton>button{
+  width:100%;text-align:left;justify-content:flex-start;
+  background:transparent;border:0;border-left:2px solid transparent;
+  border-radius:0;padding:9px var(--s3);margin:0;
+  font-size:var(--t-orta);font-weight:500;color:var(--rail-ink);
+  min-height:40px;transition:background .12s,border-color .12s;
+}
+[data-testid="stSidebar"] .stButton>button:hover{
+  background:rgba(255,255,255,.05);border-left-color:var(--rail-dim);}
+[data-testid="stSidebar"] .stButton>button[kind="primary"]{
+  background:rgba(255,255,255,.08);border-left-color:var(--brand);
+  color:#fff;font-weight:600;}
+/* ⚠️ ÜÇÜNCÜ KEZ AYNI ÇATIŞMA: yukarıdaki
+   [data-testid="stMarkdownContainer"] p{color:var(--ink)} kuralı
+   özgüllükte (0,1,1) kenar çubuğunun (0,1,0) önüne geçiyor ve KOYU
+   zemine KOYU yazı basıyor — sadece emoji görünüyordu. Kenar çubuğu
+   metinleri burada AÇIKÇA boyanır, kalıtıma bırakılmaz. */
+[data-testid="stSidebar"] .stButton>button p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] *{
+  font-size:var(--t-orta)!important;margin:0!important;
+  color:var(--rail-ink)!important;}
+[data-testid="stSidebar"] .stButton>button[kind="primary"] p{
+  color:#ffffff!important;}
+[data-testid="stSidebar"] .v2brand span{color:var(--brand)!important;
+  font-size:var(--t-mikro)!important;}
+[data-testid="stSidebar"] .v2navlbl{color:var(--rail-dim)!important;
+  font-size:var(--t-mikro)!important;}
+[data-testid="stSidebar"] .v2yan-alt,
+[data-testid="stSidebar"] .v2yan-alt *{color:var(--rail-dim)!important;
+  font-size:var(--t-mikro)!important;}
+[data-testid="stSidebar"] .v2yan-alt b{color:var(--rail-ink)!important;}
+[data-testid="stSidebar"] .v2yan-alt b.uyari{color:#f08a78!important;}
+.v2yan-alt{
+  margin-top:var(--s5);padding:var(--s3) var(--s2) 0;
+  border-top:1px solid rgba(255,255,255,.09);
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-mikro);
+  line-height:1.7;color:var(--rail-dim);letter-spacing:0.04em;}
+.v2yan-alt b{color:var(--rail-ink);font-weight:500;}
+.v2yan-alt .uyari{color:#f08a78;}
+
+/* ── ÖLÇÜ: tipografi tek ölçekten ─────────────────────── */
+table.v2 th{font-size:var(--t-mikro);padding:0 var(--s2) 7px 0;}
+table.v2 td{font-size:var(--t-govde);padding:9px var(--s2) 9px 0;}
+table.v2 .sb{font-size:var(--t-kucuk);}
+table.v2 .ag{font-size:var(--t-govde);}
+.v2head h2{font-size:var(--t-kucuk);}
+.v2head .hint{font-size:var(--t-mikro);}
+.v2body{padding:var(--s3) var(--s4);}
+.v2mb{font-size:var(--t-orta);padding:var(--s3);}
+.ro b{font-size:var(--t-buyuk);}
+.ro.big b{font-size:var(--t-dev);}
+.vd{font-size:var(--t-orta);padding:var(--s3);}
+.dq{font-size:var(--t-kucuk);padding:var(--s2) var(--s3);}
+
+/* ── MOBİL ────────────────────────────────────────────────
+   Tablo mobilde daralmaz, ÖNCELİKLENİR: ikincil sütunlar
+   (.opt) gizlenir, taşıyıcı sütunlar kalır. Yatay kaydırma
+   son çare — parmakla tablo sürüklemek okuma değildir.     */
+@media (max-width:820px){
+  :root{--yan:230px;}
+  .v2rail{gap:var(--s4);padding:var(--s3) var(--s4);}
+  .v2rail .st b{font-size:var(--t-govde);}
+}
+@media (max-width:640px){
+  .block-container{padding:var(--s2) var(--s3) var(--s6)!important;}
+  table.v2 th.opt, table.v2 td.opt{display:none;}
+  table.v2 td{padding:11px var(--s2) 11px 0;}   /* dokunma alanı */
+  .v2rail{gap:var(--s3) var(--s4);}
+  .v2rail .bm{width:100%;margin-bottom:var(--s1);}
+  .ro.big b{font-size:23px;}
+  .pick, [data-testid="stCheckbox"] label{min-height:44px;}
+  [data-testid="stCheckbox"] label p{font-size:var(--t-govde)!important;}
+  .v2card{margin-bottom:var(--s2);}
+}
 
 /* Streamlit onay kutusu — tahtada satır gibi görünsün.
    ⚠️ Streamlit'in kendi teması koyu olursa yazı rengi beyaz gelir ve
@@ -698,8 +811,8 @@ def page_desk() -> None:
                 f"<tr{adv}><td class='rk'>{i}</td>"
                 f"<td><span class='ag'>{a['em']} {a['ad']}</span>"
                 f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>"
-                f"<td class='r n'>{_pct(a['hit'])}</td>"
-                f"<td class='r n'>{_pct(a['exp'])}</td>"
+                f"<td class='r n opt'>{_pct(a['hit'])}</td>"
+                f"<td class='r n opt'>{_pct(a['exp'])}</td>"
                 f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
                 f"{_sgn(a['edge'])}</span></td>"
                 f"<td class='r'><span class='gr {g}'>{txt}</span></td></tr>")
@@ -714,7 +827,7 @@ def page_desk() -> None:
               <b>fiyatın beklediğinden ne kadar fazlası</b>.
               {(" " + swap) if swap else ""}</div>
             <table class="v2"><thead><tr><th></th><th>Ajan</th>
-              <th class="r">İsabet</th><th class="r">Fiyat bekler</th>
+              <th class="r opt">İsabet</th><th class="r opt">Fiyat bekler</th>
               <th class="r">Fark</th><th class="r">Hüküm</th></tr></thead>
               <tbody>{''.join(body)}</tbody></table>
           </div></div>""", unsafe_allow_html=True)
@@ -842,8 +955,8 @@ def page_opus() -> None:
                 "<div class='hint'>gerçekte oynananlar</div></div>"
                 "<div class='v2body'>"
                 "<table class='v2'><thead><tr><th></th>"
-                "<th class='r'>Ayak</th><th class='r'>İsabet</th>"
-                "<th class='r'>Fiyat bekler</th><th class='r'>Fark</th>"
+                "<th class='r opt'>Ayak</th><th class='r opt'>İsabet</th>"
+                "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
                 "</tr></thead><tbody>"
                 "<tr" + (" class='adv'" if o["edge"] > h.get("edge", 0) else "") +
                 "><td><span class='ag'>🧑‍💻 OPUS 5 · sen</span>"
@@ -987,10 +1100,10 @@ def _takim_tablo(rows, baslik, alt, renk):
             (" · oran " + _num(a["odds"]) if a["n"] else " · oynamadı") +
             "</span></td>"
             "<td class='r n'>" + ("{:,.0f}".format(a["kasa"]).replace(",", ".")) + "</td>"
-            "<td class='r'><span class='" + kasa_cls + "'>" +
+            "<td class='r opt'><span class='" + kasa_cls + "'>" +
             "{:.0f}".format(a["yuzde"]) + "%</span></td>"
-            "<td class='r n'>" + (_pct(a["hit"]) if a["n"] else "—") + "</td>"
-            "<td class='r n'>" + (_pct(a["exp"]) if a["n"] else "—") + "</td>"
+            "<td class='r n opt'>" + (_pct(a["hit"]) if a["n"] else "—") + "</td>"
+            "<td class='r n opt'>" + (_pct(a["exp"]) if a["n"] else "—") + "</td>"
             "<td class='r'>" + (
                 "<span class='" + ("dp" if (a["edge"] >= 0.005 and yeter)
                                    else "dm") + "'>" +
@@ -1000,8 +1113,9 @@ def _takim_tablo(rows, baslik, alt, renk):
             "<div class='v2head'><h2>" + baslik + "</h2>"
             "<div class='hint'>" + alt + "</div></div><div class='v2body'>"
             "<table class='v2'><thead><tr><th></th><th>Ajan</th>"
-            "<th class='r'>Kasa</th><th class='r'>%</th><th class='r'>İsabet</th>"
-            "<th class='r'>Fiyat bekler</th><th class='r'>Fark</th>"
+            "<th class='r'>Kasa</th><th class='r opt'>%</th>"
+            "<th class='r opt'>İsabet</th>"
+            "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
             "<th class='r'>Hüküm</th></tr></thead><tbody>" +
             "".join(body) + "</tbody></table></div></div>")
 
@@ -1057,9 +1171,9 @@ def page_defter() -> None:
         body.append(
             "<tr><td><span class='ag'>" + r["id"] + "</span>" + dg +
             "<span class='sb'>" + str(r["detay"] or "")[:96] + "</span></td>"
-            "<td class='r n'>" + "{:,}".format(r["n"]).replace(",", ".") + "</td>"
+            "<td class='r n opt'>" + "{:,}".format(r["n"]).replace(",", ".") + "</td>"
             "<td class='r n'>" + _num(r["v"], 3) + " " + tr + "</td>"
-            "<td class='r n'>" + str(r["kosu"]) + "</td>"
+            "<td class='r n opt'>" + str(r["kosu"]) + "</td>"
             "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
     st.markdown(
         "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
@@ -1069,8 +1183,8 @@ def page_defter() -> None:
         "sonradan esnetilemesin. 'Sağlanmadı' bir arıza değil, bir "
         "<b>hükümdür</b> — konsept o kadar. Bir bulgunun çürümesi de "
         "güçlenmesi de karar gerektirir.</div>"
-        "<table class='v2'><thead><tr><th>Ölçüm</th><th class='r'>n</th>"
-        "<th class='r'>Değer</th><th class='r'>Koşu</th>"
+        "<table class='v2'><thead><tr><th>Ölçüm</th><th class='r opt'>n</th>"
+        "<th class='r'>Değer</th><th class='r opt'>Koşu</th>"
         "<th class='r'>Hüküm</th></tr></thead><tbody>" +
         "".join(body) + "</tbody></table></div></div>", unsafe_allow_html=True)
 
@@ -1170,18 +1284,30 @@ def main() -> None:
     st.markdown(V2_CSS, unsafe_allow_html=True)
     if "v2_page" not in st.session_state:
         st.session_state["v2_page"] = "◧ Desk"
-    # ⚠️ AÇIK KEY ŞART: Streamlit widget kimliğini etiket + parametrelerden
-    # türetir. `type` her yeniden çizimde primary<->secondary arasında
-    # değiştiği için kimlik de değişiyor ve tıklama kayboluyordu — sayfa
-    # hiç geçmiyordu. Sabit key kimliği çakılar.
-    cols = st.columns([1, 1, 1, 1, 1, 3])
-    for i, (name, _fn) in enumerate(PAGES.items()):
-        with cols[i]:
+
+    with st.sidebar:
+        st.markdown(
+            "<div class='v2brand'><b>BetAgents</b><span>Desk · v2</span></div>"
+            "<div class='v2navlbl'>Çalışma</div>", unsafe_allow_html=True)
+        # ⚠️ ACIK KEY: Streamlit widget kimligini etiket + parametrelerden
+        # turetir; `type` her cizimde degistigi icin kimlik kayardi.
+        for i, name in enumerate(PAGES):
             if st.button(name, key=f"v2nav_{i}", use_container_width=True,
                          type=("primary" if st.session_state["v2_page"] == name
                                else "secondary")):
                 st.session_state["v2_page"] = name
                 st.rerun()
+        r = load_rail()
+        yerel = r["kaynak"].startswith("SQLite")
+        st.markdown(
+            "<div class='v2yan-alt'>"
+            "KAYNAK<br><b class='" + ("uyari" if yerel else "") + "'>" +
+            r["kaynak"] + "</b><br><br>"
+            "AÇIK POZİSYON<br><b>" + str(r["acik"]) + "</b><br><br>"
+            "KAPANMIŞ BAHİS<br><b>" +
+            "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
+            "</div>", unsafe_allow_html=True)
+
     _rail()
     PAGES[st.session_state["v2_page"]]()
 
