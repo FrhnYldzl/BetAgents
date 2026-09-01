@@ -125,23 +125,74 @@ TEAM_MARKERS = {
 }
 
 
+# Takım adında bunlardan biri varsa o maç ANA LİG DEĞİLDİR.
+# Kadın/genç/rezerv takımlar erkek A takımıyla AYNI adı taşır:
+# "Real Madrid (K)" içinde "real madrid" geçer. Red listesi eskiden
+# yalnız lig adına uygulanıyordu, takım adına hiç — bu yüzden kadın
+# maçları erkek ligi koduyla kaydedildi.
+TAKIM_RED = (" (k)", "(k)", " kadin", " kadın", " women", " fem",
+             " u19", " u21", " u23", "u-19", "u-21", "u-23",
+             " ii", " b2", " res.", " reserve")
+
+
+def _isaret_var(ad: str, isaret: str) -> bool:
+    """Takim isareti KELIME SINIRINDA gecsin — duz alt dizi degil.
+
+    ⚠️ Duz "in" testi su yanlislari uretiyordu:
+        "inter"  -> "Internacional de Bogota"  (Kolombiya -> I1)
+        "como"   -> "Comodoro"
+        "nice"   -> herhangi bir "...nice..." adi
+    Isaretlerin cogu iki sozcuk ("manchester city") ve zararsiz; tehlike
+    kisa tek sozcuklerde: inter, milan, roma, lazio, genoa, como, lecce,
+    parma, monaco, nice, lens, brest, mainz, koln.
+    """
+    import re
+    return re.search(r"(?<![a-z0-9])" + re.escape(isaret) +
+                     r"(?![a-z0-9])", ad) is not None
+
+
+def _takim_reddedildi(nm: str) -> bool:
+    """Kadın/genç/rezerv takım mı — ana lig oyu kullanamaz."""
+    n = " " + nm.lower().strip() + " "
+    if any(r in n for r in TAKIM_RED):
+        return True
+    # "Celta Vigo B", "Barcelona B" gibi rezerv takımlar: tek harf 'b' son sozcuk
+    return n.rstrip().endswith(" b")
+
+
 def learn_ci_leagues(events: list) -> dict:
-    """events listesinden ci→league_code eşlemesini çoğunluk oyuyla öğren."""
+    """events listesinden ci→league_code eslemesini cogunluk oyuyla ogren.
+
+    ⚠️ Bu bir SEZGIDIR, kanit degil. Artik yalniz lig adinin (cn) hic
+    olmadigi yerde kullanilir — cn varsa o otoritedir. Yine de kendi
+    icinde saglam olmali, cunku yanlis kod 'ALL'den kotudur.
+
+    Uc koruma:
+      1. Kadin/genc/rezerv takim oy KULLANAMAZ (ad ayni, lig degil).
+      2. Kazanan ile ikincinin arasi acik olmali — cekismeli ci
+         (or. Sampiyonlar Ligi: hem E0 hem I1 takimi var) 'ALL' kalir.
+      3. En az 2 oy — tek maclik tesaduf eslesmeyi eler.
+    """
     from collections import Counter
     votes: dict = {}
     for ev in events:
-        nm = ((ev.get("hn") or ev.get("eh") or "") + " " +
-              (ev.get("an") or ev.get("ea") or "")).lower()
         ci = ev.get("ci")
         if ci is None:
             continue
+        h = (ev.get("hn") or ev.get("eh") or "")
+        a = (ev.get("an") or ev.get("ea") or "")
+        if _takim_reddedildi(h) or _takim_reddedildi(a):
+            continue                    # 1) kadin/genc/rezerv -> oy yok
+        nm = (h + " " + a).lower()
         for lg, markers in TEAM_MARKERS.items():
-            if any(m in nm for m in markers):
+            if any(_isaret_var(nm, m) for m in markers):
                 votes.setdefault(ci, Counter())[lg] += 1
     learned = {}
     for ci, ctr in votes.items():
-        lg, n = ctr.most_common(1)[0]
-        if n >= 2:                      # tek maçlık tesadüf eşleşmeyi eleme
+        sira = ctr.most_common(2)
+        lg, n = sira[0]
+        ikinci = sira[1][1] if len(sira) > 1 else 0
+        if n >= 2 and n > ikinci:       # 2) + 3) net cogunluk sart
             learned[ci] = lg
     return learned
 
@@ -217,18 +268,53 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
         print("  Boş — iddia.com'da bugün/yakın maç yok veya endpoint değişti")
         return
 
-    # 1.5) Sezon-kanıtlı lig öğrenme: ci→lig (takım adlarından, her fetch'te)
+    # 1.5) LİG KODU — sıra ÖNEMLİ, ve eskiden TERSTİ.
+    #
+    # ⚠️ 2026-09-01'de bulundu: öğrenme (takım adı çoğunluk oyu) ÖNCE
+    # koşuyor, iddaa'nın kendi söylediği lig adını EZİYORDU. Sonuç:
+    #   Nottingham Forest - Brest      -> E0 + I1 + SP1  (dört ayrı satır)
+    #   Real Madrid (K) - Atletico (K) -> SP1  (kadın maçı, erkek ligi)
+    #   Millonarios - Int. de Bogota   -> I1   (Kolombiya maçı, Serie A)
+    #   Aguilas FC - Lorca Deportiva   -> SP1  (İspanya 4. lig)
+    # Sebep: "inter" alt dizisi "Internacional de Bogota"ya da uyuyor;
+    # kadın takımları erkek takımıyla aynı adı taşıyor; red listesi
+    # yalnız lig ADI yolunda uygulanıyordu, takım adı yolunda hiç.
+    #
+    # YANLIŞ KOD, 'ALL'DEN KÖTÜDÜR. 'ALL' dürüsttür — "bilmiyorum" der.
+    # 'D1' bir kadın maçına yazıldığında Bundesliga analizini KİRLETİR
+    # ve bunu kimse fark etmez.
+    #
+    # ANAHTAR AKIL YÜRÜTME: lig adı (cn) VARSA ve bizim 6 lige UYMUYORSA,
+    # bu "bilgi yok" değil "BU LİG O DEĞİL" demektir. Yokluğun kanıtıdır.
+    # Öğrenme yalnız cn'in hiç olmadığı yerde konuşabilir.
     learned = {}
     try:
         learned = learn_ci_leagues(events)
         if learned:
-            print(f"  Lig tespiti: {len(learned)} ci öğrenildi -> {learned}")
-        for ev in events:
-            lg = learned.get(ev.get("ci"))
-            if lg and "_league_code" not in ev:
-                ev["_league_code"] = lg
+            print(f"  ci öğrenme (yalnız cn yoksa kullanılır): {learned}")
     except Exception as e:
         print(f"  lig öğrenme atlandı: {e}")
+
+    n_ad, n_ogr, n_bilinmez = 0, 0, 0
+    for ev in events:
+        cn = (ev.get("cn") or "").strip()
+        kod = map_iddaa_league(ev)          # 1) sabit ci eşlemesi + LİG ADI
+        if kod:
+            ev["_league_code"] = kod
+            n_ad += 1
+        elif not cn:
+            # 2) lig adı YOK — öğrenme konuşabilir (tek bilgi kaynağı)
+            kod = learned.get(ev.get("ci"))
+            if kod:
+                ev["_league_code"] = kod
+                n_ogr += 1
+            else:
+                n_bilinmez += 1
+        else:
+            # 3) lig adı VAR ama uymuyor -> bu lig o DEĞİL. 'ALL' kalır.
+            n_bilinmez += 1
+    print(f"  lig kodu: {n_ad} ad/eşlemeden · {n_ogr} öğrenmeden · "
+          f"{n_bilinmez} bilinmiyor ('ALL')")
 
     # 2) Filter target leagues via competition_id (ci)
     if only_target_leagues:
@@ -303,6 +389,11 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
             "home": home_name,
             "away": away_name,
             "competition_id": ev.get("ci"),
+            # ⚠️ Lig ADI eskiden ATILIYORDU. Kanonik koda çeviremediğimizde
+            # 'ALL' yazıp adı çöpe atmak, bilgiyi iki kez kaybetmektir:
+            # hangi lig olduğunu da bilmiyoruz. Ham adı saklamak, sahte
+            # kanonik kod uydurmadan lig bazlı analizi mümkün kılar.
+            "lig_adi": (ev.get("cn") or "").strip() or None,
             "mbs": ev.get("mbc"),   # iddaa Minimum Bahis Sayısı (1=tek olur, 3=3'lü zorunlu)
             "odds": odds_combined,
         })
@@ -345,6 +436,13 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
             conn.commit()
         except Exception:
             conn.rollback()
+        # iddaa lig adı — kanonik koda çevrilemeyen ligler için TEK bilgi
+        try:
+            conn.execute("ALTER TABLE matches_v2 "
+                         "ADD COLUMN iddaa_league_name TEXT")
+            conn.commit()
+        except Exception:
+            conn.rollback()
         now = datetime.utcnow().isoformat()
         n_ins_m2 = 0
         n_upd_m2 = 0
@@ -367,12 +465,31 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
 
                 odds = r["odds"]
 
-                # Var mı? — match
-                existing = conn.execute("""
-                    SELECT match_id FROM matches_v2
-                    WHERE league_code=? AND season=? AND matchday=?
-                      AND home_team=? AND away_team=?
-                """, (lg, season, md, r["home"], r["away"])).fetchone()
+                # Var mı? — KİMLİK SIRASI ÖNEMLİ
+                #
+                # ⚠️ Eskiden aramada league_code VARDI. Öğrenilen kod
+                # fetch'ler arasında değişince aynı maç BULUNAMIYOR ve
+                # YENİDEN EKLENİYORDU. Üretimde 107 mükerrer grup oluştu;
+                # Nottingham Forest - Brest tek iddaa event'iyle DÖRT satır
+                # (ALL + E0 + I1 + SP1). Mükerrer maç satırı her ölçümü
+                # bozar — aynı maç kalibrasyona birden çok kez girer.
+                #
+                # Doğru kimlik kaynağın kendi id'sidir: external_id_iddaa.
+                # Yedek anahtarda da league_code YOK — football-data'dan
+                # gelmiş bir satırı iddaa akışıyla eşleştirirken kodlar
+                # zaten farklı olur.
+                existing = None
+                if r.get("event_id"):
+                    existing = conn.execute(
+                        "SELECT match_id FROM matches_v2 "
+                        "WHERE external_id_iddaa=?",
+                        (str(r["event_id"]),)).fetchone()
+                if existing is None:
+                    existing = conn.execute("""
+                        SELECT match_id FROM matches_v2
+                        WHERE season=? AND matchday=?
+                          AND home_team=? AND away_team=?
+                    """, (season, md, r["home"], r["away"])).fetchone()
 
                 if existing:
                     # UPDATE odds
@@ -385,6 +502,8 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             closing_source='iddaa',
                             external_id_iddaa=?,
                             mbs=?,
+                            iddaa_league_name=COALESCE(?, iddaa_league_name),
+                            competition_id=COALESCE(?, competition_id),
                             refreshed_at=?
                         WHERE match_id=?
                     """, (
@@ -394,6 +513,8 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                         odds.get("btts_yes"), odds.get("btts_no"),
                         str(r["event_id"]),
                         r.get("mbs"),
+                        r.get("lig_adi"),
+                        r.get("competition_id"),
                         now,
                         existing["match_id"]
                     ))
@@ -408,11 +529,12 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             closing_over25, closing_under25,
                             closing_btts_yes, closing_btts_no,
                             closing_source, mbs,
+                            iddaa_league_name, competition_id,
                             has_full_odds, has_opening_odds, has_xg, has_result,
                             is_settled,
                             ingested_at, refreshed_at, quality_score
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NS', ?, ?, ?, ?, ?, ?, ?,
-                                  'iddaa', ?, ?, 0, 0, 0, 0, ?, ?, 0.50)
+                                  'iddaa', ?, ?, ?, ?, 0, 0, 0, 0, ?, ?, 0.50)
                     """, (
                         str(r["event_id"]), lg, season, md, kickoff,
                         r["home"], r["away"],
@@ -420,6 +542,8 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                         odds.get("over25"), odds.get("under25"),
                         odds.get("btts_yes"), odds.get("btts_no"),
                         r.get("mbs"),
+                        r.get("lig_adi"),
+                        r.get("competition_id"),
                         1 if (odds.get("1") and odds.get("X") and odds.get("2")) else 0,
                         now, now
                     ))
