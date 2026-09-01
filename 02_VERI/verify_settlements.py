@@ -158,6 +158,22 @@ def run(dry: bool = False) -> None:
             if not bets or not c:
                 continue
             live = [b for b in bets if b[0] in ("won", "lost")]
+            # ⚠️ AÇIK AYAK KONTROLU — bu satirlar olmadan asagidaki
+            # all(b[0]=="won" for b in live) ifadesi ACIK ayaklari SUZUP
+            # ATIYORDU: 3 ayakli kuponun 1 ayagi kazanmis, 2 maci henuz
+            # OYNANMAMISSA "hepsi kazandi" diyip kuponu ODUYORDU. Uretimde
+            # yakalandi (SIMYACI 0ee0482e: 4 Eylul'deki mac icin 1 Eylul'de
+            # para yazilmis). Kasaya var olmayan para girer, olcum bozulur.
+            #
+            # Kural: KAYBEDEN ayak varsa kupon oludur, acik ayak onemsiz —
+            # erken "lost" yazmak guvenlidir. Kaybeden YOKSA ve acik ayak
+            # varsa kupon HENUZ BITMEMISTIR; dokunma, settle motoru
+            # butun ayaklar geldiginde kendisi cozecek.
+            bekleyen = [b for b in bets if b[0] not in ("won", "lost", "void")]
+            kaybeden = any(b[0] == "lost" for b in live)
+            if bekleyen and not kaybeden:
+                continue
+
             if not live:
                 st, ret = "void", float(c[0])
             elif all(b[0] == "won" for b in live):

@@ -783,8 +783,14 @@ def load_lig() -> dict:
     ac = _rows("SELECT portfolio_id p, COUNT(*) kupon, "
                "COALESCE(SUM(stake),0) riskte FROM paper_coupons "
                "WHERE status='open' GROUP BY portfolio_id", sessiz=True)
-    ay = _rows("SELECT portfolio_id p, COUNT(*) ayak FROM paper_bets "
-               "WHERE status='open' GROUP BY portfolio_id", sessiz=True)
+    # Ayak sayimi ACIK KUPONA bagli olanlarla sinirli: olu kombinenin
+    # (kaybeden ayagi olan, kupon 'lost') acik ayagi RISKTE DEGILDIR —
+    # kupon zaten karara baglandi, PnL yazildi. Duz "paper_bets WHERE
+    # status='open'" saymak riski oldugundan buyuk gosterir.
+    ay = _rows("SELECT pb.portfolio_id p, COUNT(*) ayak FROM paper_bets pb "
+               "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+               "WHERE pb.status='open' AND pc.status='open' "
+               "GROUP BY pb.portfolio_id", sessiz=True)
     _ayak = {x["p"]: int(x["ayak"] or 0) for x in ay}
     acik = {x["p"]: {**x, "ayak": _ayak.get(x["p"], 0)} for x in ac}
     kasa = {x["p"]: x for x in pf}
@@ -1411,6 +1417,82 @@ def load_ajan_detay(pid: str) -> dict:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
+def load_defter_denetim() -> list[dict]:
+    """Defter kendi kendini tutuyor mu — HER acilista canli okur.
+
+    Bunlar sunum degil DENETIM satiridir. 2026-09-01'de uretimde
+    verify_settlements.py'nin acik ayaklari suzup atip kuponu erken
+    "won" yazdigi bulundu: SIMYACI'nin kuponu 1 Eylul'de odendi, iki
+    maci 2 ve 4 Eylul'de oynanacakti. Kasaya var olmayan para girdi.
+    Kok neden duzeltildi; bu sekme o hatanin SESSIZCE geri donmemesi
+    icin var. Bir sayi buyurse burada kirmizi yanar.
+    """
+    d: list[dict] = []
+
+    # 1) Erken kapanmis kupon: kapandi, acik ayagi var, kaybeden ayagi YOK.
+    #    Kaybeden ayagi olan (olu kombine) mesrudur — ayri satirda sayilir.
+    ek = _rows(
+        "SELECT COUNT(*) n FROM (SELECT pc.coupon_id "
+        "FROM paper_coupons pc JOIN paper_bets pb ON pb.coupon_id=pc.coupon_id "
+        "WHERE pc.status IN ('won','lost','void') GROUP BY pc.coupon_id "
+        "HAVING SUM(CASE WHEN pb.status='open' THEN 1 ELSE 0 END)>0 "
+        "AND SUM(CASE WHEN pb.status='lost' THEN 1 ELSE 0 END)=0) t",
+        sessiz=True)
+    d.append({"ad": "Erken kapanmış kupon",
+              "aciklama": "Kupon ödendi ama ayağı hâlâ açık ve kaybeden ayak "
+                          "yok — maç oynanmadan para yazılmış demektir.",
+              "n": int(ek[0]["n"]) if ek else 0, "esik": 0})
+
+    # 2) Olu kombine: kaybeden ayak var, kalan ayaklar acik. MESRU.
+    ok = _rows(
+        "SELECT COUNT(*) n FROM (SELECT pc.coupon_id "
+        "FROM paper_coupons pc JOIN paper_bets pb ON pb.coupon_id=pc.coupon_id "
+        "WHERE pc.status='lost' GROUP BY pc.coupon_id "
+        "HAVING SUM(CASE WHEN pb.status='open' THEN 1 ELSE 0 END)>0 "
+        "AND SUM(CASE WHEN pb.status='lost' THEN 1 ELSE 0 END)>0) t",
+        sessiz=True)
+    d.append({"ad": "Ölü kombine (meşru)",
+              "aciklama": "Bir ayak kaybetti, kupon bitti; kalan ayaklar "
+                          "sonucu degistiremez. Hata degil — bilgi.",
+              "n": int(ok[0]["n"]) if ok else 0, "esik": None})
+
+    # 3) Oksuz bahis: kupon satiri olmayan bahis.
+    ob = _rows(
+        "SELECT COUNT(*) n FROM paper_bets pb LEFT JOIN paper_coupons pc "
+        "ON pc.coupon_id=pb.coupon_id WHERE pc.coupon_id IS NULL", sessiz=True)
+    d.append({"ad": "Öksüz bahis",
+              "aciklama": "Kupon satırı olmayan bahis. Stake kuponda "
+                          "tutuluyor; kuponsuz bahsin riski ölçülemez.",
+              "n": int(ob[0]["n"]) if ob else 0, "esik": 0})
+
+    # 4) Ayak sayisi uyusmazligi: num_legs != gercek ayak.
+    au = _rows(
+        "SELECT COUNT(*) n FROM (SELECT pc.coupon_id "
+        "FROM paper_coupons pc JOIN paper_bets pb ON pb.coupon_id=pc.coupon_id "
+        "GROUP BY pc.coupon_id, pc.num_legs "
+        "HAVING COUNT(*) <> pc.num_legs) t", sessiz=True)
+    d.append({"ad": "Ayak sayısı uyuşmuyor",
+              "aciklama": "Kuponun beyan ettiği ayak sayısı ile gerçek ayak "
+                          "sayısı farklı — kombine oran yanlış hesaplanır.",
+              "n": int(au[0]["n"]) if au else 0, "esik": 0})
+
+    # 5) Kasa mutabakati: current_bankroll = initial + Σpnl(won/lost, era ici)
+    km = _rows(
+        "SELECT COUNT(*) n FROM (SELECT pp.portfolio_id "
+        "FROM paper_portfolio pp LEFT JOIN paper_coupons pc "
+        "ON pc.portfolio_id=pp.portfolio_id AND pc.status IN ('won','lost') "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        "GROUP BY pp.portfolio_id, pp.current_bankroll, pp.initial_bankroll "
+        "HAVING ABS(pp.current_bankroll - (pp.initial_bankroll + "
+        "COALESCE(SUM(pc.pnl),0))) > 0.5) t", sessiz=True)
+    d.append({"ad": "Kasa mutabakatsız ajan",
+              "aciklama": "Kasa = başlangıç + Σ PnL olmalı. Tutmuyorsa "
+                          "sayaç kaymıştır; recompute_portfolio düzeltir.",
+              "n": int(km[0]["n"]) if km else 0, "esik": 0})
+
+    return d
+
+
 def load_veri_ozet() -> dict:
     """Verinin ÖZETİ, KALİTESİ ve TAZELİĞİ.
 
@@ -2518,7 +2600,7 @@ def page_sistem() -> None:
             "<br><span style='font-size:10.5px;opacity:.75;'>son teşhis " +
             str(sy["ts"])[:16] + "</span></div>", unsafe_allow_html=True)
 
-    sek = _sekmeler("sistem", ["Teşhis", "Veri", "Risk"])
+    sek = _sekmeler("sistem", ["Teşhis", "Veri", "Risk", "Defter"])
 
     if sek == "Teşhis":
         st.markdown(
@@ -2534,6 +2616,16 @@ def page_sistem() -> None:
             "26.000 satırın %90'ı dolu ama hepsi iki yıl önceden ise sistem "
             "kördür. Üç soru ayrı sorulur — ne kadar var, ne kadarı dolu, ne "
             "kadarı taze.</div>", unsafe_allow_html=True)
+    elif sek == "Defter":
+        st.markdown(
+            "<div class='v2mb'><b>Karar:</b> defter kendi kendini tutuyor "
+            "mu? Bu sekme sunum değil <b>denetim</b>dir. 1 Eylül 2026'da "
+            "üretimde şu bulundu: mutabakat kodu açık ayakları süzüp atıp "
+            "kuponu erken <b>kazandı</b> yazıyordu — bir kupon 1 Eylül'de "
+            "ödendi, iki maçı 2 ve 4 Eylül'de oynanacaktı. Kasaya var "
+            "olmayan para girdi. Kök neden düzeltildi; <b>bu satırlar o "
+            "hatanın sessizce geri dönmemesi için var.</b></div>",
+            unsafe_allow_html=True)
     else:
         st.markdown(
             "<div class='v2mb'><b>Karar:</b> hangi ajan sözleşmesini "
@@ -2702,6 +2794,45 @@ def page_sistem() -> None:
             "<th class='r'>Durum</th></tr></thead><tbody>" +
             "".join(sat) + "</tbody></table></div></div>",
             unsafe_allow_html=True)
+
+    dd = load_defter_denetim() if sek == "Defter" else []
+    if dd:
+        _kirik = sum(1 for x in dd
+                     if x["esik"] is not None and x["n"] > x["esik"])
+        sat = []
+        for x in dd:
+            if x["esik"] is None:                      # bilgi satiri
+                g, txt = "g2", "BİLGİ"
+            elif x["n"] > x["esik"]:
+                g, txt = "g3", "BOZUK"
+            else:
+                g, txt = "g1", "TEMİZ"
+            sat.append(
+                "<tr><td><span class='ag'>" + x["ad"] + "</span>"
+                "<span class='sb'>" + x["aciklama"] + "</span></td>"
+                "<td class='r n'>" + str(x["n"]) + "</td>"
+                "<td class='r'><span class='gr " + g + "'>" + txt +
+                "</span></td></tr>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Defter Denetimi</h2>"
+            "<div class='hint'>" +
+            ("hepsi temiz" if not _kirik else str(_kirik) + " satır bozuk") +
+            "</div></div><div class='v2body'>"
+            "<div class='" + ("dq" if _kirik else "v2mb") + "'>"
+            "Kâr eğrisi ancak defter tutarlıysa bir şey ifade eder. "
+            "Buradaki her satır <b>her açılışta canlı veritabanından "
+            "yeniden</b> okunur — sabit bir sonuç saklanmaz." +
+            ("" if not _kirik else
+             " <b>Şu an bozuk satır var; kasa rakamlarına güvenme.</b>") +
+            "</div>"
+            "<table class='v2'><thead><tr><th>Denetim</th>"
+            "<th class='r'>Sayı</th><th class='r'>Durum</th></tr></thead>"
+            "<tbody>" + "".join(sat) + "</tbody></table>"
+            "<div class='sb' style='margin-top:10px;'>Bozuk satır varsa "
+            "onarım: <code>python 02_VERI/fix_early_settled.py --dry</code> "
+            "ile bak, <code>--dry</code>siz uygula. Kural sonuç-kördür: "
+            "kaybeden ayağı olan kupon (ölü kombine) dokunulmadan kalır."
+            "</div></div></div>", unsafe_allow_html=True)
 
 
 def _mini(baslik, ipucu, basliklar, satirlar):
