@@ -1416,9 +1416,13 @@ def load_ajan_detay(pid: str) -> dict:
     return {"bet": bet, "acik": acik, "teshis": (tes[0] if tes else None)}
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+# ttl KISA: bu bir denetimdir, sunum degil. Uzun onbellek "temiz"
+# gorunurken bozuk bir defteri saklayabilir — tam da onlemeye
+# calistigi sey. 30 sn, ayni ekranda tiklarken her seferinde bes
+# sorgu kosmasini engelleyecek kadar; bozulmayi geciktirmeyecek kadar.
+@st.cache_data(ttl=30, show_spinner=False)
 def load_defter_denetim() -> list[dict]:
-    """Defter kendi kendini tutuyor mu — HER acilista canli okur.
+    """Defter kendi kendini tutuyor mu — canli veritabanindan okur.
 
     Bunlar sunum degil DENETIM satiridir. 2026-09-01'de uretimde
     verify_settlements.py'nin acik ayaklari suzup atip kuponu erken
@@ -1493,6 +1497,7 @@ def load_defter_denetim() -> list[dict]:
     return d
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def load_veri_ozet() -> dict:
     """Verinin ÖZETİ, KALİTESİ ve TAZELİĞİ.
 
