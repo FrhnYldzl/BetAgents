@@ -1,15 +1,18 @@
-# Streamlit — Railway/production ayarları
-# (Port CLI'dan --server.port $PORT ile gelir)
+# BetAgents V2 — ACIK TEMA SABIT.
+# Kullanici acikca "beyaz arka plan, Bloomberg'un acik ekran hali"
+# istedi. Tema-duyarli CSS yazmak yanlisti: kullanicinin isletim
+# sistemi koyu temadaysa uygulama koyu aciliyordu. Burasi kaynagi
+# sabitler; CSS'te de prefers-color-scheme dali KALDIRILDI.
+[theme]
+base = "light"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F7F9"
+textColor = "#0A1220"
+primaryColor = "#9A6410"
+font = "sans serif"
 
 [server]
 headless = true
-address = "0.0.0.0"
-enableCORS = false
-enableXsrfProtection = false
-fileWatcherType = "none"
 
 [browser]
 gatherUsageStats = false
-
-[theme]
-base = "dark"

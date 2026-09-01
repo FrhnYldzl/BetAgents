@@ -38,7 +38,7 @@ sys.path.insert(0, str(THIS_DIR.parent / "02_VERI"))
 # cekmece) zaten standarttir ve CSS ile ele aliniyor.
 try:
     st.set_page_config(page_title="BetAgents Desk", page_icon="◉",
-                       layout="wide", initial_sidebar_state="expanded")
+                       layout="wide", initial_sidebar_state="collapsed")
 except Exception:
     pass
 
@@ -260,445 +260,337 @@ V2_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ══════════════════════════════════════════════════════════════
-   ÖLÇEK — tek kaynak. Her boyut buradan türer.
-   Önceki sürüm fazla sıkışıktı: gövde 13,5px, etiket 9,5px.
-   Profesyonel panel gövdede 14-15px, etikette 11px kullanır;
-   altına inince ekran "yoğun" değil "okunmaz" olur.
+   BETAGENTS DESK — AÇIK TEMA (tek tema, koyu dal YOK)
+   Kullanıcı açıkça "beyaz arka plan · Bloomberg'ün açık ekran hâli"
+   istedi. Tema-duyarlı yazmak hataydı: işletim sistemi koyu temadaysa
+   uygulama koyu açılıyordu. Tek yol var, o da açık.
    ══════════════════════════════════════════════════════════════ */
 :root{
-  --s1:4px;  --s2:8px;  --s3:12px; --s4:16px; --s5:22px; --s6:32px;
-  --t-etiket:11px;   /* sütun başlığı, rozet, üst etiket */
-  --t-alt:12.5px;    /* satır altı bilgi */
-  --t-govde:14px;    /* tablo hücresi */
-  --t-metin:15px;    /* açıklama, düz yazı */
-  --t-kart:13px;     /* kart başlığı */
-  --t-sayfa:21px;    /* sayfa başlığı */
-  --t-okuma:20px;    /* okuma rakamı */
-  --t-dev:30px;      /* tek büyük rakam */
-  --yan:252px;
-  --kart-ic:18px 20px;
-  --satir-y:14px;
-  --r:3px;           /* köşe yarıçapı — panel işi, yuvarlak değil */
+  /* ölçek */
+  --s1:4px;  --s2:8px;  --s3:12px; --s4:16px; --s5:22px; --s6:30px;
+  --t-etiket:11px; --t-alt:12.5px; --t-govde:14px; --t-metin:15px;
+  --t-kart:13px; --t-sayfa:22px; --t-okuma:20px; --t-dev:30px;
+  --r:3px; --satir-y:13px; --kart-ic:18px 20px;
 
-  --ground:#fbfcfd; --panel:#ffffff; --panel-2:#f4f7f9; --panel-3:#eef3f6;
-  --rail:#0b1420; --rail-ink:#e8edf2; --rail-dim:#8496a8;
-  --ink:#0a1220; --ink-2:#38485a; --muted:#6b7c8e;
-  --line:#e8edf1; --line-2:#d2dbe3;
-  --brand:#8f5d0d; --brand-fill:#f7edda;
-  --pos:#0b6b49; --pos-fill:#e3f2ec;
-  --neg:#a02c1f; --neg-fill:#fbe8e5;
-  --warn:#7f5a10; --warn-fill:#f9f1dd;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --ground:#0a1017; --panel:#111a24; --panel-2:#16212d; --panel-3:#1b2734;
-    --rail:#060c13; --rail-ink:#dbe4ed; --rail-dim:#71828f;
-    --ink:#e8eff6; --ink-2:#b2c1d0; --muted:#7d8d9e;
-    --line:#1f2c39; --line-2:#2c3c4c;
-    --brand:#dda94b; --brand-fill:#251e11;
-    --pos:#45c795; --pos-fill:#0e2820;
-    --neg:#ea8071; --neg-fill:#2b1614;
-    --warn:#dda94b; --warn-fill:#251e11;
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#0a1017; --panel:#111a24; --panel-2:#16212d; --panel-3:#1b2734;
-  --rail:#060c13; --rail-ink:#dbe4ed; --rail-dim:#71828f;
-  --ink:#e8eff6; --ink-2:#b2c1d0; --muted:#7d8d9e;
-  --line:#1f2c39; --line-2:#2c3c4c;
-  --brand:#dda94b; --brand-fill:#251e11;
-  --pos:#45c795; --pos-fill:#0e2820;
-  --neg:#ea8071; --neg-fill:#2b1614;
-  --warn:#dda94b; --warn-fill:#251e11;
+  /* AÇIK PALET — kâğıt beyazı, serin nötrler, tek amber vurgu */
+  --ground:#ffffff;
+  --panel:#ffffff;
+  --panel-2:#f5f8fa;
+  --panel-3:#eaf0f4;
+  --ink:#0d1620;
+  --ink-2:#3a4a5a;
+  --muted:#6a7b8c;
+  --line:#e6ecf1;
+  --line-2:#ccd7e0;
+  --brand:#8a5c0c;
+  --brand-fill:#fbf1de;
+  --pos:#0a6a47;
+  --pos-fill:#e2f2eb;
+  --neg:#a52a1c;
+  --neg-fill:#fbe9e6;
+  --warn:#7d590e;
+  --warn-fill:#faf2de;
+  /* koyu şerit — kenar çubuğu ve marka için tek koyu yüzey */
+  --koyu:#0d1620;
+  --koyu-ink:#eaf0f5;
+  --koyu-dim:#8798a8;
 }
 
-.stApp,[data-testid="stAppViewContainer"]{background:var(--ground);}
+/* ── TEMEL ─────────────────────────────────────────────── */
+.stApp,[data-testid="stAppViewContainer"],
+[data-testid="stMain"]{background:var(--ground)!important;}
 [data-testid="stHeader"]{background:transparent;height:0;}
-.block-container{padding:var(--s5) var(--s6) var(--s6)!important;max-width:1680px;}
-html,body,[class*="css"]{font-family:Archivo,"Segoe UI",system-ui,sans-serif;}
+.block-container{padding:var(--s4) var(--s6) var(--s6)!important;
+  max-width:1720px;}
+/* ⚠️ FONT TEKLIGI: Streamlit'in kendi "Source Sans" kurali, markdown
+   icine yazdigimiz HTML'e de sizip tablo hucrelerini ele geciriyordu —
+   ayni ekranda iki yazi tipi. Kendi bilesenlerimiz ACIKCA adlandirilir. */
+html,body,[class*="css"],.stApp,button,input,select,textarea,
+.v2card,.v2card *,.v2ph,.v2ph *,.v2ust,.v2ust *,
+table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
+.v2sepet-satir,.v2sepet-satir *,.v2bos{
+  font-family:Archivo,"Segoe UI",system-ui,sans-serif!important;}
+/* TEK istisna: sayılar. Hizalanmaları için tabular monospace. */
+.mono,.v2kpi b,.v2kpi span,.ro b,.ro span,table.v2 td.n,table.v2 th,
+.gr,.dp,.dm,.cc,.v2suz,.v2gez-orta,table.v2 .sb,.v2grup,.v2head .hint,
+.dq,.v2ust .marka span,.v2ust-durum,.v2ust-durum *,.v2yan-alt,
+.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt{
+  font-family:"JetBrains Mono",ui-monospace,monospace!important;
+  font-variant-numeric:tabular-nums;}
 
-/* ── SAYFA BAŞLIĞI ─────────────────────────────────────────
-   Önceki sürümde koyu şerit sol panelin bilgisini TEKRAR
-   ediyordu ve sayfa başlığı yoktu — nerede olduğunu sadece
-   menüden anlıyordun. Şerit artık sayfaya ait: başlık solda,
-   O SAYFANIN ölçüleri sağda.                                */
-.v2ph{
-  display:flex;align-items:flex-end;justify-content:space-between;
-  gap:var(--s5);flex-wrap:wrap;
-  padding:0 0 var(--s3);margin:0 0 var(--s5);
-  border-bottom:1px solid var(--line-2);
-}
-.v2ph .sol h1{
-  margin:0;font-size:var(--t-sayfa);font-weight:600;letter-spacing:-0.015em;
-  color:var(--ink);line-height:1.2;}
-.v2ph .sol p{
-  margin:3px 0 0;font-size:var(--t-alt);color:var(--muted);max-width:62ch;}
+/* ── ÜST GEZİNME — HER ZAMAN GÖRÜNÜR ───────────────────
+   Kenar çubuğu Streamlit'te kullanıcı tarafından kapatılabiliyor
+   ve kapalı kalıyor: gezinme kayboluyordu. Birincil gezinme artık
+   ana akışta, kapatılamaz.                                      */
+.v2ust{
+  display:flex;align-items:center;gap:var(--s5);flex-wrap:wrap;
+  background:var(--koyu);margin:calc(var(--s4) * -1) calc(var(--s6) * -1) var(--s5);
+  padding:0 var(--s6);min-height:52px;}
+.v2ust .marka{display:flex;align-items:center;gap:9px;flex:0 0 auto;
+  padding:var(--s2) 0;}
+.v2ust .marka .mark{width:28px;height:28px;border-radius:var(--r);
+  background:var(--brand);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-family:"JetBrains Mono",monospace;
+  font-size:12px;font-weight:700;}
+.v2ust .marka b{color:var(--koyu-ink);font-size:15px;font-weight:700;
+  letter-spacing:-0.015em;}
+.v2ust .marka span{color:var(--brand);font-family:"JetBrains Mono",monospace;
+  font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
+  margin-left:2px;}
+
+/* ── SAYFA BAŞLIĞI ─────────────────────────────────────── */
+.v2ph{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:var(--s5);flex-wrap:wrap;padding:0 0 var(--s3);margin:0 0 var(--s4);
+  border-bottom:1px solid var(--line-2);}
+.v2ph .sol h1{margin:0;font-size:var(--t-sayfa);font-weight:700;
+  letter-spacing:-0.02em;color:var(--ink);line-height:1.2;}
+.v2ph .sol p{margin:4px 0 0;font-size:var(--t-alt);color:var(--muted);
+  max-width:64ch;}
 .v2ph .sag{display:flex;gap:var(--s5);flex-wrap:wrap;}
-.v2kpi{display:flex;flex-direction:column;gap:2px;}
-.v2kpi span{font-family:"JetBrains Mono",monospace;font-size:10px;
-  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
-.v2kpi b{font-family:"JetBrains Mono",monospace;font-size:var(--t-okuma);
-  font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink);
+.v2kpi{display:flex;flex-direction:column;gap:2px;align-items:flex-end;}
+.v2kpi span{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--muted);}
+.v2kpi b{font-size:var(--t-okuma);font-weight:500;color:var(--ink);
   line-height:1.15;}
 .v2kpi b.ps{color:var(--pos);} .v2kpi b.ng{color:var(--neg);}
 
-/* ── KENAR ÇUBUĞU ──────────────────────────────────────── */
-[data-testid="stSidebar"]{background:var(--rail);border-right:0;
-  width:var(--yan)!important;min-width:var(--yan)!important;}
-[data-testid="stSidebar"] [data-testid="stSidebarContent"]{
-  padding:var(--s5) var(--s3) var(--s4);}
-.v2brand{padding:0 var(--s2) var(--s5);}
-.v2brand b{display:block;font-size:18px;font-weight:700;letter-spacing:-0.015em;
-  line-height:1.1;}
-.v2brand span{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;margin-top:4px;}
-.v2navlbl{font-family:"JetBrains Mono",monospace;font-size:10px;
-  letter-spacing:0.16em;text-transform:uppercase;
-  padding:var(--s4) var(--s2) var(--s2);}
-[data-testid="stSidebar"] .stButton>button{
-  width:100%;text-align:left;justify-content:flex-start;
-  background:transparent;border:0;border-left:2px solid transparent;
-  border-radius:0;padding:10px var(--s3);margin:0;min-height:42px;
-  font-weight:500;transition:background .12s,border-color .12s;}
-[data-testid="stSidebar"] .stButton>button:hover{
-  background:rgba(255,255,255,.055);border-left-color:var(--rail-dim);}
-[data-testid="stSidebar"] .stButton>button[kind="primary"]{
-  background:rgba(255,255,255,.09);border-left-color:var(--brand);}
-.v2yan-alt{margin-top:var(--s5);padding:var(--s4) var(--s2) 0;
-  border-top:1px solid rgba(255,255,255,.08);
-  font-family:"JetBrains Mono",monospace;line-height:1.9;letter-spacing:0.04em;}
+/* ── ÜST DURUM ŞERİDİ ─────────────────────────────────── */
+.v2ust-durum{margin-left:auto;display:flex;align-items:baseline;
+  gap:var(--s2);flex-wrap:wrap;padding:var(--s2) 0;}
+.v2ust-durum span{font-family:"JetBrains Mono",monospace;font-size:9px;
+  letter-spacing:0.15em;text-transform:uppercase;color:var(--koyu-dim);
+  margin-left:var(--s3);}
+.v2ust-durum b{font-family:"JetBrains Mono",monospace;font-size:12.5px;
+  font-weight:500;color:var(--koyu-ink);}
 
-/* ⚠️ DÖRDÜNCÜ KEZ: [stMarkdownContainer] p{color} kuralı özgüllükte
-   kenar çubuğunun önüne geçiyor. Renkler burada AÇIKÇA verilir. */
-[data-testid="stSidebar"] *{color:var(--rail-ink);}
-[data-testid="stSidebar"] .stButton>button p,
+/* ── KENAR ÇUBUĞU: KAPALI (üst gezinme onun işini yapıyor) ─ */
+[data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{
+  display:none!important;}
+
+/* ── (eski kenar çubuğu stilleri — kullanılmıyor) ─────── */
+[data-testid="stSidebar"]{background:var(--koyu);border-right:0;
+  width:236px!important;min-width:236px!important;}
+[data-testid="stSidebar"] [data-testid="stSidebarContent"]{
+  padding:var(--s5) var(--s3);}
+[data-testid="stSidebar"] *{color:var(--koyu-ink)!important;}
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p{
-  font-size:var(--t-metin)!important;margin:0!important;
-  color:var(--rail-ink)!important;}
-[data-testid="stSidebar"] .stButton>button[kind="primary"] p{
-  color:#fff!important;font-weight:600!important;}
-[data-testid="stSidebar"] .v2brand span{color:var(--brand)!important;
-  font-size:10px!important;}
-[data-testid="stSidebar"] .v2navlbl{color:var(--rail-dim)!important;
-  font-size:10px!important;}
-[data-testid="stSidebar"] .v2yan-alt,
-[data-testid="stSidebar"] .v2yan-alt *{color:var(--rail-dim)!important;
-  font-size:10.5px!important;}
-[data-testid="stSidebar"] .v2yan-alt b{color:var(--rail-ink)!important;}
-[data-testid="stSidebar"] .v2yan-alt b.uyari{color:#f08a78!important;}
+  color:var(--koyu-ink)!important;font-size:var(--t-alt)!important;
+  margin:0!important;}
+.v2grup{font-size:9.5px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--koyu-dim)!important;padding:var(--s4) var(--s2) 5px;}
+.v2yan-alt{margin-top:var(--s4);padding-top:var(--s4);
+  border-top:1px solid rgba(255,255,255,.09);line-height:1.85;
+  font-size:10.5px!important;color:var(--koyu-dim)!important;}
+.v2yan-alt b{color:var(--koyu-ink)!important;}
+.v2yan-alt b.uyari{color:#f0907e!important;}
 
 /* ── KART ──────────────────────────────────────────────── */
 .v2card{background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--r);margin-bottom:var(--s4);overflow:hidden;}
+  border-radius:var(--r);margin-bottom:var(--s4);
+  box-shadow:0 1px 2px rgba(13,22,32,.04);}
 .v2head{display:flex;justify-content:space-between;align-items:baseline;
   gap:var(--s3);padding:var(--s3) 20px;border-bottom:1px solid var(--line);
-  background:var(--panel-2);}
-.v2head h2{margin:0;font-size:var(--t-kart);font-weight:600;
-  letter-spacing:0.01em;color:var(--ink);text-transform:none;
-  font-family:Archivo,sans-serif;}
-.v2head .hint{font-family:"JetBrains Mono",monospace;font-size:10px;
-  color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;
-  white-space:nowrap;}
-.v2body{padding:var(--kart-ic);}
-.v2body:has(table){overflow-x:auto;}
+  background:var(--panel-2);border-radius:var(--r) var(--r) 0 0;}
+.v2head h2{margin:0;font-size:var(--t-kart);font-weight:700;
+  letter-spacing:-0.01em;color:var(--ink);}
+.v2head .hint{font-size:9.5px;color:var(--muted);letter-spacing:0.1em;
+  text-transform:uppercase;white-space:nowrap;}
+.v2body{padding:var(--kart-ic);overflow-x:auto;}
 
-/* ── TABLO ZANAATI ─────────────────────────────────────── */
-table.v2{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
-  min-width:340px;}
-table.v2 th{
-  font-family:"JetBrains Mono",monospace;font-size:var(--t-etiket);
-  letter-spacing:0.09em;text-transform:uppercase;color:var(--muted);
-  font-weight:500;text-align:left;white-space:nowrap;
-  padding:0 var(--s4) 10px 0;border-bottom:1px solid var(--line-2);}
+/* ── TABLO ─────────────────────────────────────────────── */
+table.v2{width:100%;border-collapse:collapse;table-layout:auto;}
+table.v2 th{font-size:var(--t-etiket);letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--muted);font-weight:500;
+  text-align:left;white-space:nowrap;padding:0 var(--s3) 9px 0;
+  border-bottom:1px solid var(--line-2);}
 table.v2 th:last-child,table.v2 td:last-child{padding-right:0;}
 table.v2 th.r,table.v2 td.r{text-align:right;}
-table.v2 td{padding:var(--satir-y) var(--s4) var(--satir-y) 0;
+table.v2 td{padding:var(--satir-y) var(--s3) var(--satir-y) 0;
   border-bottom:1px solid var(--line);font-size:var(--t-govde);
   color:var(--ink);vertical-align:middle;}
-table.v2 tbody tr{transition:background .1s;}
 table.v2 tbody tr:hover{background:var(--panel-2);}
 table.v2 tbody tr:last-child td{border-bottom:0;}
-table.v2 td.n{font-family:"JetBrains Mono",monospace;font-size:13.5px;}
-table.v2 .rk{font-family:"JetBrains Mono",monospace;font-size:11px;
-  color:var(--muted);width:22px;padding-right:var(--s2);}
-table.v2 .ag{font-weight:600;font-size:var(--t-govde);letter-spacing:-0.005em;
-  display:block;}
-table.v2 .sb{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:var(--t-alt);color:var(--muted);margin-top:3px;
-  letter-spacing:0.02em;white-space:nowrap;}
-/* ilk sutun icerigi kirilmasin, sayisal sutunlar daralsin */
-table.v2 td:first-child,table.v2 th:first-child{padding-right:var(--s5);}
-table.v2 td.n,table.v2 th.r{white-space:nowrap;}
+table.v2 td.n{font-size:13.5px;}
+table.v2 .rk{font-size:11px;color:var(--muted);width:20px;
+  padding-right:var(--s2);}
+table.v2 .ag{font-weight:600;font-size:var(--t-govde);display:block;
+  white-space:nowrap;}
+table.v2 .sb{display:block;font-size:var(--t-alt);color:var(--muted);
+  margin-top:3px;white-space:nowrap;}
 
 /* ── SEMANTİK ──────────────────────────────────────────── */
-.dp{color:var(--pos);font-family:"JetBrains Mono",monospace;font-weight:600;
-  background:var(--pos-fill);padding:3px 9px;border-radius:var(--r);
-  display:inline-block;white-space:nowrap;font-size:13px;}
-.dm{color:var(--neg);font-family:"JetBrains Mono",monospace;font-weight:500;
-  white-space:nowrap;font-size:13px;}
+.dp{color:var(--pos);font-weight:700;background:var(--pos-fill);
+  padding:3px 8px;border-radius:var(--r);display:inline-block;
+  white-space:nowrap;font-size:12.5px;}
+.dm{color:var(--neg);font-weight:500;white-space:nowrap;font-size:12.5px;}
 .dp::before{content:"▲ ";font-size:8px;vertical-align:1.5px;}
 .dm::before{content:"▼ ";font-size:8px;vertical-align:1.5px;opacity:.5;}
 table.v2 tr.adv td:first-child{box-shadow:inset 2px 0 0 var(--pos);}
 table.v2 tr.adv .ag{color:var(--pos);}
-.gr{display:inline-block;font-family:"JetBrains Mono",monospace;
-  font-size:10px;font-weight:600;letter-spacing:0.07em;
-  padding:4px 8px;border-radius:var(--r);white-space:nowrap;}
+.gr{display:inline-block;font-size:9.5px;font-weight:700;
+  letter-spacing:0.06em;padding:4px 7px;border-radius:var(--r);
+  white-space:nowrap;}
 .g1{background:var(--pos-fill);color:var(--pos);}
 .g2{background:var(--warn-fill);color:var(--warn);}
 .g3{background:var(--neg-fill);color:var(--neg);}
-.cc{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;
-  font-weight:600;letter-spacing:0.05em;min-width:30px;text-align:center;
-  padding:3px 5px;margin-right:9px;border:1px solid var(--line-2);
-  border-radius:var(--r);color:var(--ink-2);background:var(--panel-2);}
+.mono{font-style:normal;font-size:9.5px;font-weight:700;
+  letter-spacing:0.03em;display:inline-flex;align-items:center;
+  justify-content:center;width:23px;height:19px;margin-right:3px;
+  vertical-align:-4px;border:1px solid var(--line-2);border-radius:var(--r);
+  color:var(--ink-2);background:var(--panel-2);flex:0 0 auto;
+  font-family:"JetBrains Mono",monospace;}
+.mono.kr{color:var(--neg);border-color:var(--neg);background:var(--neg-fill);}
+table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
+  background:var(--pos-fill);}
+.cc{display:inline-block;font-size:9.5px;font-weight:700;
+  letter-spacing:0.04em;min-width:29px;text-align:center;padding:3px 5px;
+  margin-right:8px;border:1px solid var(--line-2);border-radius:var(--r);
+  color:var(--ink-2);background:var(--panel-2);}
 .cc.no{color:var(--muted);border-style:dashed;opacity:.7;}
+.fl{display:none;} .em{display:none;}
 
-/* ── AÇIKLAMA KUTULARI ─────────────────────────────────── */
+/* ── KUTULAR ───────────────────────────────────────────── */
 .v2mb{border:1px solid var(--line);border-left:3px solid var(--brand);
   background:var(--panel-2);padding:var(--s3) var(--s4);margin:0 0 var(--s4);
   font-size:var(--t-metin);color:var(--ink-2);line-height:1.6;
   border-radius:0 var(--r) var(--r) 0;}
 .v2mb b{color:var(--ink);font-weight:600;}
-.dq{font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.75;
-  color:var(--muted);background:var(--warn-fill);border:1px solid var(--line);
-  border-left:3px solid var(--warn);padding:10px var(--s3);margin:0 0 var(--s3);
-  border-radius:0 var(--r) var(--r) 0;}
+.dq{font-size:11.5px;line-height:1.75;color:var(--ink-2);
+  background:var(--warn-fill);border:1px solid var(--line);
+  border-left:3px solid var(--warn);padding:10px var(--s3);
+  margin:0 0 var(--s3);border-radius:0 var(--r) var(--r) 0;}
 .dq b{color:var(--warn);}
 .vd{font-size:var(--t-metin);line-height:1.6;padding:var(--s3) var(--s4);
   border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
   border-radius:var(--r);}
 .vd b{color:var(--ink);font-weight:600;}
+.v2bos{border:1px dashed var(--line-2);border-radius:var(--r);
+  padding:var(--s5) var(--s3);text-align:center;color:var(--muted);
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.8;}
 
 /* ── OKUMA SATIRLARI ───────────────────────────────────── */
 .ro{display:flex;justify-content:space-between;align-items:baseline;
   padding:11px 0;border-bottom:1px solid var(--line);}
 .ro:last-of-type{border-bottom:0;}
-.ro span{font-family:"JetBrains Mono",monospace;font-size:10.5px;
-  letter-spacing:0.11em;text-transform:uppercase;color:var(--muted);}
-.ro b{font-family:"JetBrains Mono",monospace;font-size:var(--t-okuma);
-  font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink);}
+.ro span{font-size:10px;letter-spacing:0.11em;text-transform:uppercase;
+  color:var(--muted);}
+.ro b{font-size:var(--t-okuma);font-weight:500;color:var(--ink);}
 .ro.big b{font-size:var(--t-dev);letter-spacing:-0.02em;}
 .ro b.ps{color:var(--pos);} .ro b.ng{color:var(--neg);}
-.ro.big b.ps{background:var(--pos-fill);padding:3px 11px;border-radius:var(--r);}
 .meter{height:5px;background:var(--line);margin:var(--s1) 0 var(--s3);
   border-radius:99px;overflow:hidden;}
 .meter i{display:block;height:100%;background:var(--neg);}
 
-/* ── TAHTA (seçim satırları) ───────────────────────────── */
+/* ── TAHTA ─────────────────────────────────────────────── */
 .pick{display:grid;grid-template-columns:1fr auto;gap:4px var(--s3);
   padding:11px var(--s3);border:1px solid var(--line);border-radius:var(--r);
   background:var(--panel);margin-bottom:var(--s2);cursor:pointer;
-  transition:border-color .12s,background .12s;align-items:center;}
+  align-items:center;}
 .pick:hover{border-color:var(--brand);background:var(--panel-2);}
 .pick.on{border-color:var(--brand);background:var(--brand-fill);}
 .pick .match{font-weight:600;font-size:var(--t-govde);}
-.pick .meta{font-family:"JetBrains Mono",monospace;font-size:var(--t-alt);
-  color:var(--muted);margin-top:2px;}
-.pick .odds{font-family:"JetBrains Mono",monospace;font-size:18px;
-  font-weight:500;text-align:right;line-height:1.1;}
-.pick .odds em{display:block;font-style:normal;font-size:9px;
-  color:var(--muted);letter-spacing:0.1em;margin-top:2px;}
-.fl{display:none;}
-/* ── AJAN MONOGRAMI ────────────────────────────────────
-   Emoji yerine iki harf: hizalanir, her yerde ayni gorunur,
-   takim rengini tasir. Borsa sembolu gibi okunur.          */
-.mono{
-  font-style:normal;font-family:"JetBrains Mono",monospace;
-  font-size:10px;font-weight:700;letter-spacing:0.04em;
-  display:inline-flex;align-items:center;justify-content:center;
-  width:24px;height:20px;margin-right:3px;vertical-align:-4px;
-  border:1px solid var(--line-2);border-radius:var(--r);
-  color:var(--ink-2);background:var(--panel-2);flex:0 0 auto;}
-.mono.kr{color:var(--neg);border-color:var(--neg);
-  background:var(--neg-fill);}
-table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
-  background:var(--pos-fill);}
-.em{display:none;}
+.pick .meta{font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
+.pick .odds{font-size:18px;font-weight:500;text-align:right;line-height:1.1;}
 
-/* ── Streamlit bileşenleri ─────────────────────────────── */
-[data-testid="stMarkdownContainer"] p,
-[data-testid="stMarkdownContainer"] li,
-[data-testid="stWidgetLabel"] p{color:var(--ink);}
+/* ── SEPET ─────────────────────────────────────────────── */
+.v2sepet-satir{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--s3);padding:11px var(--s3);border:1px solid var(--line);
+  border-radius:var(--r);background:var(--panel-2);margin-bottom:6px;}
+.v2sepet-satir .ad{font-size:var(--t-govde);font-weight:600;}
+.v2sepet-satir .alt{font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
+
+/* ── SÜZGEÇ / GEZİNME ──────────────────────────────────── */
+.v2suz{display:flex;align-items:center;gap:var(--s2);font-size:10px;
+  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 var(--s2);}
+.v2gez{border-top:1px solid var(--line);margin-top:var(--s5);
+  padding-top:var(--s4);}
+.v2gez-orta{font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--muted);text-align:center;padding-top:9px;}
+
+/* ── STREAMLIT BİLEŞENLERİ ─────────────────────────────── */
+[data-testid="stMain"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stMain"] [data-testid="stMarkdownContainer"] li{
+  color:var(--ink);}
 [data-testid="stCheckbox"]{margin:0!important;}
-[data-testid="stCheckbox"] label,
-[data-testid="stCheckbox"] label p,
-[data-testid="stCheckbox"] div[data-testid="stMarkdownContainer"] p{
-  font-size:var(--t-govde)!important;color:var(--ink)!important;
-  margin:0!important;line-height:1.5!important;}
+[data-testid="stCheckbox"] label p{
+  font-family:Archivo,sans-serif!important;font-size:var(--t-govde)!important;
+  color:var(--ink)!important;margin:0!important;line-height:1.5!important;
+  text-transform:none!important;letter-spacing:normal!important;}
 [data-testid="stCheckbox"] label:hover p{color:var(--brand)!important;}
 div[data-testid="column"]{padding:0 var(--s2);min-width:0;}
 div[data-testid="column"]:first-child{padding-left:0;}
 div[data-testid="column"]:last-child{padding-right:0;}
 
-/* ══════════════════════════════════════════════════════════
-   ÜRÜN DENETİMİ — buton sistemi, gezinme, form kontrolleri
-   Streamlit'in varsayılan bileşenleri "bitmemiş" hissi verir:
-   yuvarlak köşeler, mavi vurgu, gri kenarlık. Hepsi tasarım
-   sistemine çekildi.
-   ══════════════════════════════════════════════════════════ */
-
-/* ── KENAR ÇUBUĞU: gerçek gezinme ─────────────────────── */
-[data-testid="stSidebar"]{box-shadow:1px 0 0 rgba(255,255,255,.05);}
-.v2brand{display:flex;align-items:center;gap:10px;
-  padding:0 var(--s2) var(--s5);}
-.v2brand .mark{
-  width:30px;height:30px;flex:0 0 auto;border-radius:var(--r);
-  background:var(--brand);color:#0b1420;
-  display:flex;align-items:center;justify-content:center;
-  font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;
-  letter-spacing:-0.03em;}
-.v2brand .yazi b{display:block;font-size:16px;font-weight:700;
-  letter-spacing:-0.015em;line-height:1.15;}
-.v2brand .yazi span{display:block;font-family:"JetBrains Mono",monospace;
-  font-size:9.5px;letter-spacing:0.2em;text-transform:uppercase;margin-top:2px;}
-
-[data-testid="stSidebar"] .stButton{margin:0!important;}
+/* butonlar — kenar çubuğu ve ana alan ayrı */
 [data-testid="stSidebar"] .stButton>button{
   position:relative;width:100%;text-align:left;justify-content:flex-start;
   background:transparent;border:0;border-radius:var(--r);
-  padding:0 var(--s3) 0 34px;margin:1px 0;min-height:40px;height:40px;
-  font-weight:500;letter-spacing:-0.005em;
-  transition:background .13s ease,color .13s ease;}
-/* nokta göstergesi — aktif olanda amber, diğerlerinde soluk */
+  padding:0 var(--s3) 0 32px;margin:1px 0;min-height:38px;height:38px;
+  font-weight:500;color:var(--koyu-ink)!important;}
 [data-testid="stSidebar"] .stButton>button::before{
-  content:"";position:absolute;left:14px;top:50%;transform:translateY(-50%);
-  width:5px;height:5px;border-radius:50%;background:var(--rail-dim);
-  opacity:.45;transition:background .13s,opacity .13s,box-shadow .13s;}
-[data-testid="stSidebar"] .stButton>button:hover{
-  background:rgba(255,255,255,.06);}
-[data-testid="stSidebar"] .stButton>button:hover::before{opacity:.9;}
+  content:"";position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--koyu-dim);opacity:.45;}
+[data-testid="stSidebar"] .stButton>button:hover{background:rgba(255,255,255,.06);}
 [data-testid="stSidebar"] .stButton>button[kind="primary"]{
   background:rgba(255,255,255,.10);}
 [data-testid="stSidebar"] .stButton>button[kind="primary"]::before{
-  background:var(--brand);opacity:1;
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%,transparent);}
-[data-testid="stSidebar"] .stButton>button:focus-visible{
-  outline:2px solid var(--brand);outline-offset:-2px;}
-
-/* ── ANA ALAN BUTONLARI: hayalet + birincil ───────────── */
-/* ⚠️ [data-testid="stAppViewContainer"] kenar cubugunu DA kapsiyor —
-   ilk denemede aktif menu ogesi tamamen amber oldu. Kenar cubugu
-   acikca haric tutulur. */
-[data-testid="stAppViewContainer"] .stButton>button:not([data-testid="stSidebar"] *),
-section[data-testid="stMain"] .stButton>button{
-  border-radius:var(--r);border:1px solid var(--line-2);
-  background:var(--panel);color:var(--ink);
-  font-size:var(--t-govde);font-weight:500;min-height:38px;
-  padding:0 var(--s4);letter-spacing:-0.005em;
-  transition:border-color .13s,background .13s,color .13s;}
-section[data-testid="stMain"] .stButton>button:hover{
+  background:var(--brand);opacity:1;box-shadow:0 0 0 3px rgba(138,92,12,.28);}
+[data-testid="stMain"] .stButton>button{
+  border-radius:var(--r);border:1px solid var(--line-2);background:var(--panel);
+  color:var(--ink);font-size:var(--t-govde);font-weight:500;min-height:38px;
+  padding:0 var(--s4);}
+[data-testid="stMain"] .stButton>button:hover{
   border-color:var(--brand);color:var(--brand);background:var(--panel-2);}
-section[data-testid="stMain"] .stButton>button:focus-visible{
+[data-testid="stMain"] .stButton>button:focus-visible{
   outline:2px solid var(--brand);outline-offset:2px;}
-section[data-testid="stMain"] .stButton>button[kind="primary"]{
+[data-testid="stMain"] .stButton>button[kind="primary"]{
   background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600;}
-section[data-testid="stMain"] .stButton>button[kind="primary"]:hover{
-  filter:brightness(1.08);color:#fff;}
-
-/* ── ALT GEZİNME ──────────────────────────────────────── */
-.v2gez{display:flex;align-items:center;justify-content:space-between;
-  gap:var(--s4);padding-top:var(--s4);margin-top:var(--s5);
-  border-top:1px solid var(--line);}
-.v2gez-orta{font-family:"JetBrains Mono",monospace;font-size:10.5px;
-  letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);
-  text-align:center;}
-
-/* ── FORM KONTROLLERİ ─────────────────────────────────── */
+[data-testid="stMain"] .stButton>button[kind="primary"]:hover{
+  filter:brightness(1.1);color:#fff;}
+/* sekme çubuğu */
+[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
+  .stButton>button{border:0;border-bottom:2px solid transparent;
+  border-radius:0;background:transparent;color:var(--muted);min-height:36px;}
+[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
+  .stButton>button[kind="primary"]{background:transparent;color:var(--ink);
+  font-weight:700;border-bottom-color:var(--brand);}
+/* form alanları */
 [data-testid="stSelectbox"] div[data-baseweb="select"]>div,
 [data-testid="stMultiSelect"] div[data-baseweb="select"]>div{
   background:var(--panel)!important;border-color:var(--line-2)!important;
-  border-radius:var(--r)!important;min-height:38px;font-size:var(--t-govde);}
-[data-testid="stSelectbox"] div[data-baseweb="select"]>div:hover,
-[data-testid="stMultiSelect"] div[data-baseweb="select"]>div:hover{
-  border-color:var(--brand)!important;}
-/* ⚠️ SADECE form etiketleri — onay kutusu etiketleri de stWidgetLabel'dir
-   ve ilk denemede TAHTADAKI MAC ADLARI buyuk harfe dondu. Onay kutusu
-   haric tutulur. */
+  border-radius:var(--r)!important;min-height:38px;}
 [data-testid="stSelectbox"] [data-testid="stWidgetLabel"] p,
 [data-testid="stMultiSelect"] [data-testid="stWidgetLabel"] p,
 [data-testid="stNumberInput"] [data-testid="stWidgetLabel"] p{
-  font-size:var(--t-alt)!important;color:var(--muted)!important;
-  font-family:"JetBrains Mono",monospace;letter-spacing:0.09em;
-  text-transform:uppercase;margin-bottom:5px!important;}
-[data-testid="stCheckbox"] [data-testid="stWidgetLabel"] p{
-  text-transform:none!important;letter-spacing:normal!important;
-  font-family:Archivo,sans-serif!important;}
+  font-family:"JetBrains Mono",monospace!important;font-size:10px!important;
+  color:var(--muted)!important;letter-spacing:0.12em;text-transform:uppercase;
+  margin-bottom:5px!important;}
 [data-testid="stNumberInput"] input{background:var(--panel)!important;
-  border-radius:var(--r)!important;font-family:"JetBrains Mono",monospace;}
+  border-radius:var(--r)!important;
+  font-family:"JetBrains Mono",monospace!important;}
 div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
 
-/* ── MOBİL: çekmece davranışı ─────────────────────────── */
-@media (max-width:768px){
-  [data-testid="stSidebar"]{box-shadow:0 0 0 100vmax rgba(0,0,0,.45);}
-}
-
-/* ── ALT SEKMELER ──────────────────────────────────────
-   Bir sayfada dört ayri soru varsa dordunu ust uste yigmak
-   "kompakt" degil OKUNMAZ yapar. Sekme, sayfayi bolmeden
-   odagi bolerek cozer.                                    */
-.v2sek{display:flex;gap:2px;border-bottom:1px solid var(--line-2);
-  margin:0 0 var(--s4);overflow-x:auto;}
-[data-testid="stSidebar"] .v2grup{
-  font-family:"JetBrains Mono",monospace;font-size:9.5px;
-  letter-spacing:0.18em;text-transform:uppercase;
-  padding:var(--s4) var(--s3) 6px;opacity:.65;}
-[data-testid="stSidebar"] .v2grup:first-of-type{padding-top:var(--s2);}
-/* alt oge — ana ogenin altinda, girintili */
-[data-testid="stSidebar"] .stButton>button.v2alt{padding-left:46px;}
-
-/* ── SEKME BUTONLARI (ana alan) ───────────────────────── */
-section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
-  .stButton>button{
-  border:0;border-bottom:2px solid transparent;border-radius:0;
-  background:transparent;color:var(--muted);font-weight:500;
-  min-height:36px;padding:0 var(--s3);}
-section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
-  .stButton>button:hover{color:var(--ink);background:transparent;
-  border-bottom-color:var(--line-2);}
-section[data-testid="stMain"] div[data-testid="stHorizontalBlock"]:has(.v2sekme-isaret)
-  .stButton>button[kind="primary"]{
-  background:transparent;color:var(--ink);font-weight:600;
-  border-bottom-color:var(--brand);}
-
-/* ── SUZGEC ALANI: arama kutusu sanilmasin ────────────── */
-.v2suz{display:flex;align-items:center;gap:var(--s2);
-  font-family:"JetBrains Mono",monospace;font-size:10px;
-  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);
-  margin:0 0 var(--s2);}
-.v2suz::before{content:"";width:11px;height:11px;flex:0 0 auto;
-  border:1.5px solid var(--muted);
-  clip-path:polygon(0 0,100% 0,62% 45%,62% 100%,38% 82%,38% 45%);}
-
-/* ── SEPET ────────────────────────────────────────────── */
-.v2sepet-satir{display:flex;align-items:center;justify-content:space-between;
-  gap:var(--s3);padding:10px var(--s3);border:1px solid var(--line);
-  border-radius:var(--r);background:var(--panel-2);margin-bottom:6px;}
-.v2sepet-satir .ad{font-size:var(--t-govde);font-weight:500;}
-.v2sepet-satir .alt{font-family:"JetBrains Mono",monospace;
-  font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
-.v2bos{border:1px dashed var(--line-2);border-radius:var(--r);
-  padding:var(--s5) var(--s3);text-align:center;color:var(--muted);
-  font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.8;}
-
-/* ── MOBİL: küçültme değil önceliklendirme ─────────────── */
+/* ── MOBİL ─────────────────────────────────────────────── */
 @media (max-width:900px){
-  :root{--yan:236px;--s6:20px;}
-  .block-container{padding:var(--s4) var(--s4) var(--s6)!important;}
+  :root{--s6:18px;}
   .v2ph{flex-direction:column;align-items:flex-start;gap:var(--s3);}
   .v2ph .sag{gap:var(--s4);}
+  .v2kpi{align-items:flex-start;}
 }
 @media (max-width:640px){
-  :root{--kart-ic:14px 15px;--satir-y:15px;--t-sayfa:19px;}
+  :root{--kart-ic:14px 15px;--t-sayfa:19px;}
   table.v2 th.opt,table.v2 td.opt{display:none;}
-  .v2kpi b{font-size:17px;}
-  .ro.big b{font-size:25px;}
-  .pick,[data-testid="stCheckbox"] label{min-height:44px;}
-  .v2card{margin-bottom:var(--s3);}
+  .v2kpi b{font-size:17px;} .ro.big b{font-size:25px;}
+  [data-testid="stCheckbox"] label{min-height:44px;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 """
+
 
 
 
@@ -2944,48 +2836,62 @@ for _g, _ler in GRUPLAR:
         PAGES[_x[0]] = _x[1]
 
 
+def _ust_gezinme() -> None:
+    """Birincil gezinme — ana akışta, HER ZAMAN görünür.
+
+    ⚠️ NEDEN KENAR ÇUBUĞUNDA DEĞİL: Streamlit'te kenar çubuğu kullanıcı
+    tarafından kapatılabiliyor ve kapalı kalıyor. Kullanıcı ekranında
+    gezinme tamamen kaybolmuştu — "yönlendirme çubuğundan haber yok".
+    Birincil gezinme kapatılabilir bir yüzeyde duramaz."""
+    r = load_rail()
+    st.markdown(
+        "<div class='v2ust'><div class='marka'>"
+        "<div class='mark'>BA</div>"
+        "<div><b>BetAgents</b><span>Desk · v2</span></div></div>"
+        "<div class='v2ust-durum'>"
+        "<span>KAYNAK</span><b>" + r["kaynak"] + "</b>"
+        "<span>AÇIK</span><b>" + str(r["acik"]) + "</b>"
+        "<span>KAPANMIŞ</span><b>" +
+        "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
+        "</div></div>", unsafe_allow_html=True)
+    sp = _sepet()
+    adlar, etiketler = [], []
+    for _g, ogeler in GRUPLAR:
+        for oge in ogeler:
+            adlar.append(oge[0])
+            e = oge[0]
+            if e == "Sepet" and sp:
+                e = e + " (" + str(len(sp)) + ")"
+            etiketler.append(e)
+    st.markdown("<span class='v2sekme-isaret'></span>", unsafe_allow_html=True)
+    kol = st.columns(len(adlar) + 1, gap="small")
+    for i, ad in enumerate(adlar):
+        with kol[i]:
+            if st.button(etiketler[i], key="v2top_" + str(i),
+                         use_container_width=True,
+                         type=("primary"
+                               if st.session_state["v2_page"] == ad
+                               else "secondary")):
+                st.session_state["v2_page"] = ad
+                st.session_state["v2_ajan"] = None
+                st.rerun()
+    st.markdown(
+        "<div style='height:1px;background:var(--line-2);"
+        "margin:-4px 0 var(--s5);'></div>", unsafe_allow_html=True)
+
+
 def main() -> None:
     st.markdown(V2_CSS, unsafe_allow_html=True)
     if "v2_page" not in st.session_state:
         st.session_state["v2_page"] = "Karar Masası"
 
-    with st.sidebar:
-        st.markdown(
-            "<div class='v2brand'><div class='mark'>BA</div>"
-            "<div class='yazi'><b>BetAgents</b>"
-            "<span>Desk · v2</span></div></div>", unsafe_allow_html=True)
-        # ⚠️ ACIK KEY: Streamlit widget kimligini etiket + parametrelerden
-        # turetir; `type` her cizimde degistigi icin kimlik kayardi.
-        _i = 0
-        for grup, ogeler in GRUPLAR:
-            st.markdown("<div class='v2grup'>" + grup + "</div>",
-                        unsafe_allow_html=True)
-            for oge in ogeler:
-                ad = oge[0]
-                sp = _sepet()
-                etiket = ad
-                if ad == "Sepet" and sp:
-                    etiket = ad + "  (" + str(len(sp)) + ")"
-                if st.button(etiket, key=f"v2nav_{_i}",
-                             use_container_width=True,
-                             type=("primary"
-                                   if st.session_state["v2_page"] == ad
-                                   else "secondary")):
-                    st.session_state["v2_page"] = ad
-                    st.session_state["v2_ajan"] = None
-                    st.rerun()
-                _i += 1
-        r = load_rail()
-        yerel = r["kaynak"].startswith("SQLite")
-        st.markdown(
-            "<div class='v2yan-alt'>"
-            "KAYNAK<br><b class='" + ("uyari" if yerel else "") + "'>" +
-            r["kaynak"] + "</b><br><br>"
-            "AÇIK POZİSYON<br><b>" + str(r["acik"]) + "</b><br><br>"
-            "KAPANMIŞ BAHİS<br><b>" +
-            "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
-            "</div>", unsafe_allow_html=True)
+    _ust_gezinme()
 
+    # ⚠️ KENAR CUBUGU KALDIRILDI. Ust gezinme onun isini yapiyordu ve
+    # ikisi ayni menuyu gosteriyordu — tekrar. Ustelik Streamlit'te
+    # kenar cubugu kapatilabildigi icin GUVENILMEZ bir yuzey; kullanici
+    # ekraninda tamamen kaybolmustu. Kazanilan 236px tabloya gidiyor:
+    # Ajan Guveni tablosu 6 sutunu sigdiramiyor, sag kenardan kirpiliyordu.
     PAGES[st.session_state["v2_page"]]()
     _gezinme_alt()
 
