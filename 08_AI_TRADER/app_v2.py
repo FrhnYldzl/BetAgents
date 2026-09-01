@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import math
 import sys
+import threading
 from pathlib import Path
 
 import streamlit as st
@@ -81,6 +82,16 @@ def _kaynak() -> str:
     return "SQLite · YEREL"
 
 
+# ⚠️ PAYLASILAN BAGLANTI ESZAMANLILIK KILIDI
+# @st.cache_resource nesneyi TUM oturumlar arasinda paylasir. psycopg2
+# baglantisi es zamanli sorguya uygun DEGILDIR: iki oturum ayni anda
+# sorgu acarsa baglanti kilitlenir ve sayfa sonsuza kadar "calisiyor"
+# kalir. Yerelde tek oturum oldugu icin gorunmedi; canlida ilk deploy'da
+# sayfa hic acilmadi. Kilit sorgulari siraya sokar — baglanti kurma
+# maliyetinden (~1,5 sn) kacinmanin bedeli budur ve ucuzdur.
+_SORGU_KILIDI = threading.Lock()
+
+
 @st.cache_resource(show_spinner=False)
 def _conn():
     """TEK paylasilan baglanti — rerun'lar arasinda yasar.
@@ -106,7 +117,8 @@ def _rows(sql: str, params: tuple = (), sessiz: bool = False) -> list[dict]:
     last = None
     for deneme in (1, 2):
         try:
-            return [dict(r) for r in _conn().execute(sql, params).fetchall()]
+            with _SORGU_KILIDI:
+                return [dict(r) for r in _conn().execute(sql, params).fetchall()]
         except Exception as e:
             last = e
             msg = str(e).lower()
@@ -115,7 +127,8 @@ def _rows(sql: str, params: tuple = (), sessiz: bool = False) -> list[dict]:
             # PG'de basarisiz ifade islemi ABORT eder — sonraki her sorgu
             # da patlar. Geri almadan devam etmek tum sayfayi cokertir.
             try:
-                _conn().rollback()
+                with _SORGU_KILIDI:
+                    _conn().rollback()
             except Exception:
                 _conn.clear()
             if sessiz and yok:
