@@ -460,6 +460,10 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   margin-right:8px;border:1px solid var(--line-2);border-radius:var(--r);
   color:var(--ink-2);background:var(--panel-2);}
 .cc.no{color:var(--muted);border-style:dashed;opacity:.7;}
+/* açık kupon — riskteki pozisyon, nötr ama görünür */
+.ak{display:inline-block;font-family:"JetBrains Mono",monospace;
+  font-size:13px;font-weight:600;color:var(--ink);
+  background:var(--panel-3);border-radius:var(--r);padding:2px 9px;}
 .fl{display:none;} .em{display:none;}
 
 /* ── KUTULAR ───────────────────────────────────────────── */
@@ -765,6 +769,19 @@ def load_lig() -> dict:
         sessiz=True)
     pf = _rows("SELECT portfolio_id p, current_bankroll cb, initial_bankroll ib, "
                "era_no, benched, ihtar_count ih FROM paper_portfolio", sessiz=True)
+    # AÇIK POZİSYON — lig tablosu kapanmış performansı gösterir; bu sütun
+    # "şu an sahada ne var"ı söyler. İkisi farklı sorulardır: iyi bir karne
+    # ile sıfır açık pozisyon, ajanın bugün PAS geçtiği anlamına gelir.
+    # ⚠️ TEK SORGUDA JOIN + SUM YAPMA: SUM(DISTINCT stake) ayni tutarli
+    # kuponlari TEK sayar (iki kupon da 100 ₺ ise toplam 100 cikar), JOIN'siz
+    # SUM ise ayak sayisi kadar katlar. Iki aggregate AYRI alinir.
+    ac = _rows("SELECT portfolio_id p, COUNT(*) kupon, "
+               "COALESCE(SUM(stake),0) riskte FROM paper_coupons "
+               "WHERE status='open' GROUP BY portfolio_id", sessiz=True)
+    ay = _rows("SELECT portfolio_id p, COUNT(*) ayak FROM paper_bets "
+               "WHERE status='open' GROUP BY portfolio_id", sessiz=True)
+    _ayak = {x["p"]: int(x["ayak"] or 0) for x in ay}
+    acik = {x["p"]: {**x, "ayak": _ayak.get(x["p"], 0)} for x in ac}
     kasa = {x["p"]: x for x in pf}
     by: dict = {}
     for r in rows:
@@ -781,6 +798,7 @@ def load_lig() -> dict:
         se = math.sqrt(var / n) if (var > 0 and n) else 0.0
         perfect = n > 0 and (won == 0 or won == n)
         k = kasa.get(pid, {})
+        a_ = acik.get(pid, {})
         ib = float(k.get("ib") or 1000)
         cb = float(k.get("cb") or 0)
         return {"pid": pid, "ad": pid.rsplit("_", 1)[0],
@@ -789,6 +807,9 @@ def load_lig() -> dict:
                 "t": (skill / se) if (se > 1e-9 and not perfect) else None,
                 "perfect": perfect, "kasa": cb, "ilk": ib,
                 "yuzde": (cb / ib * 100) if ib else 0.0,
+                "acik_kupon": int(a_.get("kupon") or 0),
+                "acik_ayak": int(a_.get("ayak") or 0),
+                "riskte": float(a_.get("riskte") or 0),
                 "era": k.get("era_no"), "benched": bool(k.get("benched")),
                 "ihtar": int(k.get("ih") or 0),
                 "odds": (sum(float(x["o"]) for x in v) / n) if n else 0.0}
@@ -796,7 +817,9 @@ def load_lig() -> dict:
     tum = [kur(p, v) for p, v in by.items()]
     # hic bahsi olmayan (ornegin susan kirmizi ajanlar) da listede dursun
     for p in kasa:
-        if p not in by and p in KIRMIZI:
+        # dönem içi kapanmış bahsi olmayan ama AÇIK pozisyonu olan ajan da
+        # listede görünmeli — "oynamadı" ile "henüz sonuçlanmadı" farklıdır
+        if p not in by and (p in KIRMIZI or p in acik):
             tum.append(kur(p, []))
     mavi = [x for x in tum if x["pid"] not in KIRMIZI
             and x["pid"] not in ("PAPER_V1", "OPUS5_V1")]
@@ -2033,6 +2056,13 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
             "</span></td>"
             "<td class='opt' style='width:100px;'>" +
             _kivilcim(EG.get(a["pid"], {}).get("seri", [])) + "</td>"
+            "<td class='r'>" + (
+                ("<span class='ak'>" + str(a["acik_kupon"]) + "</span>"
+                 "<span class='sb' style='text-align:right;'>" +
+                 str(a["acik_ayak"]) + " ayak · " +
+                 "{:,.0f}".format(a["riskte"]).replace(",", ".") + " ₺</span>")
+                if a["acik_kupon"] else
+                "<span class='sb' style='text-align:right;'>—</span>") + "</td>"
             "<td class='r n'>" + ("{:,.0f}".format(a["kasa"]).replace(",", ".")) + "</td>"
             "<td class='r opt'><span class='" + kasa_cls + "'>" +
             "{:.0f}".format(a["yuzde"]) + "%</span></td>"
@@ -2047,7 +2077,7 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
             "<div class='v2head'><h2>" + baslik + "</h2>"
             "<div class='hint'>" + alt + "</div></div><div class='v2body'>"
             "<table class='v2'><thead><tr><th></th><th>Ajan</th>"
-            "<th class='opt'>Seyir</th>"
+            "<th class='opt'>Seyir</th><th class='r'>Açık</th>"
             "<th class='r'>Kasa</th><th class='r opt'>%</th>"
             "<th class='r opt'>İsabet</th>"
             "<th class='r opt'>Fiyat bekler</th><th class='r'>Fark</th>"
@@ -2190,8 +2220,12 @@ def page_lig() -> None:
     """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
     d = load_lig()
     ham = load_egri_ham()
+    _ak = sum(x["acik_kupon"] for x in (d["mavi"] + d["kirmizi"]))
+    _rk = sum(x["riskte"] for x in (d["mavi"] + d["kirmizi"]))
     kpi = [{"ad": "Mavi takım", "deger": str(len(d["mavi"])) + " ajan"},
-           {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"}]
+           {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"},
+           {"ad": "Açık kupon", "deger": str(_ak) + "  ·  " +
+            "{:,.0f}".format(_rk).replace(",", ".") + " ₺"}]
     if ham:
         _t = sum(float(x["pnl"] or 0) for x in ham)
         _c = sum(float(x["stake"] or 0) for x in ham)
