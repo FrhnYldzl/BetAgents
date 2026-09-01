@@ -21,15 +21,19 @@ role = (os.environ.get("ROLE") or "web").strip().lower()
 port = os.environ.get("PORT", "8080")
 inline_worker = (os.environ.get("INLINE_WORKER", "1").strip() != "0")
 # ── HANGI UYGULAMA? ────────────────────────────────────────────
-# APP=v2  → yeni Desk (app_v2.py)
-# APP boş → mevcut birleşik uygulama (app_unified.py)
+# VARSAYILAN: V2 (app_v2.py) — 01.09.2026'da cevrildi.
+#   APP=v1 (veya "unified") → eski 40 sayfalik app_unified.py
+#   APP bos / v2 / desk     → yeni Desk
 #
-# İki sürüm YAN YANA çalışabilsin diye anahtar env'de: Railway'de
-# ikinci bir servis açıp APP=v2 vermek yeterli. Mevcut servise
-# dokunmadan V2 yayına alınır; hazır olunca anahtar çevrilir.
+# Neden varsayilan cevrildi: Railway panel erisimi olmadan yayina
+# almanin tek yolu buydu. GERI ALMAK icin iki yol var —
+#   (a) Railway degiskeni: APP=v1
+#   (b) bu satiri eski haline dondur, push et
+# V1 kod tabaninda AYNEN duruyor, silinmedi.
 _app = (os.environ.get("APP") or "").strip().lower()
+_eski = _app in ("v1", "unified", "legacy")
 app_file = (THIS / "08_AI_TRADER" /
-            ("app_v2.py" if _app in ("v2", "desk") else "app_unified.py"))
+            ("app_unified.py" if _eski else "app_v2.py"))
 
 # ── BOOT TANI (Railway loglarında görünür) ─────────────────────
 print("=" * 56, flush=True)
@@ -37,7 +41,7 @@ print(f"[start.py] BOOT", flush=True)
 print(f"  python      : {sys.version.split()[0]}", flush=True)
 print(f"  cwd         : {os.getcwd()}", flush=True)
 print(f"  ROLE        : {role}", flush=True)
-print(f"  APP         : {_app or '(v1 · app_unified)'}", flush=True)
+print(f"  APP         : {_app or '(varsayilan)'} -> {app_file.name}", flush=True)
 print(f"  PORT        : {port}", flush=True)
 print(f"  DATABASE_URL: {'SET ('+os.environ['DATABASE_URL'][:11]+'…)' if os.environ.get('DATABASE_URL') else 'YOK → SQLite (veri olmayabilir)'}", flush=True)
 print(f"  app dosyası : {app_file}  (var mı: {app_file.exists()})", flush=True)
