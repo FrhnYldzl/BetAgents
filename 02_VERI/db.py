@@ -30,6 +30,7 @@ string karşılaştırması yaptığı için davranış birebir korunur.
 from __future__ import annotations
 
 import os
+import sys as _sys
 import re
 import warnings
 from pathlib import Path
@@ -39,6 +40,45 @@ warnings.filterwarnings("ignore", message=r".*pandas only supports SQLAlchemy.*"
 
 THIS_DIR = Path(__file__).resolve().parent
 DEFAULT_SQLITE_PATH = THIS_DIR / "bahis_agent.db"
+
+
+# ============================================================
+# .env YÜKLE  (bağımlılık yok — python-dotenv kurulu değil)
+# ============================================================
+
+def _env_yukle() -> None:
+    """Proje kökündeki .env dosyasını ortama aktar — SADECE boş olanları.
+
+    ⚠️ NEDEN VAR: .env dosyasında DATABASE_URL yazılıydı ama bu modül
+    yalnızca os.environ'a bakıyordu. Sonuç: yerelde çalıştırılan HER
+    betik sessizce SQLite'a düşüyor, üretimden farklı ama makul görünen
+    sayılar üretiyordu. 2026-09-01'de tam olarak bu yaşandı: bir ölçüm
+    "44 açık bahis" yerine "41" dedi ve yanlış bir tanı yazıldı.
+    Yanlış veritabanına bakmak, bakmamaktan tehlikelidir.
+
+    GERÇEK ORTAM DEĞİŞKENİ HER ZAMAN KAZANIR — Railway'de DATABASE_URL
+    zaten set edilir; .env onu EZMEMELİDİR, yoksa üretim yanlış
+    veritabanına bağlanır.
+    """
+    for kok in (THIS_DIR, THIS_DIR.parent):
+        yol = kok / ".env"
+        if not yol.is_file():
+            continue
+        try:
+            for satir in yol.read_text(encoding="utf-8").splitlines():
+                satir = satir.strip()
+                if not satir or satir.startswith("#") or "=" not in satir:
+                    continue
+                ad, _, deger = satir.partition("=")
+                ad, deger = ad.strip(), deger.strip().strip('"').strip("'")
+                if ad and deger and not os.environ.get(ad):
+                    os.environ[ad] = deger
+        except Exception:
+            pass          # .env okunamıyorsa sessizce geç — zorunlu değil
+        break
+
+
+_env_yukle()
 
 
 # ============================================================
@@ -288,6 +328,29 @@ class Conn:
 # BAĞLANTI AÇ
 # ============================================================
 
+_DUYURULDU = False
+
+
+def _duyur(nereye: str) -> None:
+    """Hangi veritabanina baglandigini SOYLE — surec basina bir kez.
+
+    ⚠️ Sessiz dusus bu projede gercek zarar verdi: DATABASE_URL yokken
+    db.connect() hic ses cikarmadan yerel SQLite'a duser ve olcumler
+    URETIMDEN FARKLI ama tamamen makul gorunen sayilar dondurur. Yanlis
+    veritabanina bakmak, bakmamaktan tehlikelidir — cunku sonuca guvenirsin.
+
+    stderr'e yazilir: stdout'u ayristiran betikleri kirlestirmesin.
+    """
+    global _DUYURULDU
+    if _DUYURULDU:
+        return
+    _DUYURULDU = True
+    try:
+        print("[db] " + nereye, file=_sys.stderr)
+    except Exception:
+        pass
+
+
 def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
     """
     Ortama göre bağlantı döndür.
@@ -319,6 +382,8 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
                     keepalives=1, keepalives_idle=30,
                     keepalives_interval=10, keepalives_count=5,
                 )
+                import re as _re0
+                _duyur("PostgreSQL -> " + _re0.sub(r":[^:@]+@", ":***@", url))
                 return Conn(raw, is_pg=True)
             except psycopg2.OperationalError as exc:
                 last = exc
@@ -334,6 +399,11 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
 
     import sqlite3
     path = str(sqlite_path) if sqlite_path else str(DEFAULT_SQLITE_PATH)
+    # ⚠️ Buraya dusmek "offline calisiyorum" demek olabilir de,
+    # "DATABASE_URL'i unuttum ve simdi YANLIS veritabanini olcuyorum"
+    # demek de. Ikisi disaridan ayirt edilemez — o yuzden BAGIRIR.
+    _duyur("SQLite (YEREL) -> " + path +
+           "  <-- DATABASE_URL yok; bu URETIM VERISI DEGIL")
     raw = sqlite3.connect(path)
     raw.row_factory = sqlite3.Row
     return Conn(raw, is_pg=False)
