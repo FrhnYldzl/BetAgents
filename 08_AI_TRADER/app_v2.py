@@ -601,6 +601,11 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
 @media (max-width:640px){
   :root{--kart-ic:14px 15px;--t-sayfa:19px;}
   table.v2 th.opt,table.v2 td.opt{display:none;}
+  /* Acik kupon: telefonda rozet (kupon sayisi) kalir, "N ayak · X TL"
+     alt satiri gider. Olculdu: alt satir tek basina 74px genislik
+     yiyordu (480 -> 406), tablo taskini 143px'ten 69px'e dusuruyor.
+     Secici DAR tutuldu: sadece .ak rozetinin hemen ardindaki .sb. */
+  table.v2 td .ak + .sb{display:none;}
   .v2kpi b{font-size:17px;} .ro.big b{font-size:25px;}
   [data-testid="stCheckbox"] label{min-height:44px;}
 }
