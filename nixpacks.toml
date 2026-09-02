@@ -1,7 +1,18 @@
-# Nixpacks build (Railway) — Python 3.12, sadece pip wheel kurulumu.
-# playwright BROWSER indirilmez (canlı yol urllib kullanır; playwright yalnız
-# yerel probe scriptleri içindir).
+# Nixpacks build — YEDEK YOL. Asıl build DOCKERFILE ile yapılır
+# (railway.json → build.builder = "DOCKERFILE"). Bu dosya yalnız Railway
+# nixpacks'e düşerse devreye girer.
+#
+# ⚠️ NEDEN BU DOSYA SİLİNMEDİ: silinseydi nixpacks Python'ı otomatik
+# algılayıp requirements.txt'yi (TAM set: scipy, lightgbm, scikit-learn,
+# playwright) kurardı — canlı yolun hiç kullanmadığı ~1 GB bağımlılık.
+# Dosyayı BURADA tutup requirements-railway.txt'ye sabitlemek, yedek yolu
+# da Dockerfile ile AYNI ortamı üretir hâle getiriyor.
+#
+# Canlı yolun gerçek ihtiyacı ölçüldü (worker + app_v2 import kapanışı):
+#   apscheduler · numpy · pandas · psycopg2 · streamlit  (+ plotly, requests)
+# scipy/lightgbm/sklearn/playwright canlı yolda YOK — onlar yerel model
+# eğitimi, backtest ve scrape içindir (requirements.txt).
 providers = ["python"]
 
 [phases.install]
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+cmds = ["pip install --no-cache-dir -r requirements-railway.txt"]
