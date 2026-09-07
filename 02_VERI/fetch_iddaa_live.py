@@ -147,8 +147,16 @@ def _isaret_var(ad: str, isaret: str) -> bool:
     parma, monaco, nice, lens, brest, mainz, koln.
     """
     import re
-    return re.search(r"(?<![a-z0-9])" + re.escape(isaret) +
-                     r"(?![a-z0-9])", ad) is not None
+    # ⚠️ AKSAN NORMALLEŞTİRMESİ — iki taraf da.
+    # İşaret listesi umlautlu yazılmış ("mönchengladbach", "bayern münih",
+    # "köln", "beşiktaş"), iddaa verisi ise çoğu zaman aksansız geliyor
+    # ("Monchengladbach"). Karşılaştırma ham yapılınca GERÇEK Bundesliga
+    # maçı "işaret değil" sayılıyor ve lig kodu haksız yere şüpheye
+    # düşüyordu. _norm_tr zaten vardı ama burada kullanılmıyordu.
+    a = _norm_tr(ad)
+    i = _norm_tr(isaret)
+    return re.search(r"(?<![a-z0-9])" + re.escape(i) +
+                     r"(?![a-z0-9])", a) is not None
 
 
 def _takim_reddedildi(nm: str) -> bool:

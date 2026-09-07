@@ -220,15 +220,24 @@ def load_agents() -> list[dict]:
     # EMEKLİ ajanlar tabloda görünmez: yeni bahis üretmiyorlar, sıralamada
     # yer tutmaları "kime güvenirim" sorusunu bulandırır. Geçmişleri
     # arşivde duruyor (İnceleme ve Ölçüm Defteri onları hâlâ görür).
-    _emekli = set()
+    # ⚠️ TABLO YALNIZ AJANLARI GÖSTERİR — "beyaz liste", kara liste DEĞİL.
+    # İlk halim yalnız emeklileri eliyordu ve OPUS5 / KURUCU / PAPER
+    # tabloya girdi: bunlar AJAN DEĞİL — sırasıyla gerçek para defteri,
+    # kurucu portföyü ve eski dönem arşivi. Üstelik era_start'ları NULL
+    # olduğu için dönem süzgeci de onları durduramadı ve ERA 3'te
+    # ajanlar boşken tabloyu SADECE onlar doldurdu: "kime güvenirim"
+    # sorusuna cevap veren yerde ajan olmayan üç satır.
+    # Kara liste yerine BEYAZ LİSTE: PROFILES'ta olan ve emekli
+    # olmayan. Yarın eklenen bir defter portföyü de kendiliğinden dışarıda.
+    _sahada: set = set()
     try:
         from agents import PROFILES as _AGP
-        _emekli = {k for k, v in _AGP.items() if v.get("retired")}
+        _sahada = {k for k, v in _AGP.items() if not v.get("retired")}
     except Exception:
         pass
     by: dict[str, list] = {}
     for r in rows:
-        if r["p"] in _emekli:
+        if _sahada and r["p"] not in _sahada:
             continue
         by.setdefault(r["p"], []).append(r)
     out = []
