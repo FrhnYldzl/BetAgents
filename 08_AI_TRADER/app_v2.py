@@ -206,10 +206,30 @@ def load_agents() -> list[dict]:
 
     ⚠️ Kusursuz seri (hepsi kazandı/kaybetti) standart hatayı sıfıra
     çökertir ve t sonsuza gider. Bu anlamlılık DEĞİLDİR — ÖLÇÜLEMEZ."""
-    rows = _rows("SELECT portfolio_id p, odds o, status s FROM paper_bets "
-                 "WHERE status IN ('won','lost') AND odds > 1.01", sessiz=True)
+    # ⚠️ DÖNEM SÜZGECİ YOKTU — tablo bütün zamanları topluyordu.
+    # ERA 3 tasfiyesinden sonra kullanıcı 9 ajan bekledi, ekran 16
+    # gösterdi: emekli ajanlar ve önceki dönem sayıları duruyordu.
+    # Dönem sıfırlaması KASAYI sıfırlıyor ama tabloyu sıfırlamıyorsa
+    # ekran ile gerçek ayrışır — ve hangisine güvenileceği belirsizleşir.
+    rows = _rows(
+        "SELECT pb.portfolio_id p, pb.odds o, pb.status s FROM paper_bets pb "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
+        "AND (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)",
+        sessiz=True)
+    # EMEKLİ ajanlar tabloda görünmez: yeni bahis üretmiyorlar, sıralamada
+    # yer tutmaları "kime güvenirim" sorusunu bulandırır. Geçmişleri
+    # arşivde duruyor (İnceleme ve Ölçüm Defteri onları hâlâ görür).
+    _emekli = set()
+    try:
+        from agents import PROFILES as _AGP
+        _emekli = {k for k, v in _AGP.items() if v.get("retired")}
+    except Exception:
+        pass
     by: dict[str, list] = {}
     for r in rows:
+        if r["p"] in _emekli:
+            continue
         by.setdefault(r["p"], []).append(r)
     out = []
     for pid, v in by.items():
@@ -272,6 +292,23 @@ def load_board() -> list[dict]:
             "ko": str(r["ko"])[11:16],
         })
     return out
+
+
+@st.cache_data(ttl=180, show_spinner=False)
+def load_era_ozet() -> dict:
+    """Yürürlükteki dönem — kaç ajan sahada, ne zaman başladı.
+
+    Dönem sıfırlaması kasayı sıfırlar ama tablo dolana kadar sayfa
+    "hiçbir şey yok" gibi görünür. İkisi çok farklı: veri yokluğu bir
+    arıza olabilir, dönem başlangıcı değildir. Sayfa hangisi olduğunu
+    söylemeli."""
+    r = _rows("SELECT COALESCE(era_no,1) e, COUNT(*) n, MAX(era_start) bas "
+              "FROM paper_portfolio GROUP BY COALESCE(era_no,1) "
+              "ORDER BY 1 DESC LIMIT 1", sessiz=True)
+    if not r:
+        return {}
+    return {"era": int(r[0]["e"] or 1), "ajan": int(r[0]["n"] or 0),
+            "bas": str(r[0]["bas"] or "")[:16].replace("T", " ")}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -1973,6 +2010,10 @@ def page_desk() -> None:
     left, mid, right = st.columns([1.50, 1.42, 0.95], gap="medium")
 
     ags = load_agents()
+    # DÖNEM YENİ BAŞLADIYSA tablo boş olur — bu bir arıza değil, dönemin
+    # kendisidir. Boş bir tablo göstermek yerine NE OLDUĞUNU söylüyoruz:
+    # kaç ajan sahada, dönem ne zaman başladı, neden sayı yok.
+    _era = load_era_ozet()
     # ⚠️ Denetim bulgusu O1: sol panel ajanları sıralıyor, orta panel
     # seçimleri listeliyordu — ikisi birbirini TANIMIYORDU. Üretimde
     # tahtadaki 22 seçimin 8'i KALECİ'dendi ve KALECİ güven tablosunda
@@ -2061,6 +2102,14 @@ def page_desk() -> None:
               oran 1,84'te <b>iyidir</b>. Doğru ölçü isabet değil,
               <b>fiyatın beklediğinden ne kadar fazlası</b>.
               {(" " + swap) if swap else ""}</div>
+            {("<div class='dq'><b>Dönem " + str(_era.get("era", "?")) +
+              " başladı — " + str(_era.get("bas", "")) + ".</b> Sahadaki "
+              + str(_era.get("ajan", "?")) + " ajanın kasası sıfırlandı ve "
+              "sayaçlar yeniden başladı; henüz kapanmış bahis yok. Bu bir "
+              "arıza değil, dönemin kendisidir — <b>veri yokluğu ile temiz "
+              "sayfa farklı şeylerdir</b>. Önceki dönemin karnesi "
+              "arşivde: İnceleme ve Ölçüm Defteri onu hâlâ görüyor.</div>")
+              if not body else ""}
             <table class="v2"><thead><tr><th></th><th>Ajan</th>
               <th class="r opt dar">İsabet</th>
               <th class="r opt dar">Fiyat bekler</th>
