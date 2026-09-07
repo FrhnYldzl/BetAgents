@@ -701,9 +701,15 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   table.v2 .sb{white-space:normal;line-height:1.35;}
   table.v2 td{vertical-align:top;}
 
-  /* Dokunma hedefi: sayfa başına 9–14 buton 44px eşiğinin altındaydı,
-     parmakla ıskalanıyor. Checkbox zaten düzeltilmişti, butonlar değil. */
-  .stButton button{min-height:44px;}
+  /* Dokunma hedefi: sayfa başına 9–13 buton 44px eşiğinin altındaydı
+     (38px), parmakla ıskalanıyor.
+     ⚠️ İLK DENEMEM SESSİZCE HİÇBİR ŞEYE UYMADI: ".stButton button"
+     yazmıştım, oysa Streamlit'te stButton bir SINIF değil DATA-TESTID.
+     Kural hiçbir öğeyi seçmedi ve hata da vermedi — ölçmeseydim
+     "düzeltildi" sanacaktım. Seçici artık butonun kendi testid'sine
+     bağlı: stBaseButton-primary / -secondary.
+     stMainMenuButton (Streamlit'in kendi hamburgeri) hariç tutuldu. */
+  [data-testid^="stBaseButton"]{min-height:44px;}
   [data-testid="stNumberInput"] input{min-height:44px;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
