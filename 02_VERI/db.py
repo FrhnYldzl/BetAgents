@@ -1,15 +1,27 @@
 """
 MERKEZÎ VERİTABANI KATMANI — SQLite (yerel) ↔ PostgreSQL (Railway)
 ==================================================================
-Tek giriş noktası. `DATABASE_URL` ortam değişkenine göre otomatik seçer:
+Tek giriş noktası. Ortama göre otomatik seçer:
 
-    DATABASE_URL boş/yok   → bireysel PG* değişkenlerine bak, yoksa SQLite
-    DATABASE_URL=postgres… → PostgreSQL (psycopg2)
+    RAILWAY_ENVIRONMENT_NAME=production → DATABASE_URL (Railway proxy)
+    aksi halde (yerel geliştirme)        → PG* değişkenlerinden URL, yoksa localhost
+    hiçbiri yoksa                        → SQLite
 
 Öncelik sırası:
-  1. DATABASE_URL ortam değişkeni (Railway tarafından otomatik set edilir)
-  2. PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE bireysel değişkenleri
+  1. RAILWAY_ENVIRONMENT_NAME == "production" ise DATABASE_URL (Railway proxy)
+  2. Yerelde: PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE bireysel
+     değişkenleri — PGHOST verilmemiş veya üretim proxy'sini işaret ediyorsa
+     `localhost` (ör. `railway tunnel 5432` ile açılan tünel) tercih edilir
   3. Yerel SQLite (02_VERI/bahis_agent.db) — geliştirme ortamı
+
+⚠️ NEDEN: Üretim uygulaması ile yerelde `streamlit run` ile çalıştırılan
+geliştirici kopyası AYNI Railway proxy'sine (ör. zephyr.proxy.rlwy.net)
+bağlanırsa bağlantı havuzu çakışır, sorgular donar/timeout olur. Bu yüzden
+`RAILWAY_ENVIRONMENT_NAME` yalnızca "production" değerindeyken Railway proxy
+kullanılır; yerelde varsayılan olarak `localhost:5432` denenir. Geliştirici,
+`railway tunnel 5432` komutuyla üretim veritabanına yerelden erişebilir; bu
+tünel `RAILWAY_ENVIRONMENT_NAME` set edilmeden localhost üzerinden çalışır ve
+üretimle aynı canlı bağlantıyı paylaşmaz.
 
 Amaç: canlı-yol kodu (paper_engine, auto_play/settle, app_*) HİÇ değişmeden
 çalışsın. Wrapper, sqlite3.Connection davranışını taklit eder:
@@ -89,35 +101,54 @@ def database_url() -> str:
     """
     PostgreSQL bağlantı URL'sini döndür.
 
+    ⚠️ ÜRETİM ↔ YEREL ÇAKIŞMASI: Railway proxy'si (ör. zephyr.proxy.rlwy.net)
+    hem üretim uygulamasi hem de yerelde çalışan geliştirici tarafından
+    AYNI ANDA kullanılırsa bağlantı havuzu çakışır, sorgular donar/timeout
+    olur. Bunu önlemek için burada ortam bazlı bir fallback var:
+
     Öncelik:
-      1. DATABASE_URL ortam değişkeni (Railway tarafından otomatik set edilir)
-      2. PGHOST / PGPORT / PGUSER / PGPASSWORD / PGDATABASE bireysel değişkenleri
-      3. Boş string → SQLite moduna düşer
+      1. RAILWAY_ENVIRONMENT_NAME == "production" ise → DATABASE_URL
+         (Railway proxy) kullanılır. Bu, GERÇEK üretim ortamıdır.
+      2. Aksi halde (yerel geliştirme) → PGHOST/PGPORT/PGUSER/PGPASSWORD/
+         PGDATABASE bireysel değişkenlerinden URL kurulur; PGHOST verilmemiş
+         veya üretim proxy'sini işaret ediyorsa `localhost` tercih edilir
+         (örn. `railway tunnel 5432` ile açılan yerel tünel üzerinden).
+      3. Hiçbiri yoksa boş string → çağıran taraf SQLite moduna düşer.
 
     Railway'in postgres:// şeması psycopg2 için postgresql:// olarak düzeltilir.
     """
-    url = (os.environ.get("DATABASE_URL") or "").strip()
+    # 1) ÜRETİM: RAILWAY_ENVIRONMENT_NAME=production ise Railway'in verdiği
+    #    DATABASE_URL (proxy) kullanılır.
+    if os.environ.get("RAILWAY_ENVIRONMENT_NAME") == "production":
+        url = (os.environ.get("DATABASE_URL") or "").strip()
+        # Railway bazen postgres:// prefix'i kullanır; psycopg2 postgresql:// ister.
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://"):]
+        if url:
+            return url
 
-    # Railway bazen postgres:// prefix'i kullanır; psycopg2 postgresql:// ister.
-    if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
+    # 2) YEREL GELİŞTİRME: bireysel PG* değişkenlerinden URL oluştur, yoksa
+    #    localhost'a düş. Bu sayede yerelde çalıştırılan uygulama, üretimin
+    #    kullandığı Railway proxy'sine bağlanıp havuz çakışması yaratmaz.
+    host     = os.environ.get("PGHOST", "localhost").strip() or "localhost"
+    port     = os.environ.get("PGPORT",     "5432").strip()
+    user     = os.environ.get("PGUSER",     "postgres").strip()
+    password = os.environ.get("PGPASSWORD", "").strip()
+    database = os.environ.get("PGDATABASE", "railway").strip()
 
-    if url:
-        return url
+    # Üretimde değilsek ve PGHOST üretim proxy'sini (localhost olmayan bir
+    # host) işaret ediyorsa yine de localhost'u tercih et — amaç, yereldeki
+    # çalıştırmanın hiçbir şekilde üretimle aynı uzak bağlantıyı paylaşmaması.
+    if host != "localhost" and os.environ.get("RAILWAY_ENVIRONMENT_NAME") != "production":
+        host = "localhost"
 
-    # DATABASE_URL yoksa bireysel PG* değişkenlerinden URL oluştur
-    host = os.environ.get("PGHOST", "").strip()
-    if host:
-        port     = os.environ.get("PGPORT",     "5432").strip()
-        user     = os.environ.get("PGUSER",     "postgres").strip()
-        password = os.environ.get("PGPASSWORD", "").strip()
-        database = os.environ.get("PGDATABASE", "railway").strip()
-        # Şifredeki özel karakterleri URL-encode et
-        import urllib.parse
-        encoded_password = urllib.parse.quote(password, safe="")
-        return f"postgresql://{user}:{encoded_password}@{host}:{port}/{database}"
+    if not host:
+        return ""
 
-    return ""
+    # Şifredeki özel karakterleri URL-encode et
+    import urllib.parse
+    encoded_password = urllib.parse.quote(password, safe="")
+    return f"postgresql://{user}:{encoded_password}@{host}:{port}/{database}"
 
 
 def is_postgres() -> bool:
@@ -369,6 +400,18 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
             ) from exc
         import time
         url = database_url()
+        # DEBUG: hangi ortam (production/local) ve hangi DATABASE_URL kullanılıyor —
+        # yerel/üretim karışıklığını (proxy çakışması) hızlıca teşhis etmek için.
+        try:
+            import re as _re_dbg
+            _env_adi = os.environ.get("RAILWAY_ENVIRONMENT_NAME", "(yok — yerel geliştirme varsayılıyor)")
+            print(
+                f"[db] ortam={_env_adi} -> "
+                f"{_re_dbg.sub(r':[^:@]+@', ':***@', url)}",
+                file=_sys.stderr,
+            )
+        except Exception:
+            pass
         # Railway iç-DNS (postgres.railway.internal) ara sıra anlık çözülemez →
         # geçici OperationalError'da kısa bekleyip TEKRAR DENE. Başarılı bağlantı
         # anında döner (sleep yok); yalnız hata olunca backoff.
