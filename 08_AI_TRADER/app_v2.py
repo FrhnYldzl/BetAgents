@@ -304,11 +304,23 @@ V2_CSS = """
   --panel-3:#eaf0f4;
   --ink:#0d1620;
   --ink-2:#3a4a5a;
-  --muted:#6a7b8c;
+  /* ⚠️ ÖLÇÜLDÜ (WCAG AA, canlı sayfada hesaplanmış kontrast):
+     #6a7b8c beyazda 4,35 · en koyu panelde 3,79 — ikisi de 4,5 eşiğinin
+     ALTINDA ve bu renk ~67 öğede kullanılıyor (tablo alt satırları,
+     kart ipuçları, KPI etiketleri, ray perde adları). Yani ürünün
+     ikincil metinlerinin TAMAMI okunabilirlik eşiğinin altındaydı.
+     #5b6b7b: beyazda 5,48 · panel-2'de 5,14 · panel-3'te 4,77.
+     Hiyerarşi korunuyor: ink 18,2 → ink-2 9,1 → muted 5,5. */
+  --muted:#5b6b7b;
   --line:#e6ecf1;
   --line-2:#ccd7e0;
   --brand:#8a5c0c;
   --brand-fill:#fbf1de;
+  /* Amber KOYU zeminde okunmuyor: #8a5c0c koyu şeritte 3,14. Aynı rengi
+     hem beyazda hem koyuda kullanmak mümkün değil — beyazda iyi olan
+     koyuda kötü. #c08a1c koyu zeminde 5,98 (beyazda 3,05, o yüzden
+     YALNIZ koyu zeminde kullanılır). */
+  --brand-koyu:#c08a1c;
   --pos:#0a6a47;
   --pos-fill:#e2f2eb;
   --neg:#a52a1c;
@@ -329,8 +341,19 @@ V2_CSS = """
   max-width:1720px;}
 /* ⚠️ FONT TEKLIGI: Streamlit'in kendi "Source Sans" kurali, markdown
    icine yazdigimiz HTML'e de sizip tablo hucrelerini ele geciriyordu —
-   ayni ekranda iki yazi tipi. Kendi bilesenlerimiz ACIKCA adlandirilir. */
+   ayni ekranda iki yazi tipi. Kendi bilesenlerimiz ACIKCA adlandirilir.
+   ⚠️ BU LISTE KIRILGAN ve bir kez daha sizdi: hikaye rayini eklerken
+   buton ETIKETLERI (Streamlit onlari stMarkdownContainer > p icine
+   koyuyor), perde aciklamalari ve soru kutusu listeye girmedi — sol
+   rayin TAMAMI Source Sans ciziliyordu. Olculdu: 13 gorunur ogede.
+   p ve li eklendi (buton etiketi + markdown metni buradan gecer).
+   div/span BILEREK EKLENMEDI: [stMarkdownContainer] span (0,1,1)
+   ozgullugu .gr / .dp / .cc gibi mono rozetlerini (0,1,0) EZERDI —
+   bu sefer sayilar seri fonta duserdi. */
 html,body,[class*="css"],.stApp,button,input,select,textarea,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+.ray-soru,.ray-perde .alt,
 .v2card,.v2card *,.v2ph,.v2ph *,.v2ust,.v2ust *,
 table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 .v2sepet-satir,.v2sepet-satir *,.v2bos{
@@ -359,7 +382,7 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   font-size:12px;font-weight:700;}
 .v2ust .marka b{color:var(--koyu-ink);font-size:15px;font-weight:700;
   letter-spacing:-0.015em;}
-.v2ust .marka span{color:var(--brand);font-family:"JetBrains Mono",monospace;
+.v2ust .marka span{color:var(--brand-koyu);font-family:"JetBrains Mono",monospace;
   font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
   margin-left:2px;}
 
@@ -542,6 +565,16 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
 [data-testid="stMain"] [data-testid="stMarkdownContainer"] p,
 [data-testid="stMain"] [data-testid="stMarkdownContainer"] li{
   color:var(--ink);}
+/* ⚠️ GENİŞ SEÇİCİ SIZINTISI — bu projede altıncı kez.
+   Streamlit buton ETİKETİNİ de stMarkdownContainer içine koyuyor, yani
+   yukarıdaki kural her buton yazısını --ink boyuyordu. Buton kuralı
+   color:#fff diyordu ama <p>'ye DOĞRUDAN kural uygulandığı için kalıtım
+   kaybediyordu: amber dolu aktif butonda koyu metin kalıyordu ve
+   kontrast 3,14'e düşüyordu (beyaz metinle 5,81 olurdu).
+   Sabit renk yerine INHERIT: etiket butonun kendi rengini alır, yani
+   primary/secondary/gelecekteki her varyantta doğru çalışır. */
+[data-testid="stMain"] .stButton>button [data-testid="stMarkdownContainer"] p{
+  color:inherit;}
 [data-testid="stCheckbox"]{margin:0!important;}
 [data-testid="stCheckbox"] label p{
   font-family:Archivo,sans-serif!important;font-size:var(--t-govde)!important;
