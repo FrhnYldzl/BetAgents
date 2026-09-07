@@ -1835,11 +1835,36 @@ def page_desk() -> None:
                 f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
                 f"{_sgn(a['edge'])}</span></td>"
                 f"<td class='r'><span class='gr {g}'>{txt}</span></td></tr>")
+        # ── RASTGELE KONTROL ÇİZGİSİ ─────────────────────────────
+        # ⚠️ Denetim bulgusu K1'in üçüncü ayağı: JOKER bir AJAN DEĞİL,
+        # deterministik-rastgele seçim yapan KONTROL çizgisidir. Her
+        # ajanın geçmesi gereken taban odur. Bu bilgi yalnızca Mihenk
+        # raporunda bir madde işaretiydi; ana sayfada JOKER sıradan bir
+        # satır gibi duruyordu. Rastgeleyi geçemeyen bir ajan sıralamada
+        # kaçıncı olursa olsun bir şey bilmiyor demektir — bu, güven
+        # tablosunun EN ÖNEMLİ okuma anahtarı.
+        _sira = next((i for i, x in enumerate(ags, 1)
+                      if x["pid"] == "JOKER_V1"), None)
+        _kontrol = ""
+        if _sira:
+            _gecen = _sira - 1
+            _kalan = len(ags) - _sira
+            _ok = _gecen <= max(1, len(ags) // 4)
+            _kontrol = (
+                "<div class='" + ("dq" if _ok else "v2mb") + "' "
+                "style='margin-bottom:var(--s3);'>"
+                "<b>Rastgele kontrol çizgisi: JOKER " + str(_sira) +
+                ". sırada.</b> JOKER bir ajan değil — <b>rastgele seçim</b> "
+                "yapan taban çizgisi. Onu geçemeyen bir ajan, sıralamada "
+                "kaçıncı olursa olsun bir şey bilmiyor demektir. Şu an "
+                "<b>" + str(_gecen) + " ajan</b> rastgeleyi geçiyor, <b>" +
+                str(_kalan) + " ajan</b> geçemiyor.</div>")
         st.markdown(f"""
         <div class="v2card">
           <div class="v2head"><h2>Ajan Güveni</h2>
             <div class="hint">fiyata göre üstünlük</div></div>
           <div class="v2body">
+            {_kontrol}
             <div class="v2mb"><b>İsabet oranı yanıltır.</b> %75 isabet, oran
               1,24'te <b>kötüdür</b> — fiyat zaten %80,6 bekliyordu. %59 isabet,
               oran 1,84'te <b>iyidir</b>. Doğru ölçü isabet değil,
@@ -2623,12 +2648,17 @@ def page_defter() -> None:
             "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
     st.markdown(
         "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
-        "<div class='hint'>" + str(gecen) + "/" + str(len(rows)) +
+        "<div class='hint'>KAYIT — " + str(gecen) + "/" + str(len(rows)) +
         " kural sağlıyor</div></div><div class='v2body'>"
         "<div class='v2mb'><b>Kurallar sonuç görülmeden yazıldı</b> ki "
         "sonradan esnetilemesin. 'Sağlanmadı' bir arıza değil, bir "
         "<b>hükümdür</b> — konsept o kadar. Bir bulgunun çürümesi de "
         "güçlenmesi de karar gerektirir.</div>"
+        "<div class='vd' style='margin-bottom:var(--s3);'>Buradaki her "
+        "değer <b>ölçümün alındığı anın kaydıdır</b> — hüküm o sayıya "
+        "karşı verildi. Aşağıdaki paneller <b>şu anı</b> hesaplar; iki "
+        "sayı farklıysa arada yeni bahis kapanmış demektir, ikisi de "
+        "doğrudur.</div>"
         "<table class='v2'><thead><tr><th>Ölçüm</th><th class='r opt'>n</th>"
         "<th class='r'>Değer</th><th class='r opt'>Koşu</th>"
         "<th class='r'>Hüküm</th></tr></thead><tbody>" +
@@ -2658,11 +2688,26 @@ def page_defter() -> None:
                            "<td class='r n'>" + _pct(x["beat"]) + "</td></tr>")
             st.markdown(
                 "<div class='v2card'><div class='v2head'><h2>CLV · Kapanış Çizgisi</h2>"
-                "<div class='hint'>öncü gösterge</div></div><div class='v2body'>"
+                "<div class='hint'>ŞU AN — canlı hesap</div></div>"
+                "<div class='v2body'>"
                 "<div class='v2mb'>Girdiğin fiyat kapanıştan iyiyse piyasadan "
                 "<b>önce</b> doğru tarafı görmüşsün demektir — sonuçtan "
                 "bağımsız. Ama tek başına marjı yenmez: %17,6'yı aşmak için "
                 "+%17,6 CLV gerekir.</div>"
+                # ⚠️ Denetim bulgusu O3: aynı sayfada CLV iki farklı sayı
+                # gösteriyordu — yukarıdaki defter satırı +%0,60 (t=6,10),
+                # buradaki panel +%0,63 (t=6,46). İkisi de doğruydu: biri
+                # ölçümün ALINDIĞI ANIN kaydı, diğeri ŞU ANIN hesabı. Ama
+                # sayfa bunu söylemiyordu; okuyan hangisinin geçerli
+                # olduğunu bilemiyordu. Farkın kendisi bilgidir: bulgu
+                # güçleniyor mu zayıflıyor mu, ancak ikisi yan yana
+                # okununca görülür.
+                "<div class='vd' style='margin-bottom:var(--s3);'>"
+                "<b>Bu panel ŞU ANI hesaplar.</b> Yukarıdaki defter satırı "
+                "ise ölçümün <b>alındığı anın kaydıdır</b> — kural o anki "
+                "sayıya karşı verildi. İkisi arasındaki fark bulgunun "
+                "yönüdür: güçleniyorsa canlı sayı defterdekini geçer."
+                "</div>"
                 "<div class='ro'><span>Ortalama CLV</span><b class='" +
                 ("ps" if iyi else "ng") + "'>" +
                 ("+" if c["ort"] >= 0 else "−") + _num(abs(c["ort"]) * 100, 2) +
@@ -3058,6 +3103,67 @@ def page_inceleme() -> None:
                               "yüksek edge gerçekten daha iyi mi",
                               ["Dilim", "n", "Ort. edge", "Getiri"], er),
                         unsafe_allow_html=True)
+
+        # ── HÜKÜM ────────────────────────────────────────────────
+        # ⚠️ Denetim bulgusu K1: bu tablo üretimde şunu gösteriyordu —
+        #   Q1 (edge −5,5p) → +%1,2   ·   Q5 (edge +4,5p) → −%7,9
+        # yani edge sıralaması TERS. Sayfa "kayıp modelden mi" diye
+        # soruyordu, cevap tablonun içindeydi ve HİÇBİR hüküm etiketi
+        # yoktu: renk yok, uyarı yok, k ölçümüyle bağ yok. Bir bulguyu
+        # göstermek onu söylemek değildir.
+        _eb = d["eb"]
+        if len(_eb) >= 3:
+            _ust, _alt = _eb[-1], _eb[0]
+            _n = sum(int(x["n"] or 0) for x in _eb)
+            _acik = _ust["roi"] - _alt["roi"]          # Q5 − Q1
+            # sıralama tutarlılığı: ardışık dilimler arası artış sayısı
+            _artan = sum(1 for i in range(len(_eb) - 1)
+                         if _eb[i + 1]["roi"] > _eb[i]["roi"])
+            _oran = _artan / (len(_eb) - 1)
+            if not _olculebilir(_n, 200):
+                _bas, _cls = "ÖLÇÜLEMEZ", ""
+                _mtn = _esik_notu(_n, 200)
+            elif _acik <= -0.03:
+                _bas, _cls = "TERS ÇALIŞIYOR", "ng"
+                _mtn = ("En <b>düşük</b> edge dilimi (" + _sgn(_alt["e"]) +
+                        ") <b>" + ("+" if _alt["roi"] >= 0 else "−") +
+                        _num(abs(_alt["roi"]) * 100, 1) + "%</b> getiriyor; "
+                        "en <b>yüksek</b> dilim (" + _sgn(_ust["e"]) +
+                        ") <b>" + ("+" if _ust["roi"] >= 0 else "−") +
+                        _num(abs(_ust["roi"]) * 100, 1) + "%</b>. Aradaki "
+                        "fark <b>" + _num(abs(_acik) * 100, 1) + " puan</b> ve "
+                        "yön yanlış. Model gürültü üretmiyor — <b>ters yönde "
+                        "bilgi taşıyor</b>. Bu haldeyken yüksek edge'e göre "
+                        "seçim yapmak, sistematik olarak kötü tarafı seçmektir.")
+            elif _acik >= 0.03 and _oran >= 0.6:
+                _bas, _cls = "ÇALIŞIYOR", "ps"
+                _mtn = ("Yüksek edge dilimi düşük dilimi <b>" +
+                        _num(_acik * 100, 1) + " puan</b> geçiyor ve sıralama "
+                        "tutarlı. Edge bilgi taşıyor.")
+            else:
+                _bas, _cls = "AYRIŞMIYOR", ""
+                _mtn = ("Diliminler arasındaki fark <b>" +
+                        _num(abs(_acik) * 100, 1) + " puan</b> — bu örneklemde "
+                        "rastlantıdan ayrılamıyor. Edge ne işe yarıyor ne "
+                        "zarar veriyor; <b>sıralama olarak kullanılamaz</b>.")
+            st.markdown(
+                "<div class='v2card' style='margin-top:var(--s4);'>"
+                "<div class='v2head'><h2>Hüküm — edge sıralaması</h2>"
+                "<div class='hint'>n=" +
+                "{:,}".format(_n).replace(",", ".") + " kapanmış bahis</div>"
+                "</div><div class='v2body'>"
+                "<div class='ro big'><span>Edge sıralaması</span>"
+                "<b class='" + _cls + "'>" + _bas + "</b></div>"
+                "<div class='vd' style='margin-top:var(--s3);'>" + _mtn +
+                "</div>"
+                "<div class='vd' style='margin-top:var(--s3);'>"
+                "<b>Bunu iki ölçüm daha söylüyor.</b> Beceri katsayısı "
+                "<b>k</b> güven aralığı sıfırı içeriyor (Ölçüm Defteri › "
+                "K_BECERİ) ve rastgele kontrol ajanı JOKER'i 16 ajandan "
+                "yalnız biri geçebiliyor (Ölçüm Defteri › Mihenk). Üç "
+                "bağımsız ölçüm aynı yeri gösteriyorsa bu bir rastlantı "
+                "değil, <b>modelin şu anki halidir</b>.</div>"
+                "</div></div>", unsafe_allow_html=True)
 
     elif sek == "Trade":
         st.markdown(
