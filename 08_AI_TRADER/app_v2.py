@@ -23,6 +23,7 @@ figürlü monospace (sütunlar hizalansın), metin Archivo.
 from __future__ import annotations
 
 import math
+import os
 import sys
 import threading
 from pathlib import Path
@@ -32,6 +33,23 @@ import streamlit as st
 THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 sys.path.insert(0, str(THIS_DIR.parent / "02_VERI"))
+
+# ── YEREL GELİŞTİRME: üretimin bağlantısını çalma ─────────────
+# ⚠️ Railway'in genel proxy'si eşzamanlı bağlantıyı sert kısıtlıyor.
+# Bu uygulama yerelde `streamlit run` ile açıldığında üretimin kullandığı
+# AYNI proxy'ye bağlanıyordu ve canlı site donuyordu — bu oturumda iki
+# kez yaşandı, yerel doğrulama hiç yapılamadı.
+#
+# Çözüm UYGULAMA DÜZEYİNDE, db.py düzeyinde DEĞİL: db.py "üretimde
+# değilsen localhost'a düş" deseydi bütün ölçüm ve onarım betikleri de
+# (olcum_defteri, fix_early_settled, audit_*) sessizce başka bir
+# veritabanına giderdi — onlar .env üzerinden ÜRETİME bağlanmalı, çünkü
+# ölçülecek veri orada. Uzun ömürlü bağlantı tutan tek şey BU uygulama.
+#
+# Kullanıcı açıkça bir kip seçtiyse ona dokunulmaz.
+if (not os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+        and not os.environ.get("BETAGENTS_DB")):
+    os.environ["BETAGENTS_DB"] = "local"   # `railway tunnel 5432` bekler
 
 # ⚠️ "expanded": kenar cubugu masaustunde ACIK baslar. "auto" yanlis
 # karar veriyordu — 1600px'te bile kapali aciliyor ve kullanici

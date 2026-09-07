@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1",
-  "last_updated": "2026-05-29T22:30:00Z",
+  "last_updated": "2026-09-07",
   "enriched_test_date": "2026-05-29",
   "enriched_test_note": "19.275 mac H2H+Standings+Form enriched. backtest_13_models.py ile test edildi.",
   "registry_purpose": "BAHIS AGENT model katalogu — her uretilen modelin amaci, performansi, lifecycle'i kaydi",
@@ -448,6 +448,64 @@
         "roi_net": 0.3865,
         "warning": "outlier-dependent (4 mac toplam ROI'nin %80'i)"
       }
+    },
+    {
+      "id": "MOTOR-V1-canli",
+      "name": "MOTOR-V1",
+      "version": "canli",
+      "status": "PRODUCTION",
+      "created": "2026-09-07",
+      "last_updated": "2026-09-07",
+      "purpose": "Sinyal motorunun varsayilan olasilik hatti",
+      "how": "_engine_candidates — signal_snapshots uzerinden aday uretir",
+      "input": "signal_snapshots (anomaly, model, xG, form)",
+      "kaynak": "agents.py PROFILES['model'] beyani — koddan dogrulandi",
+      "kullanan_ajanlar": [
+        "AVCI_V1",
+        "CESUR_V1",
+        "ERKENKUS_V1",
+        "KALECI_V1",
+        "MEMUR_V1",
+        "TEMKINLI_V1"
+      ],
+      "roi": null
+    },
+    {
+      "id": "MOTOR-V1+RATING-canli",
+      "name": "MOTOR-V1+RATING",
+      "version": "canli",
+      "status": "PRODUCTION",
+      "created": "2026-09-07",
+      "last_updated": "2026-09-07",
+      "purpose": "Motor + bagimsiz rating ikinci gorusu",
+      "how": "_engine_candidates ciktisi ratings.predict() ile suzulur (confirm: sapma kucukse gecer · value: sapma lehteyse gecer)",
+      "input": "signal_snapshots + bagimsiz rating modeli",
+      "kaynak": "agents.py PROFILES['model'] beyani — koddan dogrulandi",
+      "kullanan_ajanlar": [
+        "HOCA_V1",
+        "SIMYACI_V1"
+      ],
+      "roi": null
+    },
+    {
+      "id": "SKOR-SUREKLI-canli",
+      "name": "SKOR-SUREKLI",
+      "version": "canli",
+      "status": "PRODUCTION",
+      "created": "2026-09-07",
+      "last_updated": "2026-09-07",
+      "purpose": "Surekli skor dagilimi — kombo pazarlar icin adil fiyat",
+      "how": "multiplier_agent -> score_sets.score_set_prob_cont; kazandiran skorlarin kutlesi bantsiz hesaplanir",
+      "input": "1X2 + A/U + KG kapanis fiyatlari (marjsizlastirilmis)",
+      "kaynak": "agents.py PROFILES['model'] beyani — koddan dogrulandi",
+      "kullanan_ajanlar": [
+        "BANT_V1",
+        "CARPAN_V1",
+        "DEVRE_V1",
+        "KAVSAK_V1",
+        "SIMETRI_V1"
+      ],
+      "roi": null
     }
   ],
   "model_families": {

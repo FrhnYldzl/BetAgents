@@ -96,6 +96,31 @@ def database_url() -> str:
 
     Railway'in postgres:// şeması psycopg2 için postgresql:// olarak düzeltilir.
     """
+    # ── 0) YEREL KİP (opt-in) ────────────────────────────────
+    # BETAGENTS_DB=local → Railway proxy'sine HİÇ dokunma, localhost'a git.
+    # `railway tunnel 5432` ile açılan tünel buradan kullanılır.
+    #
+    # ⚠️ NEDEN OPT-IN, ORTAMA GÖRE OTOMATİK DEĞİL:
+    # "üretimde değilsen localhost'a düş" kuralı cazip ama YANLIŞ. Bu
+    # projenin bütün ölçüm ve onarım araçları (olcum_defteri,
+    # fix_early_settled, audit_league_codes, backfill_ht_scores...)
+    # geliştirici makinesinde koşuyor ve .env üzerinden ÜRETİME bağlanıyor
+    # — çünkü ölçülmesi gereken veri orada. Ortama bakıp otomatik localhost'a
+    # düşmek, bu araçların HEPSİNİ sessizce başka bir veritabanına yollar.
+    # Yerel Postgres açıksa yanlış veriyi okurlar ve kimse fark etmez; bu
+    # tam olarak 2026-09-01'de yaşanan hatadır (bkz. _env_yukle notu).
+    # Bu yüzden karar AÇIK olmalı: UI'ı yerelde çalıştıran kişi bunu ister,
+    # ölçüm betiği istemez. Uygulama kendi başlangıcında bu değişkeni
+    # kendisi set eder (bkz. app_v2.py), betikler etmez.
+    if (os.environ.get("BETAGENTS_DB") or "").strip().lower() == "local":
+        port = os.environ.get("PGPORT", "5432").strip()
+        user = os.environ.get("PGUSER", "postgres").strip()
+        pw = os.environ.get("PGPASSWORD", "").strip()
+        dbn = os.environ.get("PGDATABASE", "railway").strip()
+        import urllib.parse
+        return (f"postgresql://{user}:{urllib.parse.quote(pw, safe='')}"
+                f"@localhost:{port}/{dbn}")
+
     url = (os.environ.get("DATABASE_URL") or "").strip()
 
     # Railway bazen postgres:// prefix'i kullanır; psycopg2 postgresql:// ister.
@@ -383,7 +408,12 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
                     keepalives_interval=10, keepalives_count=5,
                 )
                 import re as _re0
-                _duyur("PostgreSQL -> " + _re0.sub(r":[^:@]+@", ":***@", url))
+                _kip = ("YEREL-TUNEL"
+                        if (os.environ.get("BETAGENTS_DB") or "").lower() == "local"
+                        else ("URETIM" if os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+                              else "uzak"))
+                _duyur("PostgreSQL [" + _kip + "] -> " +
+                       _re0.sub(r":[^:@]+@", ":***@", url))
                 return Conn(raw, is_pg=True)
             except psycopg2.OperationalError as exc:
                 last = exc

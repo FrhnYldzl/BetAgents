@@ -41,6 +41,7 @@ TARGET_PCT = 1.50            # hepsi için 1.000 → 2.500 (adil kıyas)
 PROFILES: dict[str, dict] = {
     "TEMKINLI_V1": {
         "name": "TEMKİNLİ (düşük risk)",
+        "model": "MOTOR-V1",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.68,
@@ -52,6 +53,7 @@ PROFILES: dict[str, dict] = {
     },
     "MEMUR_V1": {
         "name": "MEMUR (orta risk)",
+        "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.66,
@@ -63,6 +65,7 @@ PROFILES: dict[str, dict] = {
     },
     "AVCI_V1": {
         "name": "AVCI (risk sever, kazanma odaklı)",
+        "model": "MOTOR-V1",
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.58,
@@ -77,6 +80,7 @@ PROFILES: dict[str, dict] = {
         # ÇİFT-ONAY hipotezi: model + piyasa AYNI fikirdeyse oyna.
         # Backtest dersi: modelin doğru kullanımı teyit, tahmin değil.
         "name": "HOCA (Poisson çift-onay)",
+        "model": "MOTOR-V1+RATING",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.58,
@@ -93,6 +97,7 @@ PROFILES: dict[str, dict] = {
         # dediğinde oyna. Backtest -%8 dedi — canlı kontrol grubu; kazanırsa
         # hipotez ayağa kalkar, kaybederse kanıt pekişir. Küçük stake.
         "name": "SİMYACI (model-değer deneyi)",
+        "model": "MOTOR-V1+RATING",
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.50,
@@ -112,6 +117,7 @@ PROFILES: dict[str, dict] = {
         # (CLV>0 bahisler %73/-7.6 vs CLV<=0 %66/-14.5). Avrupa saat bandı
         # filtresi de kanıttan (12-24 UTC: -9%; Asya sabahı: -20%).
         "name": "ERKENKUŞ (erken pazar avcısı)",
+        "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.65,
@@ -133,6 +139,7 @@ PROFILES: dict[str, dict] = {
         # −%71 karnesi arşivde kaldı; yazar picks'i sezonda gerçek maçlara
         # dayanıyor, hipotez temiz sayfayla yeniden ölçülüyor.
         "name": "POPÜLER (yazar + konsensüs)",
+        "model": "YOK-TIPSTER",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
         "min_mp": 0.0, "min_odds": 1.25,
@@ -148,6 +155,7 @@ PROFILES: dict[str, dict] = {
         # (sıfıra en yakın bölge, n=449). Tüm eski ajanlar en pahalı bölgede
         # (1.10-1.40: −14/−22) kümelenmişti. CESUR tek başına bu bölgeyi oynar.
         "name": "CESUR (orta-oran avcısı 1.60-2.00) v1.1",
+        "model": "MOTOR-V1",
         # v1.1 (canlı veri, 2026-08-14): ALT bacağı atıldı (%38/−39.5 sızıntı);
         # UST %75/+21.9 · KG_YOK %71/+16 · TEK +27.4 vs K3 −5.5 → TEK ağırlık.
         "stop_pct": -0.25,
@@ -167,6 +175,7 @@ PROFILES: dict[str, dict] = {
         # off-season'da −%76'ydı; sezonda değişebilir → küçük stake deneyi.
         # Yazar KG_VAR'ı terslerken KG_YOK oynanır vb. (hipotez bütünlüğü).
         "name": "TERS (yazar-tersleme deneyi)",
+        "model": "YOK-TIPSTER-TERS",
         "stop_pct": -0.25,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 1.30, "max_odds": 2.10,
@@ -184,6 +193,7 @@ PROFILES: dict[str, dict] = {
         #   3) U-zamanlama: 6-40sa ÖLÜM PENCERESİ yasak (iki dönemde −26/−31);
         #      yalnız çok-erken (>40sa) veya geç (<6sa) girer.
         "name": "KALECİ (düşük-gol kesişim uzmanı)",
+        "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "ALT_25"},
         "fav_min": 1.01,                    # 1X2 kapalı — saf düşük-gol ailesi
@@ -200,6 +210,7 @@ PROFILES: dict[str, dict] = {
         # Bilimsel amaç: her ajanın geçmesi gereken taban; JOKER'i yenemeyen
         # "beceri" iddia edemez. Beklenen ROI ≈ −marj (dürüst referans).
         "name": "JOKER (rastgele kontrol)",
+        "model": "YOK-RASTGELE",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 1.50, "max_odds": 2.20,
@@ -214,6 +225,7 @@ PROFILES: dict[str, dict] = {
         # (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak: motor/model/band) sağlayan
         # pick'leri oynar. Fayda VARSAYILMAZ: ligde yarışır, skor ölçer.
         "name": "KONSEY (ajan heyeti — iç-Polymarket)",
+        "model": "YOK-HEYET",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 1.18,
@@ -240,6 +252,7 @@ PROFILES: dict[str, dict] = {
         # ölçüm canlıda yapılır. Diğer ajanlar bu hesaptan HİÇBİR ŞEY
         # okumaz; KONSEY oylamasına da dahil değildir.
         "name": "KOMBO (maç içi korelasyon — 1X2 × A/Ü)",
+        "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.50, "max_odds": 40.0,
@@ -256,6 +269,7 @@ PROFILES: dict[str, dict] = {
         # "ALT ve YOK" gerçekte çarpımın 1.97 katı; "ÜST ve YOK" 0.40'ı.
         # Bu, tüm kombo pazarları içinde en keskin ayrışma.
         "name": "SİMETRİ (A/Ü × KG korelasyonu)",
+        "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.20, "max_odds": 30.0,
@@ -273,6 +287,7 @@ PROFILES: dict[str, dict] = {
         # kaybettiriyor (ölçüldü: her segmentte −%12/−%21) ama KG ile
         # birleştirilince korelasyon değeri doğuyor.
         "name": "KAVŞAK (1X2 × KG korelasyonu)",
+        "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.50, "max_odds": 35.0,
@@ -290,6 +305,7 @@ PROFILES: dict[str, dict] = {
         # TOTAL_GOALS oranları yeni toplanmaya başladı. Yeterli veri birikince
         # PoC çerçevesinden geçirilip aktive/reddedilecek.
         "name": "BANT (gol aralıkları — Poisson adil fiyat)",
+        "model": "SKOR-SUREKLI",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 3.00, "max_odds": 40.0,
         "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
@@ -303,6 +319,7 @@ PROFILES: dict[str, dict] = {
         # 18.059 maçın HİÇBİRİNDE yarı skoru yok (home_score_ht boş).
         # HT oranlarını topluyoruz; yarı skorları da toplanınca test edilecek.
         "name": "DEVRE (ilk yarı — Poisson adil fiyat)",
+        "model": "SKOR-SUREKLI",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 2.00, "max_odds": 35.0,
         "combo_cap": 99.0, "max_daily": 2, "max_open": 5,

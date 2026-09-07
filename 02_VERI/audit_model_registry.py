@@ -81,8 +81,27 @@ def denetle(yaz: bool = False) -> dict:
         _beyan = {k: v.get("model") for k, v in _AG.items() if v.get("model")}
     except Exception:
         pass
-    print(f"📕 kayıtta {len(reg)} model · canlıda {len(canli)} portföy · "
-          f"model BEYAN eden ajan: {len(_beyan)}\n")
+    # Beyanlar üç gruba ayrılır — "bilinmiyor" ile "yok" AYNI ŞEY DEĞİL.
+    # YOK-* beyanı, ajanın olasılık modeli KULLANMADIĞININ ölçülmüş
+    # bilgisidir (JOKER rastgele, POPÜLER tipster, TERS tipster tersi,
+    # KONSEY ajan heyeti — hepsi agents.py dispatch'inden doğrulandı).
+    # Boş bırakmak "bilmiyoruz" demekti; artık her ajan söylüyor.
+    _yok = {k: v for k, v in _beyan.items() if str(v).startswith("YOK")}
+    _kayitli = {k: v for k, v in _beyan.items() if v in reg}
+    _kayitsiz = {k: v for k, v in _beyan.items()
+                 if v not in reg and not str(v).startswith("YOK")}
+    print(f"📕 kayıtta {len(reg)} model · canlıda {len(canli)} portföy\n")
+    print(f"  MODEL BEYANI: {len(_beyan)} ajan")
+    print(f"    kayıttaki bir modeli kullanan : {len(_kayitli):2d}  "
+          f"({', '.join(sorted(set(_kayitli.values()))) or '—'})")
+    print(f"    kayıtta OLMAYAN model kullanan: {len(_kayitsiz):2d}  "
+          f"({', '.join(sorted(set(_kayitsiz.values()))) or '—'})")
+    print(f"    olasılık modeli KULLANMAYAN   : {len(_yok):2d}  "
+          f"({', '.join(sorted(set(_yok.values()))) or '—'})")
+    if _kayitsiz:
+        print("    ⚠️ Kayıtta olmayan modeller canlı çalışıyor — kayıt "
+              "sahayı tam anlatmıyor.")
+    print()
     celiski, olculen, sessiz = [], [], []
     for ad, m in reg.items():
         durum = str(m.get("status", "?"))
