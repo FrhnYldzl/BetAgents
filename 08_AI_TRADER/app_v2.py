@@ -225,6 +225,15 @@ def load_board() -> list[dict]:
         "market mk, pick pk, odds o, kickoff_utc ko FROM paper_bets "
         "WHERE status='open' AND odds > 1.01 ORDER BY kickoff_utc LIMIT 60",
         sessiz=True)
+    # iddaa'nın SÖYLEDİĞİ lig adı — kanonik koda çevrilemeyen ligler için
+    # tek bilgi. Fetcher bunu eskiden atıyordu: kodu 'ALL' yazıp adı çöpe
+    # gönderiyordu, yani bilgiyi iki kez kaybediyorduk. Sütun ilk fetch'te
+    # oluşuyor; yoksa sessizce boş sözlük döner ve tahta eskisi gibi çalışır.
+    _ad = {}
+    for x in _rows("SELECT home_team h, away_team a, iddaa_league_name ln "
+                   "FROM matches_v2 WHERE iddaa_league_name IS NOT NULL "
+                   "AND kickoff_utc > NOW() - INTERVAL '3 days'", sessiz=True):
+        _ad[(x["h"], x["a"])] = x["ln"]
     seen, out = set(), []
     for r in rows:
         key = (r["h"], r["a"], r["mk"], r["pk"])
@@ -232,11 +241,14 @@ def load_board() -> list[dict]:
             continue
         seen.add(key)
         lg = (r["lg"] or "ALL")
+        _iddaa_ad = _ad.get((r["h"], r["a"]))
         out.append({
             "id": str(r["bet_id"]), "pid": r["p"],
             "em": r["p"], "ad": str(r["p"]).rsplit("_", 1)[0],
             "h": r["h"], "a": r["a"], "lg": lg,
-            "code": CODE.get(lg, "—"), "lig": LEAGUE.get(lg, "lig kodlanmamış"),
+            "iddaa_lig": _iddaa_ad,
+            "code": CODE.get(lg, "—"),
+            "lig": (LEAGUE.get(lg) or _iddaa_ad or "lig kodlanmamış"),
             "mk": r["mk"], "pk": r["pk"], "o": float(r["o"]),
             "m": MARGIN.get(str(r["mk"]).upper(), 1.18),
             "ko": str(r["ko"])[11:16],
@@ -673,6 +685,22 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   table.v2 td .ak + .sb{display:none;}
   .v2kpi b{font-size:17px;} .ro.big b{font-size:25px;}
   [data-testid="stCheckbox"] label{min-height:44px;}
+
+  /* ⚠️ MOBİL TAŞMANIN ASIL SEBEBİ — ölçüldü.
+     table.v2 .sb hiç sarılmıyordu (white-space:nowrap). Ölçüm
+     Defteri'nde alt satır uzun bulgu açıklamasını taşıyor ("ortalama
+     +0,60% (t=+6,10) · kapanışı geçen %30,9 · ...") ve tek satırda
+     kalınca tabloyu 378px taşırıyordu — 337px'lik kapsayıcıda BİR
+     EKRAN GENİŞLİĞİNDEN fazla yatay kaydırma. Telefonda dikey alan
+     ucuz, yatay pahalı: alt satır sarılsın.
+     .ag (ajan adı) nowrap KALIYOR — kısa ve kırılırsa okunmaz. */
+  table.v2 .sb{white-space:normal;line-height:1.35;}
+  table.v2 td{vertical-align:top;}
+
+  /* Dokunma hedefi: sayfa başına 9–14 buton 44px eşiğinin altındaydı,
+     parmakla ıskalanıyor. Checkbox zaten düzeltilmişti, butonlar değil. */
+  .stButton button{min-height:44px;}
+  [data-testid="stNumberInput"] input{min-height:44px;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -1620,6 +1648,56 @@ def load_defter_denetim() -> list[dict]:
     return d
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def load_cakisma() -> list[dict]:
+    """AJAN ÇAKIŞMASI — kaç ajan gerçekten farklı bir şey yapıyor?
+
+    ⚠️ Denetimde canlı kanıt bulundu: MEMUR ve TEMKİNLİ'nin açık kuponu
+    BİREBİR aynıydı — aynı iki ayak, aynı 1,66 oran, aynı tutar. Yol
+    haritasının "ayırt edici olmayan ajanları ele" maddesi o güne kadar
+    teorikti.
+
+    Neden önemli: on altı ajanın çoğu aynı seçimi yapıyorsa elimizde on
+    altı bağımsız görüş YOK, tek görüşün on altı kopyası var. Ortalama
+    almak, çoğunluğa bakmak, "ajanlar hemfikir" demek — hepsi yanıltıcı
+    olur. Çeşitlilik bir tercih değil, ölçümün ön koşuludur.
+
+    Ölçüt: iki ajanın AYNI (maç, pazar, seçim) üçlüsünü oynama oranı,
+    daha az bahis yapanın toplamına bölünür (Szymkiewicz–Simpson örtüşme
+    katsayısı). Az oynayan bir ajanın tamamı diğerinin içindeyse bu %100
+    çakışmadır — asimetrik böleni bilerek seçtim, çünkü soru "bu ajan
+    bağımsız bir şey söylüyor mu" sorusudur.
+    """
+    rows = _rows(
+        "SELECT pb.portfolio_id p, m.matchday d, m.home_team h, "
+        "m.away_team a, pb.market mk, pb.pick pk "
+        "FROM paper_bets pb JOIN matches_v2 m ON m.match_id = pb.match_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)",
+        sessiz=True)
+    if not rows:
+        return []
+    kume: dict = {}
+    for r in rows:
+        kume.setdefault(r["p"], set()).add(
+            (r["d"], r["h"], r["a"], r["mk"], r["pk"]))
+    ajanlar = sorted(kume, key=lambda p: -len(kume[p]))
+    out = []
+    for i, x in enumerate(ajanlar):
+        for y in ajanlar[i + 1:]:
+            ax, ay = kume[x], kume[y]
+            kucuk = min(len(ax), len(ay))
+            if kucuk < 8:          # az örneklemde örtüşme oranı gürültü
+                continue
+            ortak = len(ax & ay)
+            oran = ortak / kucuk
+            if oran >= 0.35:
+                out.append({"a": x, "b": y, "ortak": ortak,
+                            "na": len(ax), "nb": len(ay), "oran": oran})
+    out.sort(key=lambda z: -z["oran"])
+    return out
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_veri_ozet() -> dict:
     """Verinin ÖZETİ, KALİTESİ ve TAZELİĞİ.
@@ -1799,9 +1877,27 @@ def page_desk() -> None:
     # ihtiyaca göre dağıtıldı.
     left, mid, right = st.columns([1.62, 1.42, 0.78], gap="medium")
 
+    ags = load_agents()
+    # ⚠️ Denetim bulgusu O1: sol panel ajanları sıralıyor, orta panel
+    # seçimleri listeliyordu — ikisi birbirini TANIMIYORDU. Üretimde
+    # tahtadaki 22 seçimin 8'i KALECİ'dendi ve KALECİ güven tablosunda
+    # 16 ajan içinde 13. sıradaydı (−11,0p). Solda okuduğun uyarı, sağda
+    # seçim yaparken kayboluyordu. Sıra ve hüküm artık seçim satırında.
+    _sira_h = {}
+    for _i, _a in enumerate(ags, 1):
+        if _a["perfect"] or _a["t"] is None:
+            _hk = "ÖLÇÜLEMEZ" if _a["perfect"] else "GÜRÜLTÜ"
+        elif _a["t"] <= -1.96:
+            _hk = "KÖTÜ"
+        elif _a["t"] >= 1.96:
+            _hk = "İYİ"
+        else:
+            _hk = "GÜRÜLTÜ"
+        _sira_h[_a["pid"]] = {"sira": _i, "hukum": _hk,
+                              "toplam": len(ags), "edge": _a["edge"]}
+
     # ── SOL: ajan güveni ──────────────────────────────────────
     with left:
-        ags = load_agents()
         by_hit = sorted(ags, key=lambda z: -z["hit"])
         swap = ""
         for a in ags:
@@ -1882,21 +1978,44 @@ def page_desk() -> None:
     if "v2_sel" not in st.session_state:
         st.session_state["v2_sel"] = []
     with mid:
-        unknown = sum(1 for b in board if b["lg"] == "ALL")
+        # ⚠️ Eskiden tek sayı vardı ("kodlanmamış") ve yanında SABİT bir
+        # "%79" yazıyordu — veritabanı değişse de değişmeyen bir sayı.
+        # Şimdi iki farklı durum ayrılıyor: lig ADI biliniyor ama kanonik
+        # kodu yok (bilgi VAR, sadece kodlanmadı) ve hiçbir şey bilinmiyor.
+        # Fetcher artık iddaa'nın söylediği adı saklıyor; bu ayrım o
+        # düzeltmenin kullanıcıya ulaştığı yer.
+        kodsuz = [b for b in board if b["lg"] == "ALL"]
+        adli = [b for b in kodsuz if b.get("iddaa_lig")]
+        korlar = len(kodsuz) - len(adli)
+        if korlar:
+            _uyari = (f"<div class='dq'><b>{korlar}/{len(board)}</b> maçın "
+                      f"ligi bilinmiyor — ülke rozeti yerine <b>—</b> "
+                      f"gösteriliyor; <b>uydurulmuyor</b>."
+                      + (f" Ayrıca <b>{len(adli)}</b> maçın lig <b>adı</b> "
+                         f"biliniyor ama kanonik kodu yok; ad gösteriliyor."
+                         if adli else "") + "</div>")
+        elif adli:
+            _uyari = (f"<div class='v2mb'><b>{len(adli)}/{len(board)}</b> "
+                      f"maçın ligi kanonik kodda değil ama <b>adı biliniyor</b> "
+                      f"— iddaa'nın söylediği ad gösteriliyor.</div>")
+        else:
+            _uyari = ""
         st.markdown(f"""
         <div class="v2card"><div class="v2head"><h2>Bugünün Tahtası</h2>
           <div class="hint">işaretle → kupona ekle</div></div>
           <div class="v2body" style="padding-bottom:2px;">
-          <div class="dq"><b>{unknown}/{len(board)}</b> maçta lig kodlanmamış —
-            veritabanında son 7 günün %79'u böyle. Ülke rozeti yerine
-            <b>—</b> gösteriliyor; uydurulmuyor.</div>
+          {_uyari}
           </div></div>""", unsafe_allow_html=True)
         sel = []
         for b in board[:22]:
             c1, c2 = st.columns([4.3, 1.35], gap="small")
             with c1:
-                lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}"
-                       f"  ·  {b['mk']} {b['pk']}  ·  {b['ko']}")
+                _lg = (b["iddaa_lig"] or "") if b["lg"] == "ALL" else ""
+                _sh = _sira_h.get(b["pid"])
+                _rank = (f" {_sh['sira']}/{_sh['toplam']}" if _sh else "")
+                lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}{_rank}"
+                       f"  ·  {b['mk']} {b['pk']}  ·  {b['ko']}"
+                       + (f"  ·  {_lg}" if _lg else ""))
                 _sepette = any(x["id"] == b["id"] for x in _sepet())
                 on = st.checkbox(lbl + ("   ✓ sepette" if _sepette else ""),
                                  key=f"v2_{b['id']}")
@@ -1907,6 +2026,12 @@ def page_desk() -> None:
                     f"white-space:nowrap;'>"
                     f"<span class='cc{' no' if b['lg']=='ALL' else ''}'>{b['code']}</span>"
                     f"{_num(b['o'])}</div>", unsafe_allow_html=True)
+                if _sh:
+                    _g = {"İYİ": "g1", "KÖTÜ": "g3"}.get(_sh["hukum"], "g2")
+                    st.markdown(
+                        "<div style='text-align:right;margin:-6px 0 2px;'>"
+                        "<span class='gr " + _g + "'>" + _sh["hukum"] +
+                        "</span></div>", unsafe_allow_html=True)
             if on:
                 sel.append(b)
 
@@ -2591,6 +2716,51 @@ def page_lig() -> None:
         st.rerun()
     if st.session_state["v2_ajan"]:
         _ajan_paneli(st.session_state["v2_ajan"], d)
+
+    # ── AJAN ÇAKIŞMASI ────────────────────────────────────────
+    ck = load_cakisma()
+    if ck:
+        sat = []
+        for x in ck[:12]:
+            o = x["oran"]
+            g = "g3" if o >= 0.85 else ("g2" if o >= 0.6 else "g1")
+            txt = ("AYNI" if o >= 0.85 else
+                   ("BÜYÜK ÖLÇÜDE" if o >= 0.6 else "KISMEN"))
+            sat.append(
+                "<tr><td><span class='ag'>" + _rozet(x["a"]) +
+                str(x["a"]).rsplit("_", 1)[0] + "</span>"
+                "<span class='sb'>" + str(x["na"]) + " bahis</span></td>"
+                "<td><span class='ag'>" + _rozet(x["b"]) +
+                str(x["b"]).rsplit("_", 1)[0] + "</span>"
+                "<span class='sb'>" + str(x["nb"]) + " bahis</span></td>"
+                "<td class='r n'>" + str(x["ortak"]) + "</td>"
+                "<td class='r n'>" + _num(o * 100, 0) + "%</td>"
+                "<td class='r'><span class='gr " + g + "'>" + txt +
+                "</span></td></tr>")
+        _ayni = sum(1 for x in ck if x["oran"] >= 0.85)
+        st.markdown(
+            "<div class='v2card' style='margin-top:var(--s5);'>"
+            "<div class='v2head'><h2>Ajan Çakışması</h2>"
+            "<div class='hint'>kaç ajan gerçekten farklı</div></div>"
+            "<div class='v2body'>"
+            "<div class='" + ("dq" if _ayni else "v2mb") + "'>"
+            "<b>Karar: elimizde kaç bağımsız görüş var?</b> On altı ajanın "
+            "çoğu aynı seçimi yapıyorsa on altı görüş yok, <b>tek görüşün "
+            "on altı kopyası</b> var. O zaman ortalama almak, çoğunluğa "
+            "bakmak, 'ajanlar hemfikir' demek — hepsi yanıltıcı olur. "
+            "Çeşitlilik bir tercih değil, <b>ölçümün ön koşuludur</b>." +
+            ("" if not _ayni else " <b>Şu an " + str(_ayni) + " çift "
+             "neredeyse aynı şeyi oynuyor.</b>") + "</div>"
+            "<table class='v2'><thead><tr><th>Ajan</th><th>Ajan</th>"
+            "<th class='r'>Ortak</th><th class='r'>Örtüşme</th>"
+            "<th class='r'>Hüküm</th></tr></thead><tbody>" +
+            "".join(sat) + "</tbody></table>"
+            "<div class='sb' style='margin-top:9px;'>Örtüşme = ortak "
+            "(maç, pazar, seçim) sayısı ÷ az oynayanın toplamı. Az oynayan "
+            "bir ajanın tamamı diğerinin içindeyse bu %100'dür — bölen "
+            "bilerek asimetrik, çünkü soru <i>&ldquo;bu ajan bağımsız bir şey "
+            "söylüyor mu&rdquo;</i> sorusudur.</div>"
+            "</div></div>", unsafe_allow_html=True)
 
     st.markdown(
         "<div class='dq'>Kırmızı takımın sessizliği <b>arıza değil</b>: "

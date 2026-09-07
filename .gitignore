@@ -39,3 +39,6 @@ Thumbs.db
 
 # Sofascore probe capture artefaktı (probe ile yeniden üretilir)
 02_VERI/scrapers/sofascore_capture.json
+
+# Veri onarim yedekleri — uretim satirlarinin kopyasi, git'e girmez
+02_VERI/yedek_*.json
