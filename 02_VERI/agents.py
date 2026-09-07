@@ -41,6 +41,7 @@ TARGET_PCT = 1.50            # hepsi için 1.000 → 2.500 (adil kıyas)
 PROFILES: dict[str, dict] = {
     "TEMKINLI_V1": {
         "name": "TEMKİNLİ (düşük risk)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -53,6 +54,7 @@ PROFILES: dict[str, dict] = {
     },
     "MEMUR_V1": {
         "name": "MEMUR (orta risk)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -80,6 +82,7 @@ PROFILES: dict[str, dict] = {
         # ÇİFT-ONAY hipotezi: model + piyasa AYNI fikirdeyse oyna.
         # Backtest dersi: modelin doğru kullanımı teyit, tahmin değil.
         "name": "HOCA (Poisson çift-onay)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1+RATING",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -97,6 +100,7 @@ PROFILES: dict[str, dict] = {
         # dediğinde oyna. Backtest -%8 dedi — canlı kontrol grubu; kazanırsa
         # hipotez ayağa kalkar, kaybederse kanıt pekişir. Küçük stake.
         "name": "SİMYACI (model-değer deneyi)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1+RATING",
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -117,6 +121,7 @@ PROFILES: dict[str, dict] = {
         # (CLV>0 bahisler %73/-7.6 vs CLV<=0 %66/-14.5). Avrupa saat bandı
         # filtresi de kanıttan (12-24 UTC: -9%; Asya sabahı: -20%).
         "name": "ERKENKUŞ (erken pazar avcısı)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -139,6 +144,7 @@ PROFILES: dict[str, dict] = {
         # −%71 karnesi arşivde kaldı; yazar picks'i sezonda gerçek maçlara
         # dayanıyor, hipotez temiz sayfayla yeniden ölçülüyor.
         "name": "POPÜLER (yazar + konsensüs)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "YOK-TIPSTER",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
@@ -175,6 +181,7 @@ PROFILES: dict[str, dict] = {
         # off-season'da −%76'ydı; sezonda değişebilir → küçük stake deneyi.
         # Yazar KG_VAR'ı terslerken KG_YOK oynanır vb. (hipotez bütünlüğü).
         "name": "TERS (yazar-tersleme deneyi)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "YOK-TIPSTER-TERS",
         "stop_pct": -0.25,
         "markets": set(), "fav_min": 0.0,
@@ -193,6 +200,7 @@ PROFILES: dict[str, dict] = {
         #   3) U-zamanlama: 6-40sa ÖLÜM PENCERESİ yasak (iki dönemde −26/−31);
         #      yalnız çok-erken (>40sa) veya geç (<6sa) girer.
         "name": "KALECİ (düşük-gol kesişim uzmanı)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "ALT_25"},
@@ -225,6 +233,7 @@ PROFILES: dict[str, dict] = {
         # (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak: motor/model/band) sağlayan
         # pick'leri oynar. Fayda VARSAYILMAZ: ligde yarışır, skor ölçer.
         "name": "KONSEY (ajan heyeti — iç-Polymarket)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "YOK-HEYET",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,
@@ -340,6 +349,7 @@ PROFILES: dict[str, dict] = {
         # ~+5% becerisi var, ama iddaa marjı onu tamamen yiyor.
         # Karar: T1 tek başına uzmanlık alanı değil; slot boşaltıldı.
         "name": "TRIVOX (emekli — T1'de kanıtlanmış edge yok)",
+        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         # ⚠️ MODEL BEYANI — ajanlar hangi modeli kullandığını söylemiyordu.
         # Sonuç: model kaydı (MODEL_REGISTRY) canlı sistemle bağını
         # kaybetti ve sessizce yalancı hale geldi. Denetimde bulundu:
