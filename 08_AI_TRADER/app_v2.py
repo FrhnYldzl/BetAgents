@@ -591,6 +591,55 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
 
+/* Sayfa başlığı üst satırı — zincirdeki konum */
+.v2ph-ust{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.v2ph-ust .perde{font-family:"JetBrains Mono",monospace;font-size:9.5px;
+  font-weight:700;letter-spacing:.13em;color:var(--brand);
+  background:var(--brand-fill);padding:2px 7px;border-radius:var(--r);}
+.v2ph-ust .sf{font-family:"JetBrains Mono",monospace;font-size:10px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+.v2gez-orta .sonraki-soru{display:block;font-size:10.5px;
+  color:var(--muted);margin-top:3px;letter-spacing:0;text-transform:none;}
+
+/* ── HİKÂYE RAYI ───────────────────────────────────────── */
+/* Seçiciler bilerek DAR: geçmişte beş kez geniş seçici başka
+   bileşene sızdı. Hepsi .ray- öneki taşır.                     */
+.ray-perde{display:grid;grid-template-columns:auto 1fr;
+  gap:1px 8px;align-items:baseline;
+  margin:var(--s5) 0 8px;padding-bottom:7px;
+  border-bottom:1px solid var(--line);}
+.ray-perde:first-of-type{margin-top:2px;}
+.ray-perde .no{grid-row:1 / span 2;align-self:center;
+  font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:700;
+  color:var(--muted);background:var(--panel-3);
+  width:19px;height:19px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;}
+.ray-perde .ad{font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  font-weight:700;letter-spacing:.13em;color:var(--muted);}
+.ray-perde .alt{font-size:10.5px;color:var(--muted);opacity:.8;
+  line-height:1.3;}
+/* Yürürlükteki perde — kullanıcı zincirde nerede olduğunu görsün */
+.ray-perde.aktif{border-bottom-color:var(--brand);}
+.ray-perde.aktif .no{background:var(--brand);color:#fff;}
+.ray-perde.aktif .ad{color:var(--brand);}
+.ray-perde.aktif .alt{color:var(--ink-2);opacity:1;}
+
+/* Aktif sayfanın CEVAPLADIĞI SORU — sayfanın kimliği budur */
+.ray-soru{font-size:11.5px;line-height:1.45;color:var(--brand);
+  background:var(--brand-fill);border-left:2px solid var(--brand);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:6px 9px;margin:-2px 0 8px 3px;}
+
+/* Ray butonları: sola dayalı, menü gibi okunsun.
+   ⚠️ Seçici YAPISAL KONUMA değil, verdiğim ANAHTARA bağlı.
+   div[data-testid="column"]:first-child yazsaydım iç içe sütunların
+   ilkini de yakalardı — Sepet'teki "Sil" butonları gibi. Geniş seçici
+   bu projede beş kez başka bileşene sızdı; Streamlit anahtarı DOM'a
+   st-key-<anahtar> sınıfı olarak yazıyor, tek eşleşen o. */
+[class*="st-key-ray_"] button{
+  justify-content:flex-start;text-align:left;font-size:13px;
+  padding-left:11px;}
+
 /* ── MOBİL ─────────────────────────────────────────────── */
 @media (max-width:900px){
   :root{--s6:18px;}
@@ -601,6 +650,12 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
 @media (max-width:640px){
   :root{--kart-ic:14px 15px;--t-sayfa:19px;}
   table.v2 th.opt,table.v2 td.opt{display:none;}
+  /* Mobilde Streamlit sütunları yığar: ray içeriğin ÜSTÜNE geçer ve
+     üst menü gibi çalışır. Perde açıklaması ve soru kutusu orada yer
+     israfı — sayfa başlığı zaten aynı soruyu büyük yazıyor. */
+  .ray-perde .alt{display:none;}
+  .ray-soru{display:none;}
+  .ray-perde{margin:var(--s4) 0 6px;}
   /* Acik kupon: telefonda rozet (kupon sayisi) kalir, "N ayak · X TL"
      alt satiri gider. Olculdu: alt satir tek basina 74px genislik
      yiyordu (480 -> 406), tablo taskini 143px'ten 69px'e dusuruyor.
@@ -653,8 +708,25 @@ def _sayfa_basligi(baslik: str, alt: str, kpi: list | None = None) -> None:
         cls = x.get("cls", "")
         k += ("<div class='v2kpi'><span>" + x["ad"] + "</span><b class='" +
               cls + "'>" + x["deger"] + "</b></div>")
+    # HİKÂYE: üst satır kullanıcının zincirde nerede olduğunu söyler,
+    # başlık sayfanın CEVAPLADIĞI SORUDUR. Sayfa adı bir etiket; soru
+    # ise sayfanın neden var olduğudur — kullanıcı "sayfalar bir hikâye
+    # anlatmalı" dedi, hikâyeyi taşıyan şey sorudur.
+    # Arama BAŞLIK METNİNE değil KANONİK SAYFA ADINA dayanır: sayfalar
+    # başlığı serbestçe yazıyor ("OPUS 5 Defteri", "Sistem Sağlığı") ve
+    # metin eşleşmesi bu yüzden sessizce düşerdi — soru kaybolur, kimse
+    # fark etmez. session_state her zaman kanonik adı tutar.
+    _sf = st.session_state.get("v2_page", "")
+    _s = SORU.get(_sf, {})
+    ust = ""
+    if _s:
+        ust = ("<div class='v2ph-ust'><span class='perde'>" +
+               _s["perde"] + "</span><span class='sf'>" + _sf +
+               "</span></div>")
+    _h1 = _s.get("soru") or baslik
     st.markdown(
-        "<div class='v2ph'><div class='sol'><h1>" + baslik + "</h1>"
+        "<div class='v2ph'><div class='sol'>" + ust +
+        "<h1>" + _h1 + "</h1>"
         "<p>" + alt + "</p></div>"
         "<div class='sag'>" + k + "</div></div>", unsafe_allow_html=True)
 
@@ -2096,9 +2168,14 @@ def _gezinme_alt() -> None:
             st.session_state["v2_ajan"] = None
             st.rerun()
     with c2:
+        # Zincirde konum + SIRADAKİ SORU. "Sonraki: Sepet" bir menü
+        # öğesidir; "Ne kuruyorum, kaça mal oluyor?" bir devir teslimdir.
+        _sn = SORU.get(son, {}).get("soru", "") if son else ""
         st.markdown(
             "<div class='v2gez-orta'>" + str(i + 1) + " / " + str(len(ad)) +
-            " · " + st.session_state["v2_page"] + "</div>",
+            " · " + st.session_state["v2_page"] +
+            ("<span class='sonraki-soru'>sırada: " + _sn + "</span>"
+             if _sn else "") + "</div>",
             unsafe_allow_html=True)
     with c3:
         if son and st.button("Sonraki:  " + son, key="v2_son",
@@ -3012,6 +3089,36 @@ def page_inceleme() -> None:
 # "hangisi neydi" sorusunu doğurur; grup o soruyu kaldırır.
 # OPUS 5 artık Lig'in ALTINDA: ikisi de "kim ne yaptı" sorusuna
 # bakar, biri kâğıt ajanlara biri sahaya.
+# ─────────────────────────────────────────────────────────────
+# HİKÂYE — yedi sayfa değil, üç perdelik tek bir soru zinciri
+# ─────────────────────────────────────────────────────────────
+# Kullanıcının teşhisi: "sayfalar bir hikâye anlatmalı, anlatmıyor."
+# Doğruydu. Yedi ayrı ekran vardı; hangisinin neden var olduğu,
+# hangisinden hangisine geçileceği hiçbir yerde yazmıyordu.
+#
+# Omurga şu döngü: KARAR VER → KAYDET → HESAP VER → (baştan).
+# Her sayfa bir SORUYA cevap verir ve o soru sayfanın kimliğidir.
+# Ray bu soruları gösterir, sayfa başlığı aynı soruyu tekrarlar,
+# alt gezinme bir sonraki soruya devreder. Kullanıcı zincirde
+# nerede olduğunu her an bilir.
+PERDELER = [
+    ("KARAR", "bugün ne yapacağım",
+     [("Karar Masası", "Kime güvenirim, bugün ne var?"),
+      ("Sepet",        "Ne kuruyorum, kaça mal oluyor?")]),
+    ("KAYIT", "ne olduğu yazılsın",
+     [("Ajan Ligi",    "Kim ne yaptı?"),
+      ("OPUS 5",       "Gerçekte ne oynadım?"),
+      ("İnceleme",     "Neden kaybediyorum?")]),
+    ("HESAP", "neyi gerçekten biliyorum",
+     [("Ölçüm Defteri", "Hangi bulgu hâlâ ayakta?"),
+      ("Sağlık",        "Sistem ayakta mı, veri sağlam mı?")]),
+]
+# sayfa adı -> (perde, soru, sıra)
+SORU = {}
+for _pi, (_p, _pa, _ler) in enumerate(PERDELER):
+    for _x in _ler:
+        SORU[_x[0]] = {"perde": _p, "perde_alt": _pa, "soru": _x[1]}
+
 GRUPLAR = [
     ("Karar", [("Karar Masası", page_desk), ("Sepet", page_sepet)]),
     ("Takip", [("Ajan Ligi", page_lig), ("OPUS 5", page_opus, True),
@@ -3024,13 +3131,8 @@ for _g, _ler in GRUPLAR:
         PAGES[_x[0]] = _x[1]
 
 
-def _ust_gezinme() -> None:
-    """Birincil gezinme — ana akışta, HER ZAMAN görünür.
-
-    ⚠️ NEDEN KENAR ÇUBUĞUNDA DEĞİL: Streamlit'te kenar çubuğu kullanıcı
-    tarafından kapatılabiliyor ve kapalı kalıyor. Kullanıcı ekranında
-    gezinme tamamen kaybolmuştu — "yönlendirme çubuğundan haber yok".
-    Birincil gezinme kapatılabilir bir yüzeyde duramaz."""
+def _marka_serit() -> None:
+    """Marka + canlı durum — tam genişlik, her sayfada aynı yerde."""
     r = load_rail()
     st.markdown(
         "<div class='v2ust'><div class='marka'>"
@@ -3042,30 +3144,46 @@ def _ust_gezinme() -> None:
         "<span>KAPANMIŞ</span><b>" +
         "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
         "</div></div>", unsafe_allow_html=True)
+
+
+def _hikaye_rayi() -> None:
+    """Sol ray — menü DEĞİL, hikâyenin omurgası.
+
+    ⚠️ NEDEN KENAR ÇUBUĞUNDA DEĞİL: Streamlit'in kenar çubuğu kullanıcı
+    tarafından kapatılabiliyor ve kapalı kalıyor; gezinme kullanıcının
+    ekranında tamamen kaybolmuştu. Bu ray ANA AKIŞTA bir sütun —
+    kapatılamaz. Mobilde Streamlit sütunları yığdığı için ray içeriğin
+    üstüne geçer ve orada üst menü gibi çalışır.
+
+    ⚠️ NEDEN MENÜ DEĞİL: kullanıcının teşhisi "sayfalar bir hikâye
+    anlatmalı, anlatmıyor" idi. Düz bir sayfa listesi hangi sayfanın
+    neden var olduğunu söylemez. Ray üç perdeyi ve her sayfanın
+    CEVAPLADIĞI SORUYU gösterir; aktif sayfanın sorusu açıkça yazılır.
+    Kullanıcı zincirde nerede olduğunu her an bilir."""
     sp = _sepet()
-    adlar, etiketler = [], []
-    for _g, ogeler in GRUPLAR:
-        for oge in ogeler:
-            adlar.append(oge[0])
-            e = oge[0]
-            if e == "Sepet" and sp:
-                e = e + " (" + str(len(sp)) + ")"
-            etiketler.append(e)
-    st.markdown("<span class='v2sekme-isaret'></span>", unsafe_allow_html=True)
-    kol = st.columns(len(adlar) + 1, gap="small")
-    for i, ad in enumerate(adlar):
-        with kol[i]:
-            if st.button(etiketler[i], key="v2top_" + str(i),
+    su_an = st.session_state["v2_page"]
+    for pi, (perde, perde_alt, ogeler) in enumerate(PERDELER, 1):
+        icinde = any(o[0] == su_an for o in ogeler)
+        st.markdown(
+            "<div class='ray-perde" + (" aktif" if icinde else "") + "'>"
+            "<span class='no'>" + str(pi) + "</span>"
+            "<span class='ad'>" + perde + "</span>"
+            "<span class='alt'>" + perde_alt + "</span></div>",
+            unsafe_allow_html=True)
+        for ad, soru in ogeler:
+            etiket = ad
+            if ad == "Sepet" and sp:
+                etiket = ad + "  (" + str(len(sp)) + ")"
+            if st.button(etiket, key="ray_" + ad,
                          use_container_width=True,
-                         type=("primary"
-                               if st.session_state["v2_page"] == ad
-                               else "secondary")):
+                         type=("primary" if ad == su_an else "secondary")):
                 st.session_state["v2_page"] = ad
                 st.session_state["v2_ajan"] = None
                 st.rerun()
-    st.markdown(
-        "<div style='height:1px;background:var(--line-2);"
-        "margin:-4px 0 var(--s5);'></div>", unsafe_allow_html=True)
+            if ad == su_an:
+                st.markdown(
+                    "<div class='ray-soru'>" + soru + "</div>",
+                    unsafe_allow_html=True)
 
 
 def main() -> None:
@@ -3073,15 +3191,17 @@ def main() -> None:
     if "v2_page" not in st.session_state:
         st.session_state["v2_page"] = "Karar Masası"
 
-    _ust_gezinme()
+    _marka_serit()
 
-    # ⚠️ KENAR CUBUGU KALDIRILDI. Ust gezinme onun isini yapiyordu ve
-    # ikisi ayni menuyu gosteriyordu — tekrar. Ustelik Streamlit'te
-    # kenar cubugu kapatilabildigi icin GUVENILMEZ bir yuzey; kullanici
-    # ekraninda tamamen kaybolmustu. Kazanilan 236px tabloya gidiyor:
-    # Ajan Guveni tablosu 6 sutunu sigdiramiyor, sag kenardan kirpiliyordu.
-    PAGES[st.session_state["v2_page"]]()
-    _gezinme_alt()
+    # Ray ANA AKIŞTA bir sütun — Streamlit'in kapatılabilir kenar
+    # çubuğunda değil. Dar tutuldu (%18): tabloların yeri daralmasın.
+    # Taşan tablolar zaten kendi kapsayıcılarında yatay kayıyor.
+    ray, icerik = st.columns([0.18, 0.82], gap="medium")
+    with ray:
+        _hikaye_rayi()
+    with icerik:
+        PAGES[st.session_state["v2_page"]]()
+        _gezinme_alt()
 
 
 if __name__ == "__main__":
