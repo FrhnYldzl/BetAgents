@@ -603,6 +603,10 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
 
+/* Kart başlığı kelime ORTASINDAN bölünmesin — "Seçtiklerin" dar
+   panelde "Seçtikl / erin" oluyordu. Sığmıyorsa küçülsün, kırılmasın. */
+.v2head h2{overflow-wrap:normal;word-break:keep-all;hyphens:none;}
+
 /* Panel içi genişliğe göre sütun gizleme.
    ⚠️ .opt ekran genişliğine bakar (@media) — ama bir tablo GENİŞ
    ekranda da DAR bir panelin içinde olabilir. Karar Masası'nda tam
@@ -1902,7 +1906,10 @@ def page_desk() -> None:
     # Ajan Güveni tablosu 5 sütun taşıyor ve panelin en dar olanıydı;
     # "Seçtiklerin" paneli seçim yapılana kadar neredeyse boş. Genişlik
     # ihtiyaca göre dağıtıldı.
-    left, mid, right = st.columns([1.62, 1.42, 0.78], gap="medium")
+    # Ölçüldü (1280px ekran): 1.62/1.42/0.78 sağ paneli 185px'e
+    # düşürüyordu ve "Seçtiklerin" başlığı kelime ortasından bölünüyordu.
+    # Güven tablosu yine de eskisinden geniş (346px → ~420px).
+    left, mid, right = st.columns([1.50, 1.42, 0.95], gap="medium")
 
     ags = load_agents()
     # ⚠️ Denetim bulgusu O1: sol panel ajanları sıralıyor, orta panel
