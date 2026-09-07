@@ -2091,26 +2091,45 @@ def page_desk() -> None:
                 "kaçıncı olursa olsun bir şey bilmiyor demektir. Şu an "
                 "<b>" + str(_gecen) + " ajan</b> rastgeleyi geçiyor, <b>" +
                 str(_kalan) + " ajan</b> geçemiyor.</div>")
+        # ⚠️ BOŞ DURUM METNİ F-STRING DIŞINDA KURULUR.
+        # İlk halim bunu f-string içine koşullu ifade olarak koymuştu:
+        #     {(...uzun HTML...) if not body else ""}
+        # `body` doluyken ifade "" döndürüyor ve SATIR TAMAMEN BOŞ kalıyordu.
+        # Markdown boş satırı HTML bloğunun SONU sayar; ardından gelen
+        # girintili "<table ...>" satırı KOD BLOĞU sanılıp kaçışlanıyordu.
+        # Sonuç: canlı sayfada 98 ham HTML etiketi metin olarak göründü.
+        # Değişken olarak kurulunca satır asla boşalmaz.
+        _bos_era = ""
+        if not body:
+            _bos_era = (
+                "<div class='dq'><b>Dönem " + str(_era.get("era", "?")) +
+                " başladı — " + str(_era.get("bas", "")) + ".</b> Sahadaki " +
+                str(_era.get("ajan", "?")) + " ajanın kasası sıfırlandı ve "
+                "sayaçlar yeniden başladı; henüz kapanmış bahis yok. Bu bir "
+                "arıza değil, dönemin kendisidir — <b>veri yokluğu ile temiz "
+                "sayfa farklı şeylerdir</b>. Önceki dönemin karnesi arşivde: "
+                "İnceleme ve Ölçüm Defteri onu hâlâ görüyor.</div>")
+        # ⚠️⚠️ YER TUTUCU ASLA KENDİ SATIRINDA DURMAZ ⚠️⚠️
+        # Bir f-string yer tutucusu ("{_kontrol}" gibi) tek başına bir
+        # satırda dururken BOŞ dönerse o satır TAMAMEN BOŞALIR. Markdown
+        # boş satırı HTML bloğunun SONU sayar; ardından gelen girintili
+        # "<table ...>" satırı 4+ boşlukla başladığı için KOD BLOĞU
+        # sanılır ve KAÇIŞLANIR. Canlıda sonuç: 98 ham HTML etiketi
+        # sayfada metin olarak göründü (kullanıcı bildirdi).
+        # Kural: her yer tutucu, kendisinden sonraki etiketle AYNI
+        # SATIRDA olmalı — "{_kontrol}<div ...>" gibi. Böylece ifade boş
+        # dönse bile satır boşalmaz.
         st.markdown(f"""
         <div class="v2card">
           <div class="v2head"><h2>Ajan Güveni</h2>
             <div class="hint">fiyata göre üstünlük</div></div>
           <div class="v2body">
-            {_kontrol}
-            <div class="v2mb"><b>İsabet oranı yanıltır.</b> %75 isabet, oran
+            {_kontrol}<div class="v2mb"><b>İsabet oranı yanıltır.</b> %75 isabet, oran
               1,24'te <b>kötüdür</b> — fiyat zaten %80,6 bekliyordu. %59 isabet,
               oran 1,84'te <b>iyidir</b>. Doğru ölçü isabet değil,
               <b>fiyatın beklediğinden ne kadar fazlası</b>.
               {(" " + swap) if swap else ""}</div>
-            {("<div class='dq'><b>Dönem " + str(_era.get("era", "?")) +
-              " başladı — " + str(_era.get("bas", "")) + ".</b> Sahadaki "
-              + str(_era.get("ajan", "?")) + " ajanın kasası sıfırlandı ve "
-              "sayaçlar yeniden başladı; henüz kapanmış bahis yok. Bu bir "
-              "arıza değil, dönemin kendisidir — <b>veri yokluğu ile temiz "
-              "sayfa farklı şeylerdir</b>. Önceki dönemin karnesi "
-              "arşivde: İnceleme ve Ölçüm Defteri onu hâlâ görüyor.</div>")
-              if not body else ""}
-            <table class="v2"><thead><tr><th></th><th>Ajan</th>
+            {_bos_era}<table class="v2"><thead><tr><th></th><th>Ajan</th>
               <th class="r opt dar">İsabet</th>
               <th class="r opt dar">Fiyat bekler</th>
               <th class="r">Fark</th><th class="r">Hüküm</th></tr></thead>
@@ -2147,9 +2166,8 @@ def page_desk() -> None:
         st.markdown(f"""
         <div class="v2card"><div class="v2head"><h2>Bugünün Tahtası</h2>
           <div class="hint">işaretle → kupona ekle</div></div>
-          <div class="v2body" style="padding-bottom:2px;">
-          {_uyari}
-          </div></div>""", unsafe_allow_html=True)
+          <div class="v2body" style="padding-bottom:2px;">{_uyari}</div>
+          </div>""", unsafe_allow_html=True)
         sel = []
         for b in board[:22]:
             c1, c2 = st.columns([4.3, 1.35], gap="small")
