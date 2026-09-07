@@ -591,6 +591,16 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
 
+/* Panel içi genişliğe göre sütun gizleme.
+   ⚠️ .opt ekran genişliğine bakar (@media) — ama bir tablo GENİŞ
+   ekranda da DAR bir panelin içinde olabilir. Karar Masası'nda tam
+   bu oldu: 1280px ekranda Ajan Güveni paneli 323px ve HÜKÜM sütunu
+   kırpıldı. Konteyner sorgusu gerçek kapsayıcı genişliğini ölçer. */
+.v2body{container-type:inline-size;}
+@container (max-width:430px){
+  table.v2 th.dar,table.v2 td.dar{display:none;}
+}
+
 /* Sayfa başlığı üst satırı — zincirdeki konum */
 .v2ph-ust{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
 .v2ph-ust .perde{font-family:"JetBrains Mono",monospace;font-size:9.5px;
@@ -742,6 +752,47 @@ def _sgn(v: float) -> str:
 
 def _num(v: float, d: int = 2) -> str:
     return f"{v:.{d}f}".replace(".", ",")
+
+
+# ─────────────────────────────────────────────────────────────
+# KANIT EŞİĞİ — ürünün TEK standardı
+# ─────────────────────────────────────────────────────────────
+# ⚠️ Denetimde bulundu: Ölçüm Defteri titiz (kural sonuç görülmeden
+# yazılıyor, n=17 ÖLÇÜLEMEZ etiketini alıyor) ama diğer her panel kendi
+# eşiğini uyduruyordu:
+#     Kayıp Anatomisi  n>=5   → n=15'te 4–4 BERABERLİKTEN hüküm çıkardı
+#     OPUS 5           eşik yok → n=19'da "saha kâğıdı geçiyor" dedi
+#     Mihenk           n>=12  → "EUVOX kanıt eşiğini geçti" dedi
+# Aynı ajan hakkında üç farklı hüküm çıktı, ikisi aynı sayfada.
+# Bir sistem kendi kanıt eşiğini çiğniyorsa DOĞRU bulgularına da
+# güvenilmez — kaybedilen şey bir sayı değil, okuyanın güveni.
+KANIT_ESIGI = 30
+
+
+def _olculebilir(n: int, esik: int = KANIT_ESIGI) -> bool:
+    """Bu örneklem bir hüküm taşıyabilir mi?"""
+    return int(n or 0) >= esik
+
+
+def _esik_notu(n: int, esik: int = KANIT_ESIGI) -> str:
+    """Yetersiz örneklemde hükmün yerine geçen dürüst cümle."""
+    return ("Örneklem hüküm için yetersiz: <b>n=" + str(int(n or 0)) +
+            "</b>, gereken <b>" + str(esik) + "</b>. Aşağıdaki sayılar "
+            "doğru ama bir <b>eğilim değil</b> — bu kadar veriyle "
+            "rastlantıdan ayrılamaz.")
+
+
+def _ayrisiyor_mu(a: float, b: float, n: int) -> bool:
+    """İki sayaç gerçekten ayrışıyor mu, yoksa fark gürültü mü?
+
+    Eşitlik ya da bir birimlik fark AYRIŞMA DEĞİLDİR. Üretimde 4–4
+    beraberlikten "zayıf halka SONUÇ" hükmü çıktı çünkü karşılaştırma
+    `>=` idi — beraberlik sessizce ilk seçeneğe yazılıyordu.
+    """
+    if not _olculebilir(n):
+        return False
+    fark = abs(float(a) - float(b))
+    return fark >= max(2.0, (float(n) ** 0.5))
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -1743,7 +1794,10 @@ def page_desk() -> None:
           "deger": ("henüz yok" if r["k"] is None
                     else ("%+.3f" % r["k"]).replace(".", ",")),
           "cls": ("ps" if r["k_gecti"] else "ng")}])
-    left, mid, right = st.columns([1.32, 1.42, 0.98], gap="medium")
+    # Ajan Güveni tablosu 5 sütun taşıyor ve panelin en dar olanıydı;
+    # "Seçtiklerin" paneli seçim yapılana kadar neredeyse boş. Genişlik
+    # ihtiyaca göre dağıtıldı.
+    left, mid, right = st.columns([1.62, 1.42, 0.78], gap="medium")
 
     # ── SOL: ajan güveni ──────────────────────────────────────
     with left:
@@ -1776,8 +1830,8 @@ def page_desk() -> None:
                 f"<tr{adv}><td class='rk'>{i}</td>"
                 f"<td><span class='ag'>{_rozet(a['pid'])}{a['ad']}</span>"
                 f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>"
-                f"<td class='r n opt'>{_pct(a['hit'])}</td>"
-                f"<td class='r n opt'>{_pct(a['exp'])}</td>"
+                f"<td class='r n opt dar'>{_pct(a['hit'])}</td>"
+                f"<td class='r n opt dar'>{_pct(a['exp'])}</td>"
                 f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
                 f"{_sgn(a['edge'])}</span></td>"
                 f"<td class='r'><span class='gr {g}'>{txt}</span></td></tr>")
@@ -1792,7 +1846,8 @@ def page_desk() -> None:
               <b>fiyatın beklediğinden ne kadar fazlası</b>.
               {(" " + swap) if swap else ""}</div>
             <table class="v2"><thead><tr><th></th><th>Ajan</th>
-              <th class="r opt">İsabet</th><th class="r opt">Fiyat bekler</th>
+              <th class="r opt dar">İsabet</th>
+              <th class="r opt dar">Fiyat bekler</th>
               <th class="r">Fark</th><th class="r">Hüküm</th></tr></thead>
               <tbody>{''.join(body)}</tbody></table>
           </div></div>""", unsafe_allow_html=True)
@@ -1932,7 +1987,18 @@ def page_opus() -> None:
                 "böyle ölçülebilir.</div></div></div>", unsafe_allow_html=True)
         else:
             fark = o["edge"] - h["edge"] if h.get("n") else 0.0
-            if fark > 0.02:
+            # ⚠️ KANIT EŞİĞİ — burası eskiden eşiksizdi. n=19 ayakta
+            # "saha kâğıdı geçiyor, bunu bulmak yol haritasının dört
+            # fazından da değerli" yazıyordu; aynı anda Karar Masası n=17'lik
+            # EUVOX'a doğru şekilde ÖLÇÜLEMEZ diyordu. Aynı üründe iki ayrı
+            # standart. Yetersiz örneklemde hüküm YOK — sayılar gösterilir,
+            # yorum gösterilmez.
+            _on = int(o.get("n") or 0)
+            if not _olculebilir(_on):
+                yorum = _esik_notu(_on) + (
+                    " Defter büyüdükçe bu satır kendiliğinden hükme döner — "
+                    "aşağıdaki sayılar doğru, <b>yorumu erken</b>.")
+            elif fark > 0.02:
                 yorum = ("<b>Saha kâğıdı geçiyor.</b> Aradaki farkı yaratan şey "
                          "modelin göremediği bir bilgidir — onu bulmak yol "
                          "haritasının dört fazından da değerli.")
@@ -3026,13 +3092,36 @@ def page_inceleme() -> None:
             "kaybın yarısı gol ayağı tuttuğu hâlde geliyordu.</div>",
             unsafe_allow_html=True)
         a = d["anat"]
-        if a["n"] >= 5:
+        if a["n"] >= 1:
             top = a["n"]
             sat = [[ad, str(a[k]), _pct(a[k] / top)]
                    for k, ad in (("sonuc", "Sonuç ayağı düşürdü"),
                                  ("gol", "Gol/KG ayağı düşürdü"),
                                  ("iki", "İkisi birden"))]
-            zayif = "SONUÇ (1X2)" if a["sonuc"] >= a["gol"] else "GOL/KG"
+            # ⚠️ Eskiden: zayif = "SONUÇ" if sonuc >= gol else "GOL/KG"
+            # `>=` beraberliği SESSİZCE SONUÇ'a yazıyordu. Üretimde 4–4
+            # eşitlikte "ZAYIF HALKA: SONUÇ (1X2)" hükmü çıktı — yazı-tura.
+            # Eşik de 5'ti: Ölçüm Defteri n=17'yi ÖLÇÜLEMEZ sayarken burası
+            # n=15'te kesin konuşuyordu. Artık ürünün TEK eşiği geçerli.
+            ayristi = _ayrisiyor_mu(a["sonuc"], a["gol"], top)
+            olculur = _olculebilir(top)
+            if ayristi:
+                zayif = ("SONUÇ (1X2)" if a["sonuc"] > a["gol"] else "GOL/KG")
+                hkm_cls, ipucu = "ng", "zayıf halka"
+                gerekce = ("Bu ayak kupondan çıkarılırsa kayıpların <b>" +
+                           _pct(max(a["sonuc"], a["gol"]) / top) + "</b>'i "
+                           "önlenebilirdi — diğer ayak zaten tutmuştu.")
+            elif olculur:
+                zayif = "AYRIŞMIYOR"
+                hkm_cls, ipucu = "", "hüküm yok"
+                gerekce = ("İki ayak <b>" + str(a["sonuc"]) + "–" +
+                           str(a["gol"]) + "</b> ile ayrışmıyor. Bu veriyle "
+                           "bir ayağı suçlamak <b>yazı-tura atmaktır</b>; "
+                           "fark rastlantıdan ayrılamıyor.")
+            else:
+                zayif = "ÖLÇÜLEMEZ"
+                hkm_cls, ipucu = "", "örneklem yetersiz"
+                gerekce = _esik_notu(top)
             c1, c2 = st.columns([1, 1], gap="medium")
             with c1:
                 st.markdown(
@@ -3041,18 +3130,15 @@ def page_inceleme() -> None:
             with c2:
                 st.markdown(
                     "<div class='v2card'><div class='v2head'><h2>Hüküm</h2>"
-                    "<div class='hint'>zayıf halka</div></div>"
+                    "<div class='hint'>" + ipucu + "</div></div>"
                     "<div class='v2body'><div class='ro big'>"
-                    "<span>Zayıf halka</span><b class='ng'>" + zayif +
-                    "</b></div><div class='vd' style='margin-top:var(--s3);'>"
-                    "Bu ayak kupondan çıkarılırsa kayıpların <b>" +
-                    _pct(max(a["sonuc"], a["gol"]) / top) + "</b>'i "
-                    "önlenebilirdi — diğer ayak zaten tutmuştu.</div>"
-                    "</div></div>", unsafe_allow_html=True)
+                    "<span>Zayıf halka</span><b class='" + hkm_cls + "'>" +
+                    zayif + "</b></div>"
+                    "<div class='vd' style='margin-top:var(--s3);'>" +
+                    gerekce + "</div></div></div>", unsafe_allow_html=True)
         else:
             st.markdown(
-                "<div class='v2bos'>Karşı-olgusal için en az 5 kombine kaybı "
-                "gerekiyor — şu an " + str(a["n"]) + ".</div>",
+                "<div class='v2bos'>Henüz kombine kaybı yok.</div>",
                 unsafe_allow_html=True)
 
     else:
@@ -3196,7 +3282,7 @@ def main() -> None:
     # Ray ANA AKIŞTA bir sütun — Streamlit'in kapatılabilir kenar
     # çubuğunda değil. Dar tutuldu (%18): tabloların yeri daralmasın.
     # Taşan tablolar zaten kendi kapsayıcılarında yatay kayıyor.
-    ray, icerik = st.columns([0.18, 0.82], gap="medium")
+    ray, icerik = st.columns([0.15, 0.85], gap="medium")
     with ray:
         _hikaye_rayi()
     with icerik:
