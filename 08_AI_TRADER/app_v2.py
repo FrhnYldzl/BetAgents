@@ -703,14 +703,18 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
 
   /* Dokunma hedefi: sayfa başına 9–13 buton 44px eşiğinin altındaydı
      (38px), parmakla ıskalanıyor.
-     ⚠️ İLK DENEMEM SESSİZCE HİÇBİR ŞEYE UYMADI: ".stButton button"
-     yazmıştım, oysa Streamlit'te stButton bir SINIF değil DATA-TESTID.
-     Kural hiçbir öğeyi seçmedi ve hata da vermedi — ölçmeseydim
-     "düzeltildi" sanacaktım. Seçici artık butonun kendi testid'sine
-     bağlı: stBaseButton-primary / -secondary.
-     stMainMenuButton (Streamlit'in kendi hamburgeri) hariç tutuldu. */
-  [data-testid^="stBaseButton"]{min-height:44px;}
-  [data-testid="stNumberInput"] input{min-height:44px;}
+     ⚠️ İKİ KEZ SESSİZCE BAŞARISIZ OLDU, İKİSİ DE ÖZGÜLLÜKTEN.
+     Yukarıda (satır ~571) şu kural var:
+         [data-testid="stMain"] .stButton>button{min-height:38px}   (0,2,1)
+     Denediklerim:
+         .stButton button              (0,1,1)  → kaybetti
+         [data-testid^="stBaseButton"] (0,1,0)  → kaybetti
+     Medya sorgusu ÖZGÜLLÜK EKLEMEZ; sonra gelmek yetmiyor, eşit ya da
+     yüksek özgüllük gerekiyor. Hiçbiri hata vermedi — canlıda ölçmemiş
+     olsam "düzeltildi" sanacaktım. Aynı seçiciyi kullanmak tek doğru yol
+     (!important yerine: !important sonraki okuyucuyu yanıltır). */
+  [data-testid="stMain"] .stButton>button{min-height:44px;}
+  [data-testid="stMain"] [data-testid="stNumberInput"] input{min-height:44px;}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
