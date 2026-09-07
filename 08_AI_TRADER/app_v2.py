@@ -1195,6 +1195,32 @@ def load_inceleme() -> dict:
                        "e": sum(x["e"] for x in g) / len(g),
                        "roi": sum(x["ret"] for x in g) / len(g)})
 
+    # ── EDGE TERSLİĞİ NEREDE? ──
+    # Denetim bulgusu K1: edge sıralaması TERS (Q1 +%1,2 · Q5 −%7,9).
+    # Bir sonraki soru "her yerde mi, bir dilimde mi" — çünkü cevap
+    # düzeltmenin nerede yapılacağını söyler. Pazar bazında Q1 ve Q5
+    # ayrı ayrı hesaplanır; ikisi arasındaki fark POZİTİF olmalıydı.
+    eb_kirilim = []
+    for anahtar, ad_f in (("mk", lambda x: str(x)),):
+        gr = {}
+        for x in ed:
+            gr.setdefault(x.get(anahtar) or "?", []).append(x)
+        for k, g in gr.items():
+            if len(g) < 40:              # dilimlere bölmek için taban
+                continue
+            g = sorted(g, key=lambda z: z["e"])
+            n = len(g)
+            alt = g[:n // 3]
+            ust = g[-(n // 3):]
+            r_alt = sum(x["ret"] for x in alt) / len(alt)
+            r_ust = sum(x["ret"] for x in ust) / len(ust)
+            eb_kirilim.append({
+                "ad": ad_f(k), "n": n,
+                "alt": r_alt, "ust": r_ust, "fark": r_ust - r_alt,
+                "e_alt": sum(x["e"] for x in alt) / len(alt),
+                "e_ust": sum(x["e"] for x in ust) / len(ust)})
+    eb_kirilim.sort(key=lambda z: z["fark"])
+
     # ── TRADE: pazar · kupon türü · lig ──
     def grupla(key, en_az=8):
         d = {}
@@ -1247,6 +1273,7 @@ def load_inceleme() -> dict:
     gd.sort(key=lambda z: z["sat"], reverse=True)
 
     return {"n": len(D), "genel": blok(D), "kal": kal, "eb": eb,
+            "eb_kirilim": eb_kirilim,
             "pazar": grupla("mk"), "tur": grupla("ct", 5),
             "lig": grupla("lg"), "anat": anat, "defter": gd[:22]}
 
@@ -3262,12 +3289,50 @@ def page_inceleme() -> None:
                        "<span class='" + ("dp" if e["roi"] >= 0 else "dm") +
                        "'>" + ("+" if e["roi"] >= 0 else "−") +
                        _num(abs(e["roi"]) * 100, 1) + "%</span>"])
+        # ⚠️ Kalibrasyon sapması YÖNLÜ mü, dağınık mı? Tablo tüm bantları
+        # gösteriyordu ama hüküm yoktu. Üretimde bantların hepsi aynı yöne
+        # sapıyordu (model %64,6 diyor, gerçek %69,2) — bu rastgele hata
+        # değil SİSTEMATİK KAYMA'dır ve tek bir düzeltmeyle giderilebilir.
+        # Dağınık sapma başka bir sorundur; ikisini ayırmak gerekir.
+        _ge = [k for k in d["kal"] if k.get("n", 0) >= 20]
+        _kal_h = ""
+        if len(_ge) >= 3:
+            _art = sum(1 for k in _ge if k["fark"] > 0.02)
+            _eks = sum(1 for k in _ge if k["fark"] < -0.02)
+            _ort = sum(k["fark"] * k["n"] for k in _ge) / sum(k["n"] for k in _ge)
+            if _art >= len(_ge) - 1 and _art >= 3:
+                _b, _c = "SİSTEMATİK — DÜŞÜK TAHMİN", "ng"
+                _m = ("Ölçülen bantların neredeyse hepsinde gerçek, tahminden "
+                      "<b>yüksek</b> çıkıyor (ağırlıklı ortalama <b>" +
+                      _sgn(_ort) + "</b>). Bu rastgele hata değil, <b>tek "
+                      "yönlü kayma</b> — model kendi olasılığını sistematik "
+                      "olarak düşük söylüyor. Sistematik kayma tek bir "
+                      "düzeltmeyle giderilebilir; dağınık hata giderilemez.")
+            elif _eks >= len(_ge) - 1 and _eks >= 3:
+                _b, _c = "SİSTEMATİK — YÜKSEK TAHMİN", "ng"
+                _m = ("Ölçülen bantların neredeyse hepsinde gerçek, tahminden "
+                      "<b>düşük</b> çıkıyor (ağırlıklı ortalama <b>" +
+                      _sgn(_ort) + "</b>). Model kendine fazla güveniyor — "
+                      "bu, sahte edge üretmenin en yaygın yoludur.")
+            else:
+                _b, _c = "DAĞINIK", ""
+                _m = ("Sapmalar tek yöne gitmiyor (ağırlıklı ortalama <b>" +
+                      _sgn(_ort) + "</b>). Tek bir kaydırmayla düzelmez; "
+                      "sorun modelin <b>biçiminde</b>, kalibrasyonunda değil.")
+            _kal_h = ("<div class='v2card' style='margin-top:var(--s3);'>"
+                      "<div class='v2head'><h2>Hüküm — kalibrasyon</h2>"
+                      "<div class='hint'>sapma yönlü mü</div></div>"
+                      "<div class='v2body'><div class='ro big'>"
+                      "<span>Sapma</span><b class='" + _c + "'>" + _b +
+                      "</b></div><div class='vd' "
+                      "style='margin-top:var(--s3);'>" + _m + "</div>"
+                      "</div></div>")
         c1, c2 = st.columns([1, 1], gap="medium")
         with c1:
             st.markdown(_mini("Kalibrasyon",
                               "model %X dediğinde gerçekten %X mi oluyor",
                               ["Model bandı", "n", "Tahmin", "Gerçek", "Fark"],
-                              kr), unsafe_allow_html=True)
+                              kr) + _kal_h, unsafe_allow_html=True)
         with c2:
             st.markdown(_mini("Edge geçerliliği",
                               "yüksek edge gerçekten daha iyi mi",
@@ -3326,13 +3391,39 @@ def page_inceleme() -> None:
                 "<b class='" + _cls + "'>" + _bas + "</b></div>"
                 "<div class='vd' style='margin-top:var(--s3);'>" + _mtn +
                 "</div>"
+                + (("<div class='vd' style='margin-top:var(--s3);'>"
+                    "<b>Terslik her yerde mi, bir dilimde mi?</b> Pazar "
+                    "bazında alt ve üst üçlük ayrı ölçüldü — <b>fark "
+                    "pozitif olmalıydı</b> (yüksek edge daha iyi getirmeli). "
+                    "Negatif olan her satır o pazarda edge'in ters "
+                    "çalıştığını söyler."
+                    "<table class='v2' style='margin-top:9px;'><thead><tr>"
+                    "<th>Pazar</th><th class='r'>n</th>"
+                    "<th class='r'>Alt üçlük</th><th class='r'>Üst üçlük</th>"
+                    "<th class='r'>Fark</th></tr></thead><tbody>"
+                    + "".join(
+                        "<tr><td>" + str(x["ad"]) + "</td>"
+                        "<td class='r n'>" + str(x["n"]) + "</td>"
+                        "<td class='r n'>" + ("+" if x["alt"] >= 0 else "−") +
+                        _num(abs(x["alt"]) * 100, 1) + "%</td>"
+                        "<td class='r n'>" + ("+" if x["ust"] >= 0 else "−") +
+                        _num(abs(x["ust"]) * 100, 1) + "%</td>"
+                        "<td class='r'><span class='" +
+                        ("dp" if x["fark"] >= 0 else "dm") + "'>" +
+                        ("+" if x["fark"] >= 0 else "−") +
+                        _num(abs(x["fark"]) * 100, 1) + "p</span></td></tr>"
+                        for x in d.get("eb_kirilim", []))
+                    + "</tbody></table></div>")
+                   if d.get("eb_kirilim") else "") +
                 "<div class='vd' style='margin-top:var(--s3);'>"
-                "<b>Bunu iki ölçüm daha söylüyor.</b> Beceri katsayısı "
-                "<b>k</b> güven aralığı sıfırı içeriyor (Ölçüm Defteri › "
-                "K_BECERİ) ve rastgele kontrol ajanı JOKER'i 16 ajandan "
-                "yalnız biri geçebiliyor (Ölçüm Defteri › Mihenk). Üç "
-                "bağımsız ölçüm aynı yeri gösteriyorsa bu bir rastlantı "
-                "değil, <b>modelin şu anki halidir</b>.</div>"
+                "<b>Bunu başka ölçümler de söylüyor.</b> Beceri katsayısı "
+                "<b>k</b> güven aralığı sıfırı içeriyorsa edge sıralaması "
+                "bilgi taşımıyor demektir (Ölçüm Defteri › K_BECERİ), ve "
+                "<b>rastgele kontrol ajanı JOKER</b> güven tablosunda kaçıncı "
+                "sıradaysa o kadar ajan rastgeleden ayrışamıyor demektir "
+                "(Karar Masası › Ajan Güveni). Bağımsız ölçümler aynı yeri "
+                "gösteriyorsa bu bir rastlantı değil, <b>modelin şu anki "
+                "halidir</b>.</div>"
                 "</div></div>", unsafe_allow_html=True)
 
     elif sek == "Trade":

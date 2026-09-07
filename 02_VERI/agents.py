@@ -323,6 +323,13 @@ PROFILES: dict[str, dict] = {
         # ~+5% becerisi var, ama iddaa marjı onu tamamen yiyor.
         # Karar: T1 tek başına uzmanlık alanı değil; slot boşaltıldı.
         "name": "TRIVOX (emekli — T1'de kanıtlanmış edge yok)",
+        # ⚠️ MODEL BEYANI — ajanlar hangi modeli kullandığını söylemiyordu.
+        # Sonuç: model kaydı (MODEL_REGISTRY) canlı sistemle bağını
+        # kaybetti ve sessizce yalancı hale geldi. Denetimde bulundu:
+        # 5 model "VALIDATED" ama hiç bahis yapmamış, EUVOX "DEPRECATED"
+        # ama canlı oynuyor. Eşleme ajan ADINDAN tahmin ediliyordu.
+        # Bu alan tahmini kanıta çevirir. audit_model_registry.py okur.
+        "model": "TRIVOX",
         "retired": True,
         "stop_pct": -0.15, "leagues": {"T1"},
         "markets": {"KG_YOK", "UST_25"}, "fav_min": 0.72,
@@ -333,6 +340,7 @@ PROFILES: dict[str, dict] = {
     },
     "EUVOX_V1": {
         "name": "EUVOX (Avrupa uzmanı — SEZONDA, motor-v1)",
+        "model": "EUVOX",
         "stop_pct": -0.15, "leagues": {"SP1", "I1", "F1", "D1", "E0"},
         "markets": {"KG_YOK", "UST_25", "ALT_25"}, "fav_min": 0.68,
         "min_mp": 0.64, "min_odds": 1.22,

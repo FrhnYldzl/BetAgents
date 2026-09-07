@@ -54,13 +54,23 @@ def denetle(duzelt: bool = False) -> dict:
         rows = [dict(x) for x in conn.execute(q).fetchall()]
         print(f"🔍 iddaa kaynaklı, kanonik kodlu satır: {len(rows):,}\n")
 
-        kesin, desteksiz = [], []
+        kesin, celiski, desteksiz = [], [], []
         for r in rows:
             h, a, lc = r["h"] or "", r["a"] or "", r["lc"]
             if _takim_reddedildi(h) or _takim_reddedildi(a):
                 kesin.append(r)                       # A
-            elif not (_isaret_mi(h, lc) or _isaret_mi(a, lc)):
-                desteksiz.append(r)                   # B
+                continue
+            destek = _isaret_mi(h, lc) or _isaret_mi(a, lc)
+            # Takımlardan biri BAŞKA bir ligin işareti mi? Bu "bilgi yok"
+            # değil ÇELİŞKİ: Bayern Münih D1 işaretidir, satır SP1 kodlu.
+            # Bir maçın hem Bayern'i içerip hem La Liga olması mümkün değil.
+            baska = {lg for lg in ANA if lg != lc
+                     and (_isaret_mi(h, lg) or _isaret_mi(a, lg))}
+            if baska and not destek:
+                r["baska"] = ",".join(sorted(baska))
+                celiski.append(r)                     # B1
+            elif not destek:
+                desteksiz.append(r)                   # B2
 
         print(f"  A · KESİN YANLIŞ (kadın/genç/rezerv takım, erkek A-lig kodu)"
               f"  : {len(kesin):,}")
@@ -70,28 +80,38 @@ def denetle(duzelt: bool = False) -> dict:
         if len(kesin) > 12:
             print(f"       ... ve {len(kesin)-12} satır daha")
 
-        print(f"\n  B · DESTEKSİZ (iki takım da o ligin işareti değil)"
-              f"       : {len(desteksiz):,}")
-        for r in desteksiz[:10]:
+        print(f"\n  B1 · ÇELİŞKİLİ (takım BAŞKA bir ligin işareti)"
+              f"          : {len(celiski):,}")
+        for r in celiski[:10]:
+            print(f"       {r['d']} [{r['lc']}→{r.get('baska')}] "
+                  f"{str(r['h'])[:24]:24s} - {str(r['a'])[:24]}")
+        if len(celiski) > 10:
+            print(f"       ... ve {len(celiski)-10} satır daha")
+
+        print(f"\n  B2 · DESTEKSİZ (hiçbir takım hiçbir ligin işareti değil)"
+              f": {len(desteksiz):,}")
+        for r in desteksiz[:8]:
             print(f"       {r['d']} [{r['lc']}] {str(r['h'])[:26]:26s} - "
                   f"{str(r['a'])[:26]}")
-        if len(desteksiz) > 10:
-            print(f"       ... ve {len(desteksiz)-10} satır daha")
-        print("\n  B DÜZELTİLMEZ: işaret listemiz eksik olabilir (küçük "
-              "kulüpler listede yok). Yanlış kod kadar, doğru kodu silmek "
-              "de zarardır.")
+        if len(desteksiz) > 8:
+            print(f"       ... ve {len(desteksiz)-8} satır daha")
+        print("\n  B2 DÜZELTİLMEZ: işaret listemiz eksik olabilir (küçük "
+              "kulüpler listede yok). Yanlış kod kadar, doğru kodu silmek de "
+              "zarardır. A ve B1 düzeltilir — ikisi de KANITLI hata.")
 
-        if kesin and duzelt:
-            for r in kesin:
+        hatali = kesin + celiski
+        if hatali and duzelt:
+            for r in hatali:
                 conn.execute("UPDATE matches_v2 SET league_code='ALL' "
                              "WHERE match_id=?", (r["match_id"],))
             conn.commit()
-            print(f"\n✅ A grubundaki {len(kesin)} satır 'ALL' yapıldı — "
+            print(f"\n✅ A+B1'deki {len(hatali)} satır 'ALL' yapıldı — "
                   f"'bilmiyorum', yanlış bilmekten iyidir.")
-        elif kesin:
-            print("\n  (ölçüm — değişiklik yok · --duzelt ile A grubu 'ALL')")
+        elif hatali:
+            print(f"\n  (ölçüm — değişiklik yok · --duzelt ile A+B1 "
+                  f"({len(hatali)} satır) 'ALL' olur)")
         return {"toplam": len(rows), "kesin": len(kesin),
-                "desteksiz": len(desteksiz)}
+                "celiski": len(celiski), "desteksiz": len(desteksiz)}
     finally:
         conn.close()
 
