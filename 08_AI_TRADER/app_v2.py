@@ -126,6 +126,36 @@ def _conn():
     return _db.connect()
 
 
+def _sahadaki_ajanlar() -> set:
+    """PROFILES'ta olan ve EMEKLİ OLMAYAN portföyler.
+
+    ⚠️ Neden gerekli: sorgulardaki dönem koşulu
+        (pp.era_start IS NULL OR ... >= pp.era_start)
+    İZİN VERİCİ bir yedek ve HER ŞEYİ SIZDIRIYOR:
+      · ajan olmayan portföyler (PAPER_V1 arşiv, OPUS5_V1 gerçek
+        defter, KURUCU_V2) — era_start'ları NULL, koşul onları geçirir
+      · emekli ajanlar — dönem 2'de kaldılar, kendi era_start'larına
+        göre eski kuponları hâlâ "dönem içi" sayılır
+    Sonuç canlıda görüldü: Ajan Ligi "yürürlükteki dönem" diyor ama
+    kasa eğrisi MAYIS'a kadar uzanıyor ve NET −4.706 ₺ gösteriyordu;
+    KURUCU (ajan değil) Mavi Takım'da n=80 ile listeleniyordu.
+    """
+    try:
+        from agents import PROFILES as _AGP
+        return {k for k, v in _AGP.items() if not v.get("retired")}
+    except Exception:
+        return set()
+
+
+def _sahada_sql(kolon: str = "pb.portfolio_id") -> str:
+    """SQL parçası: yalnız sahadaki ajanlar. Boşsa filtre uygulanmaz."""
+    a = _sahadaki_ajanlar()
+    if not a:
+        return ""
+    return (" AND " + kolon + " IN (" +
+            ",".join("'" + x.replace("'", "") + "'" for x in sorted(a)) + ")")
+
+
 def _rows(sql: str, params: tuple = (), sessiz: bool = False) -> list[dict]:
     """Paylasilan baglanti uzerinden sorgu + bayatlarsa 1 tazeleme.
 
@@ -215,7 +245,8 @@ def load_agents() -> list[dict]:
         "SELECT pb.portfolio_id p, pb.odds o, pb.status s FROM paper_bets pb "
         "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
         "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
-        "AND (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)",
+        "AND (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)"
+        + _sahada_sql("pb.portfolio_id"),
         sessiz=True)
     # EMEKLİ ajanlar tabloda görünmez: yeni bahis üretmiyorlar, sıralamada
     # yer tutmaları "kime güvenirim" sorusunu bulandırır. Geçmişleri
@@ -1127,8 +1158,11 @@ def load_lig() -> dict:
     arsiv = [x for x in tum if x["pid"] in _emekli]
     tum = [x for x in tum if x["pid"] not in _emekli]
 
+    # ⚠️ AJAN OLMAYAN PORTFOYLER: PAPER_V1 (arsiv), OPUS5_V1 (gercek
+    # para defteri), KURUCU_V2 (kurucu portfoyu). KURUCU listede yoktu
+    # ve Mavi Takim'da n=80 ile "KADRO DISI" olarak goruunuyordu.
     mavi = [x for x in tum if x["pid"] not in KIRMIZI
-            and x["pid"] not in ("PAPER_V1", "OPUS5_V1")]
+            and x["pid"] not in ("PAPER_V1", "OPUS5_V1", "KURUCU_V2")]
     kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
     mavi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
     kirmizi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
@@ -1600,6 +1634,7 @@ def load_egri() -> dict:
         "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
         "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
         "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        + _sahada_sql("pc.portfolio_id") + " "
         "ORDER BY pc.settled_at", sessiz=True)
     if len(rows) < 10:
         return {"n": len(rows)}
@@ -1760,6 +1795,7 @@ def load_ajan_egri() -> dict:
         "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
         "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
         "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        + _sahada_sql("pc.portfolio_id") + " "
         "ORDER BY pc.settled_at", sessiz=True)
     by: dict = {}
     for r in rows:
@@ -2038,6 +2074,7 @@ def load_egri_ham() -> list[dict]:
         "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
         "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
         "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        + _sahada_sql("pc.portfolio_id") + " "
         "ORDER BY pc.settled_at", sessiz=True)
 
 
@@ -2736,7 +2773,7 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
     body = []
     for i, a in enumerate(rows, 1):
         if a["n"] == 0:
-            g, txt = "g2", "SESSİZ"
+            g, txt = "g2", "BEKLİYOR"
         elif a["perfect"]:
             g, txt = "g2", "ÖLÇÜLEMEZ"
         elif a["t"] is None:
