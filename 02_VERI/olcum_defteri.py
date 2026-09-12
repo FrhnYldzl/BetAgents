@@ -184,6 +184,102 @@ def m_k_beceri(conn) -> dict:
     }
 
 
+def m_sidak_kapisi(conn) -> dict:
+    """SEÇİM YANLILIĞI — kaç ajan Šidák eşiğini geçiyor?
+
+    Kaynak: TAHMİN SİSTEMİ v3 §1.4 ve §3.4.
+
+    Sorun şu: m ajan test edip en iyisini seçmek, seçilenin
+    performansını yukarı saptırır. Bu örneklem gürültüsünden AYRI ve
+    ondan daha sinsi bir problemdir — hiçbir ajanın gerçek edge'i
+    olmasa bile, yeterince ajan denenirse birkaçı TESADÜFEN mükemmel
+    görünür. Sistem bu cezayı hiç ödemiyordu: bir ajan "İYİ" hükmü
+    alırken kaç ajan arasından seçildiği hesaba girmiyordu.
+
+    Düzeltme iki katmanlı:
+      1. α_ajan = 1 − (1 − α_aile)^(1/m)          (Šidák)
+      2. m yerine ETKİN ajan sayısı: m/(1+(m−1)ρ)  (§3.4)
+         Korelasyonlu ajanlar tek ajan gibi davranır; nominal sayı
+         kullanmak cezayı olduğundan AĞIR yapar.
+
+    Eşik her ajanın KENDİ fiyatına göre: p₀ = ortalama(1/oran).
+    Soru "isabet yüksek mi" değil, "fiyatın beklediğinden anlamlı
+    yüksek mi" — tek yönlü tam binom testi.
+    """
+    import kanit as K
+
+    rows = conn.execute(
+        "SELECT pb.portfolio_id p, pb.odds o, pb.status st, "
+        "m.matchday d, m.home_team h, m.away_team a, pb.market mk, pb.pick pk "
+        "FROM paper_bets pb JOIN matches_v2 m ON m.match_id = pb.match_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
+        "AND (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)"
+    ).fetchall()
+    if not rows:
+        return {"n": 0, "yetersiz": True}
+
+    # emekli ajanlar sayılmaz: bugünün kararını etkilemiyorlar
+    try:
+        from agents import PROFILES
+        aktif = {k for k, v in PROFILES.items() if not v.get("retired")}
+    except Exception:
+        aktif = set()
+
+    by: dict = {}
+    sec: dict = {}
+    for x in rows:
+        r = dict(x)
+        p = r["p"]
+        if aktif and p not in aktif:
+            continue
+        by.setdefault(p, []).append(r)
+        sec.setdefault(p, set()).add(
+            (r["d"], r["h"], r["a"], r["mk"], r["pk"]))
+    if not by:
+        return {"n": 0, "yetersiz": True}
+
+    # ── ρ: tüm ajan çiftlerinin ortalama örtüşmesi ──
+    ajanlar = sorted(by)
+    oranlar = []
+    for i, x in enumerate(ajanlar):
+        for y in ajanlar[i + 1:]:
+            A, B = sec[x], sec[y]
+            kucuk = min(len(A), len(B))
+            if kucuk < 8:
+                continue
+            oranlar.append(len(A & B) / kucuk)
+    ro = (sum(oranlar) / len(oranlar)) if oranlar else 0.0
+
+    m = len(ajanlar)
+    m_etkin = K.etkin_ajan(m, ro)
+    alpha = K.sidak_alpha(max(round(m_etkin), 1))
+
+    gecen, olculen = 0, 0
+    for p, v in by.items():
+        n = len(v)
+        if n < 10:                       # 10 altında eşik anlamsız
+            continue
+        olculen += 1
+        won = sum(1 for z in v if z["st"] == "won")
+        p0 = sum(1.0 / float(z["o"]) for z in v) / n
+        g = K.gereken_isabet(n, p0, alpha)
+        if g and g[1] <= 1.0 and (won / n) >= g[1]:
+            gecen += 1
+
+    return {
+        "n": len(rows), "deger": float(gecen),
+        "detay": (f"{m} ajan · ortalama örtüşme ρ={ro*100:.0f}% → "
+                  f"ETKİN {m_etkin:.1f} ajan · ajan güveni "
+                  f"{(1-alpha)*100:.2f}% · ölçülen {olculen} ajandan "
+                  f"{gecen}'i eşiği geçiyor"),
+        # ⚠️ KURAL: en az BİR ajan Šidák eşiğini geçmeli. Geçmiyorsa
+        # "hangi ajan iyi" sorusunun cevabı yok — seçim yanlılığı
+        # düzeltildikten sonra hiçbiri kanıtlanmış değil.
+        "gecti": gecen >= 1,
+    }
+
+
 def m_ucuz_bolge_kapisi(conn) -> dict:
     """q>=%55 kapısı gerçekten kazandırıyor mu? (31.08 testinde HAYIR:
     ajanlar zaten orada, kapı -1.2 puan zarar veriyordu.)"""
@@ -476,6 +572,14 @@ FINDINGS = {
         "hedef": "Ekim 2026 · iddaa fiyatları 6+ ay olunca",
         "onceki": "+13,6 puan (31.08.2026, 16.137 seçim, örnek-dışı YOK)",
         "fn": m_marj_haritasi, "agir": False,
+    },
+    "SIDAK_KAPISI": {
+        "baslik": "Seçim yanlılığı düzeltildikten sonra kaç ajan ayakta",
+        "kural": "en az BİR ajan Šidák eşiğini geçmeli · geçmezse "
+                 "'hangi ajan iyi' sorusunun cevabı YOK",
+        "hedef": "ajan başına n ≥ 200 (belge §2.7)",
+        "onceki": "ilk ölçüm (12.09.2026) · kaynak: TAHMİN SİSTEMİ v3 §1.4",
+        "fn": m_sidak_kapisi, "agir": False,
     },
     "K_BECERI": {
         "baslik": "Beceri katsayısı k — edge sıralaması bilgi taşıyor mu",

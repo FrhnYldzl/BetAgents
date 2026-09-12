@@ -1136,6 +1136,57 @@ def load_lig() -> dict:
     return {"mavi": mavi, "kirmizi": kirmizi, "arsiv": arsiv}
 
 
+@st.cache_data(ttl=240, show_spinner=False)
+def load_kanit() -> dict:
+    """KANIT KAPISI — Šidák eşiği, etkin ajan sayısı, CLV bölgesi.
+
+    Kaynak: kullanıcının TAHMİN SİSTEMİ v3 belgesi §1.4, §1.5, §3.4.
+    Sistem bu üç hesabı YAPMIYORDU: ajan "İYİ" hükmü alırken çoklu
+    karşılaştırma cezası ödenmiyordu, CLV ölçülüp karara bağlanmıyordu,
+    ajan sayısı bağımsızlık varsayımıyla sayılıyordu.
+
+    §1.4'ün özü şu: hiçbir ajanın gerçek edge'i olmasa bile 20 ajandan
+    birkaçı TESADÜFEN mükemmel görünür. O yüzden eşik, kaç ajan test
+    edildiğine göre yükselir. Ve §3.4: korelasyonlu ajanlar tek ajan
+    gibi davranır, yani asıl soru "kaç ajan" değil "kaç BAĞIMSIZ ajan".
+    """
+    import kanit as K
+    ags = load_agents()
+    if not ags:
+        return {}
+    ck = load_cakisma() or {}
+    m = len([a for a in ags if not a.get("bekliyor")]) or len(ags)
+    ro = float(ck.get("ro") or 0.0)
+    m_etkin = K.etkin_ajan(m, ro)
+    # ⚠️ Eşik ETKİN ajan sayısına göre — nominal sayıya göre değil.
+    # Nominal kullanmak cezayı OLDUĞUNDAN AĞIR yapar (kopyalar ayrı
+    # hipotez sayılır); etkin sayı doğru olanı verir.
+    alpha = K.sidak_alpha(max(round(m_etkin), 1))
+
+    satir = []
+    for a in ags:
+        if a.get("bekliyor") or a["n"] <= 0:
+            satir.append({"ad": a["ad"], "pid": a["pid"], "n": 0,
+                          "hit": None, "p0": None, "ger": None,
+                          "gecti": None})
+            continue
+        g = K.gereken_isabet(a["n"], a["exp"], alpha)
+        ger = g[1] if g else None
+        satir.append({
+            "ad": a["ad"], "pid": a["pid"], "n": a["n"],
+            "hit": a["hit"], "p0": a["exp"], "ger": ger,
+            "gecti": (a["hit"] >= ger) if ger is not None and ger <= 1 else False,
+        })
+
+    cl = _rows("SELECT COUNT(*) n, AVG(clv) ort FROM paper_bets "
+               "WHERE clv IS NOT NULL", sessiz=True)
+    c_n = int(cl[0]["n"] or 0) if cl else 0
+    c_ort = float(cl[0]["ort"]) if (cl and cl[0]["ort"] is not None) else None
+    return {"m": m, "ro": ro, "m_etkin": m_etkin, "alpha": alpha,
+            "satir": satir, "clv": K.clv_kapisi(c_ort, c_n),
+            "cift": int(ck.get("cift_sayisi") or 0)}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_defter() -> list[dict]:
     """Ölçüm defteri — her bulgunun son hükmü + değişim geçmişi."""
@@ -1821,7 +1872,7 @@ def load_defter_denetim() -> list[dict]:
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def load_cakisma() -> list[dict]:
+def load_cakisma() -> dict:
     """AJAN ÇAKIŞMASI — kaç ajan gerçekten farklı bir şey yapıyor?
 
     ⚠️ Denetimde canlı kanıt bulundu: MEMUR ve TEMKİNLİ'nin açık kuponu
@@ -1848,13 +1899,22 @@ def load_cakisma() -> list[dict]:
         "WHERE (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)",
         sessiz=True)
     if not rows:
-        return []
+        return {"ciftler": [], "ro": 0.0, "m": 0, "cift_sayisi": 0}
     kume: dict = {}
     for r in rows:
         kume.setdefault(r["p"], set()).add(
             (r["d"], r["h"], r["a"], r["mk"], r["pk"]))
+    # Yalniz SAHADAKI ajanlar — emeklinin cakismasi bugunun kararini
+    # etkilemez ve ortalama ρ'yu bozar.
+    try:
+        from agents import PROFILES as _AGP
+        _aktif = {k for k, v in _AGP.items() if not v.get("retired")}
+        if _aktif:
+            kume = {k: v for k, v in kume.items() if k in _aktif}
+    except Exception:
+        pass
     ajanlar = sorted(kume, key=lambda p: -len(kume[p]))
-    out = []
+    out, tum_oran = [], []
     for i, x in enumerate(ajanlar):
         for y in ajanlar[i + 1:]:
             ax, ay = kume[x], kume[y]
@@ -1863,11 +1923,17 @@ def load_cakisma() -> list[dict]:
                 continue
             ortak = len(ax & ay)
             oran = ortak / kucuk
+            tum_oran.append(oran)      # ORTALAMA icin HEPSI sayilir
             if oran >= 0.35:
                 out.append({"a": x, "b": y, "ortak": ortak,
                             "na": len(ax), "nb": len(ay), "oran": oran})
     out.sort(key=lambda z: -z["oran"])
-    return out
+    # ⚠️ Ortalama ρ, ETKİN AJAN SAYISI hesabının girdisi (belge §3.4).
+    # Panelde gösterilen eşiğin (%35) üstündekiler değil, TÜM çiftlerin
+    # ortalaması alınır — eşik sunum içindir, hesap için değil.
+    ro = (sum(tum_oran) / len(tum_oran)) if tum_oran else 0.0
+    return {"ciftler": out, "ro": ro, "m": len(ajanlar),
+            "cift_sayisi": len(tum_oran)}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2952,7 +3018,8 @@ def page_lig() -> None:
                 unsafe_allow_html=True)
 
     # ── AJAN ÇAKIŞMASI ────────────────────────────────────────
-    ck = load_cakisma()
+    _ckd = load_cakisma() or {}
+    ck = _ckd.get("ciftler") or []
     if ck:
         sat = []
         for x in ck[:12]:
@@ -3050,6 +3117,91 @@ def page_defter() -> None:
             "<td class='r n'>" + _num(r["v"], 3) + " " + tr + "</td>"
             "<td class='r n opt'>" + str(r["kosu"]) + "</td>"
             "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
+    # ── KANIT KAPISI ──────────────────────────────────────────
+    kn = load_kanit()
+    if kn:
+        _gecen = sum(1 for x in kn["satir"] if x["gecti"])
+        _olculen = sum(1 for x in kn["satir"] if x["n"] > 0)
+        ksat = []
+        for x in kn["satir"]:
+            if x["n"] == 0:
+                ksat.append(
+                    "<tr><td><span class='ag'>" + _rozet(x["pid"]) + x["ad"] +
+                    "</span><span class='sb'>henüz bahis kurmadı</span></td>"
+                    "<td class='r n'>0</td><td class='r n'>—</td>"
+                    "<td class='r n'>—</td><td class='r n'>—</td>"
+                    "<td class='r'><span class='gr g2'>BEKLİYOR</span>"
+                    "</td></tr>")
+                continue
+            imk = x["ger"] is None or x["ger"] > 1
+            g = "g1" if x["gecti"] else ("g2" if imk else "g3")
+            txt = ("GEÇTİ" if x["gecti"] else
+                   ("VERİ YETMEZ" if imk else "GEÇMEDİ"))
+            ksat.append(
+                "<tr><td><span class='ag'>" + _rozet(x["pid"]) + x["ad"] +
+                "</span><span class='sb'>fiyat " + _pct(x["p0"]) +
+                " bekliyor</span></td>"
+                "<td class='r n'>" + str(x["n"]) + "</td>"
+                "<td class='r n'>" + _pct(x["hit"]) + "</td>"
+                "<td class='r n'>" + _pct(x["p0"]) + "</td>"
+                "<td class='r n'>" +
+                ("imkânsız" if imk else _pct(x["ger"])) + "</td>"
+                "<td class='r'><span class='gr " + g + "'>" + txt +
+                "</span></td></tr>")
+        _c = kn["clv"]
+        st.markdown(
+            "<div class='v2card' style='margin-bottom:var(--s5);'>"
+            "<div class='v2head'><h2>Kanıt Kapısı</h2>"
+            "<div class='hint'>seçim yanlılığı düzeltilmiş</div></div>"
+            "<div class='v2body'>"
+            "<div class='" + ("dq" if not _gecen else "v2mb") + "'>"
+            "<b>Karar: bir ajanın iyi görünmesi yeterli mi?</b> Hayır. "
+            "Hiçbir ajanın gerçek üstünlüğü olmasa bile, yeterince ajan "
+            "test edilirse <b>birkaçı tesadüfen mükemmel görünür</b>. "
+            "O yüzden eşik, kaç ajan denendiğine göre yükselir "
+            "(Šidák düzeltmesi). Ve korelasyonlu ajanlar tek ajan gibi "
+            "davrandığı için sayılan şey <b>bağımsız</b> ajan sayısıdır."
+            + ("" if not _olculen else
+               (" Şu an ölçülen " + str(_olculen) + " ajandan <b>" +
+                str(_gecen) + "</b> tanesi eşiği geçiyor.")) +
+            "</div>"
+            "<div class='v2kpi-satir' style='display:flex;flex-wrap:wrap;"
+            "gap:var(--s3) var(--s5);margin-bottom:var(--s3);'>"
+            "<div class='v2kpi'><span>Sahada ajan</span><b>" +
+            str(kn["m"]) + "</b></div>"
+            "<div class='v2kpi'><span>Ortalama örtüşme ρ</span><b>" +
+            _num(kn["ro"] * 100, 0) + "%</b></div>"
+            "<div class='v2kpi'><span>Etkin ajan</span><b class='" +
+            ("ng" if kn["m_etkin"] < kn["m"] * 0.7 else "") + "'>" +
+            _num(kn["m_etkin"], 1) + "</b></div>"
+            "<div class='v2kpi'><span>Ajan güveni</span><b>" +
+            _num((1 - kn["alpha"]) * 100, 2) + "%</b></div>"
+            "</div>"
+            "<table class='v2'><thead><tr><th>Ajan</th>"
+            "<th class='r'>n</th><th class='r'>İsabet</th>"
+            "<th class='r'>Fiyat bekler</th><th class='r'>Gereken</th>"
+            "<th class='r'>Kapı</th></tr></thead><tbody>" +
+            "".join(ksat) + "</tbody></table>"
+            "<div class='sb' style='margin-top:10px;'>Eşik her ajanın "
+            "<b>kendi fiyatına</b> göre: p₀ = ortalama(1/oran). Soru "
+            "&ldquo;isabet yüksek mi&rdquo; değil, <b>fiyatın "
+            "beklediğinden anlamlı yüksek mi</b>. Tek yönlü tam binom "
+            "testi, " + str(kn["cift"]) + " ajan çifti üzerinden ölçülen "
+            "ρ ile düzeltilmiş.</div>"
+            "<div class='ro big' style='margin-top:var(--s4);'>"
+            "<span>CLV kapısı</span><b class='" + _c.get("cls", "") + "'>" +
+            _c.get("bolge", "—") + "</b></div>"
+            "<div class='vd' style='margin-top:var(--s3);'>" +
+            ("ortalama <b>" + ("+" if (_c.get("ort") or 0) >= 0 else "−") +
+             _num(abs(_c.get("ort") or 0) * 100, 2) + "%</b> · n=" +
+             "{:,}".format(_c.get("n", 0)).replace(",", ".") + " — "
+             if _c.get("ort") is not None else "") +
+            _c.get("not", "") +
+            ("" if _c.get("yeterli") else
+             " <b>Not: bu hüküm 200+ bahis ister; örneklem henüz orada "
+             "değilse yön göstergesidir, karar değil.</b>") +
+            "</div></div></div>", unsafe_allow_html=True)
+
     st.markdown(
         "<div class='v2card'><div class='v2head'><h2>Ölçüm Defteri</h2>"
         "<div class='hint'>KAYIT — " + str(gecen) + "/" + str(len(rows)) +
