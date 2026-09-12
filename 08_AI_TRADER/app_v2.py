@@ -3783,8 +3783,53 @@ def _hikaye_rayi() -> None:
                     unsafe_allow_html=True)
 
 
+def _db_kapali(hata: Exception) -> None:
+    """Veritabanı yanıt vermiyor — BEYAZ SAYFA DEĞİL, teşhis göster.
+
+    ⚠️ 12 Eylül 2026: Railway proxy'sinin TCP portu açık cevap veriyordu
+    ama PostgreSQL el sıkışması hiç dönmüyordu. Uygulama dakikalarca
+    bekledi ve kullanıcı bembeyaz bir sayfa gördü — "çalışan sistemin
+    içine ettik" hissinin kaynağı buydu. Oysa KOD sağlamdı; ulaşılamayan
+    şey veritabanıydı. Bir ürün, bağımlılığı düştüğünde SUSMAMALI."""
+    import re as _re
+    _u = ""
+    try:
+        import db as _d
+        _u = _re.sub(r":[^:@]+@", ":***@", _d.database_url())
+    except Exception:
+        pass
+    st.markdown(
+        "<div class='v2ust'><div class='marka'><div class='mark'>BA</div>"
+        "<div><b>BetAgents</b><span>Desk · v2</span></div></div></div>"
+        "<div class='v2card' style='max-width:780px;margin:var(--s6) auto;'>"
+        "<div class='v2head'><h2>Veritabanına ulaşılamıyor</h2>"
+        "<div class='hint'>uygulama ayakta · veri yok</div></div>"
+        "<div class='v2body'>"
+        "<div class='dq'><b>Kod çalışıyor, veritabanı cevap vermiyor.</b> "
+        "Bu bir uygulama hatası değil — bağlantı kurulamadı. Sayfa "
+        "beklemek yerine bunu söylüyor.</div>"
+        "<div class='vd' style='margin-top:var(--s3);'>"
+        "<b>Ne kontrol edilmeli</b><br>"
+        "1 · Railway panelinde <b>Postgres servisi ayakta mı</b><br>"
+        "2 · Bağlantı kotası dolmuş olabilir — servisi yeniden başlatmak "
+        "boştaki bağlantıları serbest bırakır<br>"
+        "3 · <code>DATABASE_URL</code> değişkeni değişti mi</div>"
+        "<div class='sb' style='margin-top:var(--s3);'>Denenen: " +
+        (_u or "—") + "<br>Hata: " + str(hata)[:160] + "</div>"
+        "</div></div>", unsafe_allow_html=True)
+
+
 def main() -> None:
     st.markdown(V2_CSS, unsafe_allow_html=True)
+    # Veri katmanı ayakta mı — SAYFA ÇİZİLMEDEN önce tek ucuz sorgu.
+    # Düşükse teşhis göster ve çık; her panelin ayrı ayrı zaman aşımına
+    # uğramasını beklemek dakikalar sürüyordu.
+    try:
+        _conn().execute("SELECT 1").fetchall()
+    except Exception as _e:
+        _conn.clear()
+        _db_kapali(_e)
+        return
     if "v2_page" not in st.session_state:
         st.session_state["v2_page"] = "Karar Masası"
 

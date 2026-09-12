@@ -397,13 +397,24 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
         # Railway iç-DNS (postgres.railway.internal) ara sıra anlık çözülemez →
         # geçici OperationalError'da kısa bekleyip TEKRAR DENE. Başarılı bağlantı
         # anında döner (sleep yok); yalnız hata olunca backoff.
+        # ⚠️ HIZLI BAŞARISIZLIK — sonsuz bekleme DEĞİL.
+        # 12 Eylül 2026'da yaşandı: Railway proxy'sinin TCP portu AÇIK
+        # cevap veriyordu (0,2 sn) ama PostgreSQL el sıkışması hiç
+        # dönmüyordu. Eski ayar 4 deneme × 15 sn = 60 sn+ bekliyor,
+        # üstüne _rows iki kez deniyordu: kullanıcı DAKİKALARCA bembeyaz
+        # sayfa görüyor ve "sistem bozuldu" sanıyordu.
+        # Bir veritabanı 6 saniyede cevap vermiyorsa 60 saniyede de
+        # vermez. Uygulama BEKLEMEK yerine DERDİNİ SÖYLEMELİ.
+        # Ortam değişkeniyle ayarlanabilir (worker daha sabırlı olabilir).
+        _zaman = int(os.environ.get("DB_CONNECT_TIMEOUT", "6"))
+        _deneme = int(os.environ.get("DB_CONNECT_RETRIES", "2"))
         last = None
-        for attempt in range(4):
+        for attempt in range(_deneme):
             try:
                 raw = psycopg2.connect(
                     url,
                     cursor_factory=psycopg2.extras.DictCursor,
-                    connect_timeout=15,
+                    connect_timeout=_zaman,
                     keepalives=1, keepalives_idle=30,
                     keepalives_interval=10, keepalives_count=5,
                 )
@@ -417,8 +428,8 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
                 return Conn(raw, is_pg=True)
             except psycopg2.OperationalError as exc:
                 last = exc
-                if attempt < 3:
-                    time.sleep(0.7 * (attempt + 1))   # 0.7s, 1.4s, 2.1s
+                if attempt < _deneme - 1:
+                    time.sleep(0.7 * (attempt + 1))
         # tüm denemeler başarısız → açıklayıcı hata (şifre gizli)
         import re as _re
         safe_url = _re.sub(r":[^:@]+@", ":***@", url)

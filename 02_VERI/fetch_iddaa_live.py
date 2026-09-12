@@ -105,7 +105,10 @@ TEAM_MARKERS = {
            "kasımpaşa","alanyaspor","antalyaspor","konyaspor","kayserispor",
            "rizespor","samsunspor","göztepe","eyüpspor","gaziantep",
            "kocaelispor","gençlerbirliği","karagümrük"],
-    "E0": ["manchester city","manchester utd","liverpool","chelsea","arsenal",
+    # ⚠️ "manchester utd" veride "Manchester United" olarak geliyordu ve
+    # HIC eslesmiyordu: Premier Lig maci "Premier Lig degil" sayiliyordu.
+    # "manchester" ikisini de yakalar, ikisi de E0 — guvenli genelleme.
+    "E0": ["manchester","liverpool","chelsea","arsenal",
            "tottenham","everton","newcastle","aston villa","west ham",
            "brighton","fulham","brentford","crystal palace","wolverhampton",
            "nottingham forest","sunderland","leeds","burnley","bournemouth"],
