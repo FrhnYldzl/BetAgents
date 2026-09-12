@@ -241,9 +241,23 @@ def load_agents() -> list[dict]:
             continue
         by.setdefault(r["p"], []).append(r)
     out = []
-    for pid, v in by.items():
+    # ⚠️ SAHADAKI HER AJAN LISTEDE OLMALI — oynamis olsun ya da olmasin.
+    # Kullanici "EUVOX'u goremiyorum" dedi ve hakliydi: tablo yalniz
+    # kapanmis bahsi OLAN ajanlari gosteriyordu (n<5 atiliyordu). EUVOX
+    # donem 3'te henuz bahis kurmadi (lig kisitli, ligleri arada) ve
+    # tamamen kayboldu. Kullanici acisindan "kadroda ama bekliyor" ile
+    # "gitti" ayirt edilemez hale geldi — bu bir guven sorunudur.
+    # Artik sahadaki her ajan n=0 ile de gorunur, hukmu BEKLIYOR olur.
+    for pid in (_sahada or set(by)):
+        v = by.get(pid, [])
         n = len(v)
-        if n < 5:
+        if n == 0:
+            out.append({
+                "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
+                "n": 0, "hit": 0.0, "exp": 0.0, "edge": 0.0,
+                "odds": 0.0, "skill": 0.0, "t": None, "perfect": False,
+                "bekliyor": True,
+            })
             continue
         won = sum(1 for x in v if x["s"] == "won")
         hit = won / n
@@ -259,8 +273,10 @@ def load_agents() -> list[dict]:
             "n": n, "hit": hit, "exp": exp, "edge": hit - exp,
             "odds": sum(float(x["o"]) for x in v) / n,
             "skill": skill, "t": t, "perfect": perfect,
+            "bekliyor": False,
         })
-    out.sort(key=lambda z: -z["edge"])
+    # Oynayanlar ustte (uste gore siralı), bekleyenler altta.
+    out.sort(key=lambda z: (z["bekliyor"], -z["edge"]))
     return out
 
 
@@ -1088,18 +1104,36 @@ def load_lig() -> dict:
                 "odds": (sum(float(x["o"]) for x in v) / n) if n else 0.0}
 
     tum = [kur(p, v) for p, v in by.items()]
-    # hic bahsi olmayan (ornegin susan kirmizi ajanlar) da listede dursun
+    # ⚠️ SAHADAKI HER AJAN LISTEDE — oynamis olsun ya da olmasin.
+    # Kullanici "EUVOX'u goremiyorum" dedi: lig kisitli oldugu icin donem
+    # 3'te henuz bahis kurmadi ve tablodan tamamen dustu. "Kadroda ama
+    # bekliyor" ile "gitti" ayirt edilemez hale geliyor.
+    _aktif: set = set()
+    _emekli: set = set()
+    try:
+        from agents import PROFILES as _AGP
+        _aktif = {k for k, v in _AGP.items() if not v.get("retired")}
+        _emekli = {k for k, v in _AGP.items() if v.get("retired")}
+    except Exception:
+        pass
     for p in kasa:
-        # dönem içi kapanmış bahsi olmayan ama AÇIK pozisyonu olan ajan da
-        # listede görünmeli — "oynamadı" ile "henüz sonuçlanmadı" farklıdır
-        if p not in by and (p in KIRMIZI or p in acik):
+        if p not in by and (p in _aktif or p in KIRMIZI or p in acik):
             tum.append(kur(p, []))
+
+    # ⚠️ EMEKLILER ARSIVE — kullanici "listeyi kalabalik gosteriyor" dedi.
+    # Emekli ajan yeni bahis uretmiyor; siralamada yer tutmasi "kime
+    # guvenirim" sorusunu bulandirir. Ama SILINMIYOR: gecmisi arsivde
+    # duruyor ve ayri bir bolumde okunabiliyor.
+    arsiv = [x for x in tum if x["pid"] in _emekli]
+    tum = [x for x in tum if x["pid"] not in _emekli]
+
     mavi = [x for x in tum if x["pid"] not in KIRMIZI
             and x["pid"] not in ("PAPER_V1", "OPUS5_V1")]
     kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
-    mavi.sort(key=lambda z: -z["edge"])
-    kirmizi.sort(key=lambda z: -z["edge"])
-    return {"mavi": mavi, "kirmizi": kirmizi}
+    mavi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
+    kirmizi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
+    arsiv.sort(key=lambda z: -z["edge"])
+    return {"mavi": mavi, "kirmizi": kirmizi, "arsiv": arsiv}
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2054,7 +2088,11 @@ def page_desk() -> None:
                 break
         body = []
         for i, a in enumerate(ags, 1):
-            if a["perfect"]:
+            if a.get("bekliyor"):
+                g, txt = "g2", "BEKLİYOR"
+            elif a["n"] < KANIT_ESIGI:
+                g, txt = "g2", "ÖLÇÜLEMEZ"
+            elif a["perfect"]:
                 g, txt = "g2", "ÖLÇÜLEMEZ"
             elif a["t"] is None:
                 g, txt = "g2", "GÜRÜLTÜ"
@@ -2070,11 +2108,17 @@ def page_desk() -> None:
             body.append(
                 f"<tr{adv}><td class='rk'>{i}</td>"
                 f"<td><span class='ag'>{_rozet(a['pid'])}{a['ad']}</span>"
-                f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>"
-                f"<td class='r n opt dar'>{_pct(a['hit'])}</td>"
-                f"<td class='r n opt dar'>{_pct(a['exp'])}</td>"
-                f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
-                f"{_sgn(a['edge'])}</span></td>"
+                + (f"<span class='sb'>henüz bahis kurmadı</span></td>"
+                   if a.get("bekliyor") else
+                   f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>")
+                + (f"<td class='r n opt dar'>—</td>"
+                   f"<td class='r n opt dar'>—</td>"
+                   f"<td class='r'><span class='sb'>—</span></td>"
+                   if a.get("bekliyor") else
+                   f"<td class='r n opt dar'>{_pct(a['hit'])}</td>"
+                   f"<td class='r n opt dar'>{_pct(a['exp'])}</td>"
+                   f"<td class='r'><span class='{'dp' if a['edge']>=0.005 else 'dm'}'>"
+                   f"{_sgn(a['edge'])}</span></td>") +
                 f"<td class='r'><span class='gr {g}'>{txt}</span></td></tr>")
         # ── RASTGELE KONTROL ÇİZGİSİ ─────────────────────────────
         # ⚠️ Denetim bulgusu K1'in üçüncü ayağı: JOKER bir AJAN DEĞİL,
@@ -2887,6 +2931,25 @@ def page_lig() -> None:
         st.rerun()
     if st.session_state["v2_ajan"]:
         _ajan_paneli(st.session_state["v2_ajan"], d)
+
+    # ── ARŞİV — emekli ajanlar ────────────────────────────────
+    # Kullanıcı: "Emekli ajanları arşiv gibi bir şeye alalım, listeyi
+    # kalabalık gösteriyor." Doğru: emekli ajan yeni bahis üretmiyor,
+    # sıralamada yer tutması "kime güvenirim" sorusunu bulandırır.
+    # SİLİNMİYOR — karnesi burada okunabiliyor, karar geri alınabilir.
+    _ar = d.get("arsiv") or []
+    if _ar:
+        with st.expander(f"Arşiv — emekli {len(_ar)} ajan  ·  "
+                         f"dönem 3 tasfiyesi", expanded=False):
+            st.markdown(
+                "<div class='v2mb'>Bu ajanlar <b>yeni bahis üretmiyor</b>. "
+                "Karneleri burada duruyor çünkü <b>silmek ölçümü yok "
+                "etmektir</b> — bir kararı geri almak için de, neden "
+                "verildiğini görmek için de bu satırlara ihtiyaç var. "
+                "Emeklilik bayrağı kaldırılırsa ajan sahaya döner.</div>" +
+                _takim_tablo(_ar, "Emekli Ajanlar",
+                             "dönem 3'te sahada değil", "#8a94a0"),
+                unsafe_allow_html=True)
 
     # ── AJAN ÇAKIŞMASI ────────────────────────────────────────
     ck = load_cakisma()
