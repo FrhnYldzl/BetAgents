@@ -184,6 +184,115 @@ def m_k_beceri(conn) -> dict:
     }
 
 
+def m_izleme_kapisi(conn) -> dict:
+    """İZLEME — belge §3.7'nin iki devre kesicisi ölçülüyor mu.
+
+    Belge iki otomatik durdurma tetikleyicisi tanımlıyor:
+      1. KAYAN PENCEREDE CLV — son 100 bahiste ortalama CLV negatife
+         dönerse ajan askıya alınır. Gerekçe: CLV öncü göstergedir,
+         sonuçtan önce bozulur. Kâr eğrisi hâlâ yukarı bakarken CLV
+         aşağı dönmüşse edge çoktan kapanmıştır.
+      2. DÜŞÜŞ DEVRE KESİCİ — tepe noktadan %25 düşüşte TÜM sistem
+         durur. Gerekçe (§1.1): çarpımsal asimetri. %50 kayıptan
+         başabaşa dönmek %100 kazanç ister; düşüş getiriden
+         matematiksel olarak daha pahalıdır.
+
+    ⚠️ BU BULGU YALNIZ ÖLÇER, DURDURMAZ. Otomatik askıya alma canlı ve
+    geri alınması zor bir eylemdir; sistemin kendi sözleşmesi (taban
+    freni %50, ihtar, kadro dışı) farklı eşiklerle zaten çalışıyor.
+    Belgenin eşikleri DAHA SIKI — ikisi çakışmadan önce hangisinin
+    doğru olduğu ölçülmeli. O yüzden burada uyarı üretilir, eylem
+    değil.
+    """
+    # ── 1) sistem düşüşü: tepeden bugüne ──
+    # ⚠️ YÜRÜRLÜKTEKİ DÖNEM ve SAHADAKİ AJAN — ikisi birlikte.
+    # "era_start IS NULL OR ..." koşulu İZİN VERİCİ bir yedek: ajan
+    # olmayan portföyler (era_start NULL) ve emekli ajanlar (dönem 2'de
+    # kaldılar, kendi era_start'larına göre eski kuponları hâlâ "dönem
+    # içi") bu koşuldan GEÇER. İlk ölçümde tam bu oldu: dönem 3 kasası
+    # (11.868 ₺) dönem 2 kuponlarıyla karşılaştırıldı ve %48,4 düşüş
+    # çıktı. Kasa ile kupon AYNI evrenden olmalı.
+    kup = conn.execute(
+        "SELECT pc.settled_at sa, COALESCE(pc.pnl,0) pnl "
+        "FROM paper_coupons pc JOIN paper_portfolio pp "
+        "ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
+        "AND pp.era_no = (SELECT MAX(COALESCE(era_no,1)) "
+        "                 FROM paper_portfolio) "
+        "AND pp.era_start IS NOT NULL "
+        "AND pc.created_at >= pp.era_start "
+        "ORDER BY pc.settled_at").fetchall()
+    # ⚠️ DÜŞÜŞ KASAYA GÖRE ÖLÇÜLÜR, KÂR EĞRİSİNE GÖRE DEĞİL.
+    # İlk halim tepe'yi kümülatif PnL eğrisinin tepesi alıyordu ve o
+    # eğri SIFIRDAN başlıyor: +50'ye çıkıp −600'e düşen bir seri
+    # 650/50 = %1300 düşüş veriyordu. Canlıda %1293,7 çıktı ve saçma
+    # olduğu için yakalandı. Belgenin tanımı (§2.2) "tepe noktadan en
+    # derin kayıp" ve ölçek BANKROLL'dur: kasa = başlangıç + Σpnl.
+    ib = conn.execute(
+        "SELECT COALESCE(SUM(initial_bankroll),0) FROM paper_portfolio "
+        "WHERE era_no = (SELECT MAX(COALESCE(era_no,1)) "
+        "                FROM paper_portfolio)").fetchone()[0]
+    ib = float(ib or 0)
+    if ib <= 0:
+        return {"n": 0, "yetersiz": True}
+    kasa = ib
+    tepe, dus_oran = ib, 0.0
+    for r in kup:
+        kasa += float(dict(r)["pnl"] or 0)
+        tepe = max(tepe, kasa)
+        if tepe > 0:
+            dus_oran = max(dus_oran, (tepe - kasa) / tepe)
+
+    # ── 2) ajan başına kayan pencere CLV (son 100 bahis) ──
+    rows = conn.execute(
+        "SELECT pb.portfolio_id p, pb.clv, pb.kickoff_utc ko "
+        "FROM paper_bets pb JOIN paper_portfolio pp "
+        "ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.clv IS NOT NULL "
+        "AND pp.era_no = (SELECT MAX(COALESCE(era_no,1)) "
+        "                 FROM paper_portfolio) "
+        "AND pp.era_start IS NOT NULL "
+        "AND pb.kickoff_utc >= pp.era_start "
+        "ORDER BY pb.kickoff_utc").fetchall()
+    try:
+        from agents import PROFILES
+        aktif = {k for k, v in PROFILES.items() if not v.get("retired")}
+    except Exception:
+        aktif = set()
+    by: dict = {}
+    for r in rows:
+        d = dict(r)
+        if aktif and d["p"] not in aktif:
+            continue
+        by.setdefault(d["p"], []).append(float(d["clv"]))
+
+    bozuk, olculen = [], 0
+    for p, v in by.items():
+        pencere = v[-100:]
+        if len(pencere) < 20:            # 20 altında kayan pencere gürültü
+            continue
+        olculen += 1
+        ort = sum(pencere) / len(pencere)
+        if ort < 0:
+            bozuk.append((p.rsplit("_", 1)[0], ort, len(pencere)))
+
+    bozuk.sort(key=lambda z: z[1])
+    ayrinti = (f"en derin düşüş tepeden %{dus_oran*100:.1f} (eşik %25) · "
+               f"kasa {kasa:,.0f}/{ib:,.0f} ₺ · kayan pencere CLV "
+               f"ölçülen {olculen} ajan, negatif {len(bozuk)}")
+    if bozuk:
+        ayrinti += " → " + ", ".join(
+            f"{ad} {o*100:+.2f}% (n={n})" for ad, o, n in bozuk[:4])
+    # ⚠️ KURAL: sistem düşüşü %25'in ALTINDA ve hiçbir ajanın kayan
+    # pencere CLV'si negatif DEĞİL. İkisi birlikte — biri bozulmuşsa
+    # devre kesici konuşmalı.
+    return {
+        "n": len(rows), "deger": dus_oran * 100.0,
+        "detay": ayrinti,
+        "gecti": (dus_oran < 0.25) and (len(bozuk) == 0),
+    }
+
+
 def m_kapanis_tahmini(conn) -> dict:
     """KAPANIŞ ORANI ÖNGÖRÜLEBİLİR Mİ — belge §3.1'in sınavı.
 
@@ -608,6 +717,14 @@ FINDINGS = {
         "hedef": "Ekim 2026 · iddaa fiyatları 6+ ay olunca",
         "onceki": "+13,6 puan (31.08.2026, 16.137 seçim, örnek-dışı YOK)",
         "fn": m_marj_haritasi, "agir": False,
+    },
+    "IZLEME_KAPISI": {
+        "baslik": "Devre kesiciler — sistem düşüşü ve kayan pencere CLV",
+        "kural": "sistem düşüşü tepeden < %25 VE hiçbir ajanın son 100 "
+                 "bahiste CLV'si negatif değil",
+        "hedef": "her koşuda · belge §3.7 otomatik durdurma tetikleyicileri",
+        "onceki": "ilk ölçüm (12.09.2026) · kaynak: TAHMİN SİSTEMİ v3 §3.7",
+        "fn": m_izleme_kapisi, "agir": False,
     },
     "KAPANIS_TAHMINI": {
         "baslik": "Kapanış oranı açılıştan öngörülebilir mi (fiyat üstünlüğü)",
