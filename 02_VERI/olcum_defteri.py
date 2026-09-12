@@ -184,6 +184,42 @@ def m_k_beceri(conn) -> dict:
     }
 
 
+def m_kapanis_tahmini(conn) -> dict:
+    """KAPANIŞ ORANI ÖNGÖRÜLEBİLİR Mİ — belge §3.1'in sınavı.
+
+    Belge diyor ki: ajanlar MAÇ SONUCUNU tahmin ediyor, bu yanlış
+    hedeftir. Doğru hedef KAPANIŞ ORANI — maç sonucu ikili ve
+    gürültülü, kapanış oranı sürekli ve her maçta zengin sinyal verir.
+    "Kapanış oranını açılıştan daha iyi tahmin edebilen model, tanım
+    gereği fiyat üstünlüğüne sahiptir."
+
+    Bu bulgu o iddiayı YENİ AJAN KURMADAN sınar — yeni ajan aylık iş,
+    önce yönün mümkün olup olmadığı ölçülmeli.
+
+    ⚠️ Öngörülebilirlik KÂR DEĞİLDİR. Kapanışı bilmek, açılış fiyatını
+    yakalayabilmek ve marjı aşmak ayrı işlerdir. Bu bulgu CLV'nin
+    öngörülebilir olduğunu söyler — belgeye göre CLV edge'in gerçek
+    ölçütüdür, ama tek başına marjı yenmez.
+    """
+    import kapanis_tahmini as KT
+    r = KT.olc(conn)
+    if r.get("yetersiz"):
+        return {"n": r.get("n", 0), "yetersiz": True}
+    # ⚠️ KURAL: ÖRNEK-DIŞI yön isabeti > %55 VE hata iyileşmesi > %3.
+    # İkisi birlikte şart: yön doğru ama iyileşme yoksa büyüklük
+    # yanlıştır; iyileşme var ama yön şanssa model gürültüyü
+    # düzleştiriyordur, bilgi taşımıyordur.
+    gecti = (r["yon"] > 0.55) and (r["iyilesme"] > 0.03)
+    return {
+        "n": r["n"], "deger": r["deger"],
+        "detay": (f"sınav dilimi n={r['sinav']:,} · yön isabeti "
+                  f"{r['yon']*100:.1f}% (şans %50) · MAE "
+                  f"{r['taban_mae']*100:.2f}% → {r['model_mae']*100:.2f}% "
+                  f"(iyileşme {r['iyilesme']*100:+.1f}%)"),
+        "gecti": gecti,
+    }
+
+
 def m_sidak_kapisi(conn) -> dict:
     """SEÇİM YANLILIĞI — kaç ajan Šidák eşiğini geçiyor?
 
@@ -572,6 +608,14 @@ FINDINGS = {
         "hedef": "Ekim 2026 · iddaa fiyatları 6+ ay olunca",
         "onceki": "+13,6 puan (31.08.2026, 16.137 seçim, örnek-dışı YOK)",
         "fn": m_marj_haritasi, "agir": False,
+    },
+    "KAPANIS_TAHMINI": {
+        "baslik": "Kapanış oranı açılıştan öngörülebilir mi (fiyat üstünlüğü)",
+        "kural": "örnek-dışı yön isabeti > %55 VE hata iyileşmesi > %3 · "
+                 "ikisi birlikte şart",
+        "hedef": "her koşuda · iddaa fiyat geçmişi biriktikçe güçlenir",
+        "onceki": "ilk ölçüm (12.09.2026) · kaynak: TAHMİN SİSTEMİ v3 §3.1",
+        "fn": m_kapanis_tahmini, "agir": True,
     },
     "SIDAK_KAPISI": {
         "baslik": "Seçim yanlılığı düzeltildikten sonra kaç ajan ayakta",
