@@ -1136,6 +1136,50 @@ def load_lig() -> dict:
     return {"mavi": mavi, "kirmizi": kirmizi, "arsiv": arsiv}
 
 
+# Para piyasası yıllık getirisi — belge §2.3'te 35/40/45 senaryoları
+# var, orta senaryo alındı. Değiştirilebilir olması önemli: bu sayı
+# karşılaştırma TABANIDIR ve yanlışsa bütün kıyas yanlış olur.
+PARA_PIYASASI = 0.40
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_alternatif() -> dict:
+    """ALTERNATİF MALİYET — bahis getirisi neye karşı ölçülüyor?
+
+    ⚠️ Belge §2.3: günlük maruziyet tavanı %5 ise bankroll'un yaklaşık
+    %95'i her an NAKİT bekler. O sermaye faizsiz tutulursa reel kayıp
+    yaratır; para piyasasında değerlendirilirse P&L'e doğrudan katkıdır.
+    Belgenin sert cümlesi şu: "düşük yield senaryolarında bu kalem
+    bahis operasyonunun kendisinden daha büyük olabilir."
+
+    Sistem bunu HİÇ hesaba katmıyordu. Yani kâr eğrisine bakıp
+    "kazanıyoruz" demek, alternatif maliyeti sıfır saymak demekti —
+    yıllık %40 faiz ortamında bu ciddi bir yanılgı.
+    """
+    r = _rows("SELECT COALESCE(SUM(initial_bankroll),0) ib, "
+              "COALESCE(SUM(current_bankroll),0) cb, MIN(era_start) bas "
+              "FROM paper_portfolio WHERE era_no = "
+              "(SELECT MAX(COALESCE(era_no,1)) FROM paper_portfolio)",
+              sessiz=True)
+    if not r:
+        return {}
+    ib = float(r[0]["ib"] or 0)
+    cb = float(r[0]["cb"] or 0)
+    bas = str(r[0]["bas"] or "")[:19]
+    if ib <= 0 or not bas:
+        return {}
+    from datetime import datetime
+    try:
+        gun = max((datetime.utcnow() - datetime.fromisoformat(bas)).days, 0)
+    except Exception:
+        return {}
+    # Aynı sermaye para piyasasında dururken ne olurdu (basit oranlı)
+    faiz = ib * PARA_PIYASASI * (gun / 365.0)
+    bahis = cb - ib
+    return {"ib": ib, "cb": cb, "gun": gun, "bahis": bahis, "faiz": faiz,
+            "fark": bahis - faiz, "oran": PARA_PIYASASI}
+
+
 @st.cache_data(ttl=240, show_spinner=False)
 def load_kanit() -> dict:
     """KANIT KAPISI — Šidák eşiği, etkin ajan sayısı, CLV bölgesi.
@@ -2962,6 +3006,44 @@ def page_lig() -> None:
              "{:,.0f}".format(tepe).replace(",", ".") + " ₺</b></div></div>"
              if nokta else "") +
             "</div></div>", unsafe_allow_html=True)
+
+    # ── ALTERNATİF MALİYET ────────────────────────────────────
+    alt = load_alternatif()
+    if alt and alt["gun"] >= 1:
+        _iy = alt["fark"] >= 0
+        st.markdown(
+            "<div class='v2card' style='margin-bottom:var(--s5);'>"
+            "<div class='v2head'><h2>Alternatif Maliyet</h2>"
+            "<div class='hint'>dönem " + str(alt["gun"]) + " gün</div></div>"
+            "<div class='v2body'>"
+            "<div class='" + ("v2mb" if _iy else "dq") + "'>"
+            "<b>Kâr eğrisi tek başına bir şey söylemez.</b> Aynı para "
+            "para piyasasında dururken de büyüyordu. Bahis operasyonu "
+            "ancak <b>o tabanı geçtiği kadar</b> değer üretir — belge "
+            "§2.3: alternatif maliyet sıfır değildir, ve düşük yield "
+            "senaryolarında bu kalem operasyonun kendisinden büyük "
+            "olabilir.</div>"
+            "<div class='ro'><span>Bahisle kazanılan</span><b class='" +
+            ("ps" if alt["bahis"] >= 0 else "ng") + "'>" +
+            ("+" if alt["bahis"] >= 0 else "−") +
+            "{:,.0f}".format(abs(alt["bahis"])).replace(",", ".") +
+            " ₺</b></div>"
+            "<div class='ro'><span>Para piyasası (%" +
+            _num(alt["oran"] * 100, 0) + " yıllık, " + str(alt["gun"]) +
+            " gün)</span><b>+" +
+            "{:,.0f}".format(alt["faiz"]).replace(",", ".") + " ₺</b></div>"
+            "<div class='ro big'><span>Fark — gerçek katkı</span>"
+            "<b class='" + ("ps" if _iy else "ng") + "'>" +
+            ("+" if _iy else "−") +
+            "{:,.0f}".format(abs(alt["fark"])).replace(",", ".") +
+            " ₺</b></div>"
+            "<div class='vd' style='margin-top:var(--s3);'>" +
+            ("Operasyon tabanı geçiyor." if _iy else
+             "<b>Operasyon tabanın altında.</b> Bu para faizde durunca "
+             "daha çok kazanıyordu — kâğıt ticarette bu bir kayıp değil, "
+             "bir <b>ölçü</b>: edge kurulmadan sermaye bağlamanın "
+             "maliyeti bu.") +
+            "</div></div></div>", unsafe_allow_html=True)
 
     st.markdown(
         "<div class='v2mb'><b>Sıralama isabete göre değil, fiyata göre "
