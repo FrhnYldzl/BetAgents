@@ -43,7 +43,7 @@ def _isaret_mi(ad: str, lig: str) -> bool:
     return any(_isaret_var(n, m) for m in TEAM_MARKERS.get(lig, ()))
 
 
-def denetle(duzelt: bool = False) -> dict:
+def denetle(duzelt: bool = False, b2: bool = False) -> dict:
     conn = db.connect()
     try:
         q = ("SELECT match_id, league_code lc, home_team h, away_team a, "
@@ -99,16 +99,42 @@ def denetle(duzelt: bool = False) -> dict:
               "kulüpler listede yok). Yanlış kod kadar, doğru kodu silmek de "
               "zarardır. A ve B1 düzeltilir — ikisi de KANITLI hata.")
 
+        # B2 de düzeltilsin mi — KULLANICI KARARI (--b2).
+        # Varsayılan HAYIR: işaret listesi eksik olabilir ve doğru kodu
+        # silmek de zarardır. Kullanıcı 2026-09-07'de (b) şıkkını seçti:
+        # "kodlama dürüstleşsin, EUVOX gerçekten yalnız 5 büyük ligde
+        # oynasın" — o zaman B2 de gider. Geri alınabilirlik için
+        # değiştirilen satırlar ÖNCE JSON'a yedeklenir.
         hatali = kesin + celiski
+        if b2:
+            hatali = hatali + desteksiz
         if hatali and duzelt:
+            import json
+            from datetime import date
+            yedek = THIS_DIR / "yedek_lig_kodlari.json"
+            eski = []
+            if yedek.is_file():
+                try:
+                    eski = json.loads(yedek.read_text(encoding="utf-8"))
+                except Exception:
+                    eski = []
+            eski.extend([{"match_id": r["match_id"], "eski_kod": r["lc"],
+                          "h": r["h"], "a": r["a"], "gun": str(r["d"]),
+                          "tarih": date.today().isoformat()} for r in hatali])
+            yedek.write_text(json.dumps(eski, ensure_ascii=False, indent=1),
+                             encoding="utf-8")
+            print(f"\n💾 {len(hatali)} satırın ESKİ kodu yedeklendi → "
+                  f"{yedek.name} (toplam {len(eski)} kayıt)")
             for r in hatali:
                 conn.execute("UPDATE matches_v2 SET league_code='ALL' "
                              "WHERE match_id=?", (r["match_id"],))
             conn.commit()
-            print(f"\n✅ A+B1'deki {len(hatali)} satır 'ALL' yapıldı — "
+            _grup = "A+B1+B2" if b2 else "A+B1"
+            print(f"\n✅ {_grup}'deki {len(hatali)} satır 'ALL' yapıldı — "
                   f"'bilmiyorum', yanlış bilmekten iyidir.")
         elif hatali:
-            print(f"\n  (ölçüm — değişiklik yok · --duzelt ile A+B1 "
+            _grup = "A+B1+B2" if b2 else "A+B1"
+            print(f"\n  (ölçüm — değişiklik yok · --duzelt ile {_grup} "
                   f"({len(hatali)} satır) 'ALL' olur)")
         return {"toplam": len(rows), "kesin": len(kesin),
                 "celiski": len(celiski), "desteksiz": len(desteksiz)}
@@ -117,4 +143,4 @@ def denetle(duzelt: bool = False) -> dict:
 
 
 if __name__ == "__main__":
-    denetle(duzelt="--duzelt" in sys.argv)
+    denetle(duzelt="--duzelt" in sys.argv, b2="--b2" in sys.argv)
