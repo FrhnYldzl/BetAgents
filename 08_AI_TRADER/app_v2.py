@@ -1340,6 +1340,14 @@ def load_defter() -> list[dict]:
                  "FROM measurement_runs ORDER BY ts", sessiz=True)
     if not rows:
         return []
+    # 🔒 Tek seferlik kararı verilmiş bulgular. Kaynak defterin KENDİ kaydı
+    # (FINDINGS[...]["kapandi"]); arayüzde ayrı liste tutulmaz — tutulursa
+    # zamanla defterle çelişir. Modül hafif: math, sys, pathlib, db.
+    try:
+        from olcum_defteri import FINDINGS as _FD
+        _kapali = {k: v["kapandi"] for k, v in _FD.items() if v.get("kapandi")}
+    except Exception:
+        _kapali = {}
     by: dict = {}
     for r in rows:
         by.setdefault(r["f"], []).append(r)
@@ -1353,6 +1361,7 @@ def load_defter() -> list[dict]:
             "id": fid, "ts": str(son["ts"])[:16], "n": son["n"],
             "v": float(son["v"] or 0), "gecti": bool(son["g"]),
             "detay": son["d"], "kosu": len(v), "degisim": degisim,
+            "kapandi": _kapali.get(fid),
             "trend": (float(son["v"] or 0) - float(onceki["v"] or 0))
                      if onceki else None,
         })
@@ -3345,9 +3354,16 @@ def page_defter() -> None:
                   _num(abs(r["trend"]), 3) + "</span>")
         dg = ("<span class='gr g2'>🔔 " + str(r["degisim"]) + " KEZ DÖNDÜ</span>"
               if r["degisim"] else "")
+        # 🔒 Kararı kesinleşmiş bulgu artık koşmaz, tarihi eski kalır —
+        # SÖYLENMEZSE "ölçüm durmuş, bozuk" gibi görünür. Alt satır da
+        # kesilmiş ölçüm dökümü yerine kararın kendisini gösterir.
+        if r.get("kapandi"):
+            dg += "<span class='gr g2'>🔒 KARAR KESİN</span>"
+        _alt = (str(r["kapandi"])[:150] if r.get("kapandi")
+                else str(r["detay"] or "")[:96])
         body.append(
             "<tr><td><span class='ag'>" + r["id"] + "</span>" + dg +
-            "<span class='sb'>" + str(r["detay"] or "")[:96] + "</span></td>"
+            "<span class='sb'>" + _alt + "</span></td>"
             "<td class='r n opt'>" + "{:,}".format(r["n"]).replace(",", ".") + "</td>"
             "<td class='r n'>" + _num(r["v"], 3) + " " + tr + "</td>"
             "<td class='r n opt'>" + str(r["kosu"]) + "</td>"

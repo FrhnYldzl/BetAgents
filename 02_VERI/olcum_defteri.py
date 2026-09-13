@@ -857,16 +857,33 @@ def m_mimar_fiyat_gecmisi(conn) -> dict:
     clv = (sum(s[2] / s[3] - 1.0 for s in oyna) / len(oyna) * 100) if oyna else 0.0
     k3 = clv >= 3.0
 
+    # BELİRSİZLİK — hükmü DEĞİŞTİRMEZ, ne kadar sağlam olduğunu söyler.
+    # Karar planlanan ~2.400 maç yerine daha az maçla verilebilir; o zaman
+    # soru "eşik güven aralığının içinde mi" olur. Aynı maçın seçimleri
+    # birlikte kayar, bağımsız değildir: standart hata MAÇ kümelerine göre
+    # (kümelenmiş, küçük örneklem düzeltmeli). Naif SE aralığı dar gösterirdi.
+    _xb = clv / 100.0
+    _eg: dict = {}
+    for s in oyna:
+        _eg[s[0]] = _eg.get(s[0], 0.0) + (s[2] / s[3] - 1.0 - _xb)
+    n_mac = len(_eg)
+    if n_mac >= 2:
+        _se = math.sqrt(sum(e * e for e in _eg.values())
+                        * n_mac / (n_mac - 1)) / len(oyna)
+        ust = (_xb + 1.96 * _se) * 100
+    else:
+        ust = float("nan")
+
     _en = (f"{en_iyi[1][0]}={en_iyi[1][1]} eğitim {en_iyi[2]*100:+.1f}p / "
            f"sınav {en_iyi[3]*100:+.1f}p" if en_iyi else "ölçülebilir dilim yok")
     return {
-        "n": n, "deger": clv,
+        "n": n, "deger": clv, "ust": ust, "n_mac": n_mac,
         "detay": (f"{n} maç · (1) hareket≥0,05 %{pay*100:.0f} "
                   f"{'✓' if k1 else '✗'} · (2) en güçlü dilim {_en} "
                   f"{'✓' if k2 else '✗'} · (3) erken oynama CLV {clv:+.2f}p "
-                  f"({strateji}, sınav n={len(oyna)}) {'✓' if k3 else '✗'} · " +
-                  ("KONSEPT AYAKTA" if k3 else
-                   "KURAL 4: MİMAR REDDEDİLDİ — tablo silme kullanıcı onayında")),
+                  f"({strateji}; sınav {len(oyna)} seçim / {n_mac} maç; %95 "
+                  f"üst sınır {ust:+.2f}p) {'✓' if k3 else '✗'} · " +
+                  ("KONSEPT AYAKTA" if k3 else "KURAL 4: MİMAR REDDEDİLDİ")),
         "gecti": k3,
     }
 
@@ -903,9 +920,15 @@ FINDINGS = {
         "baslik": "MİMAR — iddaa'da erken oynamak kapanıştan iyi fiyat getiriyor mu",
         "kural": "sınavda erken oynama CLV ≥ +3 puan · altındaysa MİMAR "
                  "REDDEDİLİR (price_history.py ön kaydı, kural 4)",
-        "hedef": "≥300 uygun maç (karar) · ~2.400 maç (tam güç)",
-        "onceki": "karar tarihi 13.09.2026 · ilk koşu · tanım sayılara "
+        "hedef": "tek seferlik karar · ≥300 uygun maç",
+        "onceki": "karar koşusu 13.09.2026 · 649 maç · tanım sayılara "
                   "bakılmadan sabitlendi",
+        # Ön kayıt TEK SEFERLİK bir karardı — worker bunu artık koşmaz,
+        # arayüz satırı "karar kesin" diye işaretler. Gerekçe ve bilinçli
+        # sapma (tablo silinmedi): price_history.py başındaki KARAR bloğu.
+        "kapandi": ("13.09.2026 · RED — erken oynama CLV −0,20p (eşik +3; "
+                    "%95 üst sınır +0,10p) · yeniden sınanmaz · tablo "
+                    "bilinçli sapmayla saklanıyor"),
         "fn": m_mimar_fiyat_gecmisi, "agir": False,
     },
     "SIDAK_KAPISI": {
@@ -1047,6 +1070,14 @@ def run(ids: list[str] | None = None, hizli: bool = False) -> None:
         f = FINDINGS.get(fid)
         if not f:
             print(f"\n  ⚠️ bilinmeyen ölçüm: {fid}")
+            continue
+        # 🔒 KARAR KESİN — ön kaydı TEK SEFERLİK bir karar olan bulgu (MİMAR
+        # gibi) her gün yeniden ölçülmez. Reddedilmiş bir konsepti günlük
+        # sınamak "geçene kadar dene" demektir: eşik çevresindeki şans
+        # dalgalanması bir gün hükmü çevirir. Karar koşusu arşivde durur.
+        if f.get("kapandi"):
+            print(f"\n▸ {fid} — 🔒 karar kesin: {f['kapandi']}")
+            skip += 1
             continue
         if hizli and f["agir"]:
             print(f"\n▸ {fid} — atlandı (--hizli)")

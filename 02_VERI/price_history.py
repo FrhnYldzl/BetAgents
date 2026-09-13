@@ -23,6 +23,24 @@ fetch zinciri etkilenmez.
   3. Erken oynamanın CLV kazancı      → ≥+3 puan
   4. Kural: (3) < +3 puan ise MİMAR KONSEPTİ REDDEDİLİR, tablo silinir.
 
+KARAR — 13.09.2026 (olcum_defteri · MIMAR_FIYAT_GECMISI)
+  Karar koşusu, 649 maç: (1) hareket %63 ✓ · (2) en güçlü dilim +6,7 /
+  +7,8 puan ✗ · (3) erken oynama CLV −0,20 puan ✗ → MİMAR REDDEDİLDİ.
+  Karar planlanan ~2.400 yerine 649 maçla verildi; aynı gün 651 maçta
+  maç kümelenmiş %95 üst sınır +0,10 puan — eşik +3, belirsizlik hükmü
+  değiştirmiyor. Karar KESİN: bu hipotez bu veride yeniden sınanmaz
+  (defterde kapandı, worker koşmaz).
+
+BİLİNÇLİ SAPMA — kural 4'ün "tablo silinir" adımı UYGULANMADI:
+  · iddaa geçmiş fiyat vermiyor (kayıt başlamadan 7.083 maçta açılış
+    kaydı sıfırdı) → bu veri silinirse geri üretilemez. Silmek geri
+    alınamaz; saklamak her an geri alınabilir.
+  · Ek maliyeti yok: sıfır ek API çağrısı, ~3 MB/ay.
+  · Hüküm etkilenmiyor: MİMAR reddedildi ve kapandı.
+  KOŞUL: tablo yalnız YENİ ve ayrıca ön kayıtlı hipotezler için kullanılır
+  (kendi kuralı ve karar tarihiyle). Kullanıcıya soruldu, karar bana
+  bırakıldı ("doğru olanı sen yap") — gerekçe bu yüzden burada, açıkça.
+
     python price_history.py --stats     # birikim durumu
     python price_history.py --test      # aşama-B ölçümü (veri yeterliyse)
 """
@@ -193,9 +211,9 @@ def test_stage_b() -> None:
               f"reddedilmez.")
         return
     print(r["detay"])
-    if not r["gecti"]:
-        print("\n⚠️ Kural 4 tetiklendi. Tabloyu silmek GERİ ALINAMAZ — bu "
-              "betik silmez; karar kullanıcının.")
+    print("\n🔒 Karar 13.09.2026'da verildi ve KESİN: MİMAR reddedildi. Bu "
+          "koşu hükmü değiştirmez, yalnız denetim içindir. Tablo bilinçli "
+          "sapmayla saklanıyor — gerekçe bu dosyanın başında.")
 
 
 if __name__ == "__main__":
