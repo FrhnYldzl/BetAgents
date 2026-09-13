@@ -483,11 +483,10 @@ def ensure_contract_columns(conn) -> None:
     for col, typ in (("ihtar_count", "INTEGER"), ("benched", "INTEGER"),
                      ("last_review", "TEXT"), ("era_start", "TEXT"),
                      ("era_no", "INTEGER")):
-        try:
-            conn.execute(f"ALTER TABLE paper_portfolio ADD COLUMN {col} {typ}")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        # Kolon varsa tabloya DOKUNMAZ (bkz. db.kolon_ekle) — koşulsuz
+        # ALTER, paper_portfolio'yu okuyan her şeyi (arayüz dahil) en
+        # ağır kilidin arkasında kuyruğa sokuyordu.
+        db.kolon_ekle(conn, "paper_portfolio", col, typ)
 
 
 def _is_benched(conn, pid: str) -> bool:

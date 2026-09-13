@@ -121,9 +121,26 @@ def _conn():
     kurulmasini bekliyordu.
 
     Bayat baglanti riski var (proxy dusurebilir), o yuzden _rows hata
-    alinca onbellegi temizleyip TAZE baglantiyla bir kez daha dener."""
+    alinca onbellegi temizleyip TAZE baglantiyla bir kez daha dener.
+
+    ⚠️ AUTOCOMMIT — 13 Eylul 2026 olayi. psycopg2 her SELECT'i ortuk bir
+    islem icinde calistirir ve biz hic commit etmiyorduk: baglanti
+    "idle in transaction" kaliyor, okudugu tablolarin kilidini SURESIZ
+    tutuyordu. Worker'in ALTER TABLE'i bu kilidin arkasinda, kupon
+    kapatma da ALTER'in arkasinda bekledi — oynanmis maclar saatlerce
+    "acik" gorundu. Bu uygulama YALNIZ OKUR: her sorgu kendi islemi
+    olmali ve bitince kilidi birakmali.
+    lock_timeout: bir sorgu kilit beklerse sayfa sonsuza dek donmasin;
+    8 sn sonra hata versin (_rows yakalar, panel bos kalir, sayfa acilir)."""
     import db as _db
-    return _db.connect()
+    c = _db.connect()
+    if getattr(c, "is_postgres", False):
+        try:
+            c.raw.autocommit = True
+            c.execute("SET lock_timeout = '8s'")
+        except Exception:
+            pass
+    return c
 
 
 def _sahadaki_ajanlar() -> set:
@@ -311,13 +328,58 @@ def load_agents() -> list[dict]:
     return out
 
 
+# Türkiye saati: 2016'dan beri SABİT UTC+3 (yaz saati yok). zoneinfo
+# yerine sabit fark — ince konteynerde tzdata olmayabilir.
+_TR_FARK = 3
+
+
+def _ko_dt(ko):
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(ko).replace("Z", "")[:19])
+    except Exception:
+        return None
+
+
+def _tr_saat(ko) -> str:
+    """kickoff_utc → okunur Türkiye saati: bugünse "21:45", değilse
+    "14.09 21:45".
+
+    ⚠️ Eskiden yalnız saat yazılıyordu, üstelik UTC: 30 Ağustos'ta
+    oynanmış bir maç 13 Eylül'de "12:30" diye bugünün maçı gibi
+    görünüyordu (ve Türkiye saatinden 3 saat geriydi). Tarih bugün
+    değilse GÖSTERİLİR."""
+    from datetime import datetime, timedelta
+    t = _ko_dt(ko)
+    if t is None:
+        return str(ko)[11:16]
+    tr = t + timedelta(hours=_TR_FARK)
+    bugun = (datetime.utcnow() + timedelta(hours=_TR_FARK)).date()
+    return tr.strftime("%H:%M") if tr.date() == bugun else tr.strftime("%d.%m %H:%M")
+
+
+def _basladi_mi(ko) -> bool:
+    """Maç başladı mı? Başlamış maç kupona EKLENEMEZ."""
+    from datetime import datetime
+    t = _ko_dt(ko)
+    return bool(t is not None and t <= datetime.utcnow())
+
+
 @st.cache_data(ttl=120, show_spinner=False)
 def load_board() -> list[dict]:
     """Açık pozisyonlar — bugünün tahtası."""
+    # ⚠️ YALNIZ AÇIK KUPONUN AYAĞI. Ölü kombinenin (bir ayağı kaybetmiş,
+    # kupon 'lost' yazılmış) kalan ayağı paper_bets'te 'open' kalır ama
+    # pozisyon DEĞİLDİR — kupon zaten karara bağlandı. Eski sorgu bunları
+    # da alıyordu: 30 Ağustos'ta oynanmış bir KALECI ayağı 13 Eylül'de
+    # tahtanın EN ÜSTÜNDE, bugünün maçı gibi duruyordu.
     rows = _rows(
-        "SELECT bet_id, portfolio_id p, home_team h, away_team a, league lg, "
-        "market mk, pick pk, odds o, kickoff_utc ko FROM paper_bets "
-        "WHERE status='open' AND odds > 1.01 ORDER BY kickoff_utc LIMIT 60",
+        "SELECT pb.bet_id, pb.portfolio_id p, pb.home_team h, "
+        "pb.away_team a, pb.league lg, pb.market mk, pb.pick pk, "
+        "pb.odds o, pb.kickoff_utc ko FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "WHERE pb.status='open' AND pc.status='open' AND pb.odds > 1.01 "
+        "ORDER BY pb.kickoff_utc LIMIT 60",
         sessiz=True)
     # iddaa'nın SÖYLEDİĞİ lig adı — kanonik koda çevrilemeyen ligler için
     # tek bilgi. Fetcher bunu eskiden atıyordu: kodu 'ALL' yazıp adı çöpe
@@ -345,7 +407,8 @@ def load_board() -> list[dict]:
             "lig": (LEAGUE.get(lg) or _iddaa_ad or "lig kodlanmamış"),
             "mk": r["mk"], "pk": r["pk"], "o": float(r["o"]),
             "m": MARGIN.get(str(r["mk"]).upper(), 1.18),
-            "ko": str(r["ko"])[11:16],
+            "ko": _tr_saat(r["ko"]),
+            "gecti": _basladi_mi(r["ko"]),
         })
     return out
 
@@ -371,7 +434,11 @@ def load_era_ozet() -> dict:
 def load_rail() -> dict:
     p = _rows("SELECT COALESCE(SUM(current_bankroll),0) cb, COUNT(*) n "
               "FROM paper_portfolio", sessiz=True)
-    o = _rows("SELECT COUNT(*) n FROM paper_bets WHERE status='open'", sessiz=True)
+    # Açık pozisyon = AÇIK KUPONUN açık ayağı. Ölü kombinenin ayağı (kupon
+    # zaten 'lost') sayılırsa sayaç şişer — load_board ile AYNI ölçüt.
+    o = _rows("SELECT COUNT(*) n FROM paper_bets pb JOIN paper_coupons pc "
+              "ON pc.coupon_id = pb.coupon_id "
+              "WHERE pb.status='open' AND pc.status='open'", sessiz=True)
     c = _rows("SELECT COUNT(*) n FROM paper_bets WHERE status IN ('won','lost')",
               sessiz=True)
     # ölçüm defteri tablosu ilk koşudan önce YOKTUR — sessiz geç
@@ -1732,11 +1799,13 @@ def load_pozisyon() -> list[dict]:
             "p": k["p"], "em": k["p"],
             "ad": str(k["p"]).rsplit("_", 1)[0],
             "n": len(L), "co": float(k["co"] or 0), "sk": float(k["sk"] or 0),
-            "pr": float(k["pr"] or 0), "ko": str(L[0]["ko"])[5:16].replace("T", " "),
+            "pr": float(k["pr"] or 0), "ko": _tr_saat(L[0]["ko"]),
+            "ko_ham": str(L[0]["ko"]),
             "ayak": [{"h": x["h"], "a": x["a"], "mk": x["mk"],
                       "pk": x["pk"], "o": float(x["o"] or 0)} for x in L],
         })
-    out.sort(key=lambda z: z["ko"])
+    # Gösterim metni ("14.09 21:45") sıralanamaz — ham UTC ile sırala.
+    out.sort(key=lambda z: z["ko_ham"])
     return out
 
 
@@ -1860,10 +1929,14 @@ def load_ajan_detay(pid: str) -> dict:
         "WHERE pb.portfolio_id = ? AND pb.status IN ('won','lost') "
         "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
         "ORDER BY pb.settled_at DESC LIMIT 14", (pid,), sessiz=True)
+    # Yalnız AÇIK kuponun ayağı — ölü kombinenin ayağı pozisyon değildir.
     acik = _rows(
-        "SELECT home_team h, away_team a, market mk, pick pk, odds o, "
-        "kickoff_utc ko FROM paper_bets WHERE portfolio_id = ? "
-        "AND status = 'open' ORDER BY kickoff_utc LIMIT 8", (pid,), sessiz=True)
+        "SELECT pb.home_team h, pb.away_team a, pb.market mk, pb.pick pk, "
+        "pb.odds o, pb.kickoff_utc ko FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "WHERE pb.portfolio_id = ? AND pb.status = 'open' "
+        "AND pc.status = 'open' ORDER BY pb.kickoff_utc LIMIT 8",
+        (pid,), sessiz=True)
     tes = _rows(
         "SELECT status, detail, ts FROM agent_diag WHERE pid = ? "
         "ORDER BY ts DESC LIMIT 1", (pid,), sessiz=True)
@@ -2337,7 +2410,12 @@ def page_desk() -> None:
           </div></div>""", unsafe_allow_html=True)
 
     # ── ORTA: tahta ───────────────────────────────────────────
-    board = load_board()
+    # Başlamış maç tahtada SEÇİLEMEZ — kupona eklenemez ve "bugün ne var"
+    # sorusunun cevabı değildir. Ama gizlenmez de: sonucu bekleyen pozisyon
+    # olarak ayrıca söylenir (kapanış otomatik, 90 dk'da bir).
+    _tum = load_board()
+    board = [b for b in _tum if not b.get("gecti")]
+    _bekleyen = [b for b in _tum if b.get("gecti")]
     if "v2_sel" not in st.session_state:
         st.session_state["v2_sel"] = []
     with mid:
@@ -2363,6 +2441,16 @@ def page_desk() -> None:
                       f"— iddaa'nın söylediği ad gösteriliyor.</div>")
         else:
             _uyari = ""
+        if _bekleyen:
+            from html import escape as _esc
+            _uyari += (
+                "<div class='v2mb'><b>" + str(len(_bekleyen)) + "</b> maç "
+                "başladı ya da bitti — <b>sonucu işleniyor</b>, seçilemez. "
+                "Kapanış otomatik (90 dk'da bir): " +
+                " · ".join(_esc(str(b["h"])[:16]) + "–" +
+                           _esc(str(b["a"])[:16]) + " (" + b["ko"] + ")"
+                           for b in _bekleyen[:6]) +
+                (" …" if len(_bekleyen) > 6 else "") + "</div>")
         st.markdown(f"""
         <div class="v2card"><div class="v2head"><h2>Bugünün Tahtası</h2>
           <div class="hint">işaretle → kupona ekle</div></div>
@@ -2691,7 +2779,7 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
                 str(x["a"])[:16] + "</span><span class='sb'>" +
                 str(x["mk"]) + " · " + str(x["pk"]) + "</span></td>"
                 "<td class='r n'>" + _num(float(x["o"] or 0)) + "</td>"
-                "<td class='r n opt'>" + str(x["ko"])[5:16].replace("T", " ") +
+                "<td class='r n opt'>" + _tr_saat(x["ko"]) +
                 "</td></tr>" for x in d["acik"])
             st.markdown(
                 "<div class='v2card'><div class='v2head'><h2>Açık Pozisyon</h2>"

@@ -350,6 +350,64 @@ class Conn:
 
 
 # ============================================================
+# ŞEMA: KİLİT KUYRUĞU OLUŞTURMAYAN KOLON EKLEME
+# ============================================================
+
+def kolon_ekle(conn: "Conn", tablo: str, kolon: str, tip: str,
+               kilit_bekle_sn: int = 5) -> bool:
+    """Kolon YOKSA ekler; VARSA tabloya hiç dokunmaz. Eklediyse True.
+
+    ⚠️ NEDEN KOŞULSUZ "ALTER TABLE ... ADD COLUMN" YASAK — 13 Eylül 2026:
+    PostgreSQL ALTER TABLE için, kolon zaten olsa bile (IF NOT EXISTS
+    dahil) ÖNCE tablonun en ağır kilidini (AccessExclusiveLock) ister.
+    Alamazsa bekler; beklerken arkasından gelen HER okuma da onun
+    arkasında sıraya girer. Olan buydu: her kupon yerleşiminde koşan
+    "ADD COLUMN reason" (kolon aylardır vardı), arayüzün kapanmamış bir
+    okuma işleminin arkasında bekledi; kupon kapatma da onun arkasında.
+    Oynanmış maçlar saatlerce "açık" göründü.
+
+    Önce katalogdan bakılır — tabloya kilit koymaz. Kolon gerçekten
+    eksikse ALTER çalışır ama kilidi en fazla `kilit_bekle_sn` bekler;
+    alamazsa vazgeçer (sistemi kilitlemez), bir sonraki turda yine dener.
+    """
+    pg = bool(getattr(conn, "is_postgres", False))
+    try:
+        if pg:
+            var = conn.execute(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_schema = current_schema() "
+                "AND table_name = ? AND column_name = ?",
+                (tablo.lower(), kolon.lower())).fetchone()
+        else:
+            var = any(str(x[1]).lower() == kolon.lower() for x in
+                      conn.execute(f"PRAGMA table_info({tablo})").fetchall())
+    except Exception:
+        conn.rollback()      # PG: patlayan ifade işlemi abort eder
+        return False
+    if var:
+        return False
+    oto = pg and bool(getattr(getattr(conn, "raw", None), "autocommit", False))
+    try:
+        if pg:
+            # SET LOCAL yalnız bu işlemde geçerli. autocommit'te işlem
+            # olmadığından oturum düzeyinde ayarlanır, sonra geri alınır.
+            conn.execute(("SET lock_timeout = '%ds'" if oto else
+                          "SET LOCAL lock_timeout = '%ds'") % int(kilit_bekle_sn))
+        conn.execute(f"ALTER TABLE {tablo} ADD COLUMN {kolon} {tip}")
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        return False
+    finally:
+        if oto:
+            try:
+                conn.execute("RESET lock_timeout")
+            except Exception:
+                pass
+
+
+# ============================================================
 # BAĞLANTI AÇ
 # ============================================================
 
@@ -417,6 +475,18 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
                     connect_timeout=_zaman,
                     keepalives=1, keepalives_idle=30,
                     keepalives_interval=10, keepalives_count=5,
+                    # ⚠️ UNUTULMUŞ İŞLEM KİLİT TUTAMAZ — 13 Eylül 2026.
+                    # Arayüzün paylaşılan bağlantısı bir SELECT'ten sonra
+                    # işlemi kapatmadı ("idle in transaction") ve paper_bets
+                    # üstündeki okuma kilidini süresiz tuttu. Worker'ın
+                    # ALTER TABLE'ı onun arkasında, kupon kapatma da ALTER'ın
+                    # arkasında sıraya girdi: oynanmış maçlar saatlerce
+                    # "açık" göründü. Bu ayar sunucuya "işlem içinde bu kadar
+                    # boş duran oturumu kapat" der. Kök neden değil (o
+                    # kolon_ekle ve arayüzün autocommit'i) — SON SİGORTA.
+                    options=("-c idle_in_transaction_session_timeout=" +
+                             str(int(os.environ.get("DB_IDLE_TX_TIMEOUT_S",
+                                                    "600")) * 1000)),
                 )
                 import re as _re0
                 _kip = ("YEREL-TUNEL"

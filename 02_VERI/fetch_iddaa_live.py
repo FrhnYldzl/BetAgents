@@ -441,19 +441,15 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
     if not dry_run and results:
         print(f"\n[4] matches_v2 + signal_snapshots'a yaziliyor...")
         conn = db.connect()
-        # mbs (Minimum Bahis Sayısı) kolonu yoksa ekle (idempotent)
-        try:
-            conn.execute("ALTER TABLE matches_v2 ADD COLUMN mbs INTEGER")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        # Kolonlar yoksa ekle — VARSA TABLOYA DOKUNMA. Koşulsuz ALTER her
+        # 3 saatte bir matches_v2'nin en ağır kilidini istiyordu; skor
+        # yazan ya da okuyan her işlem onun arkasında bekliyordu.
+        # (bu dosyada `db` = database modülü; yardımcı merkezî db.py'de)
+        from db import kolon_ekle as _kolon_ekle
+        # mbs (Minimum Bahis Sayısı)
+        _kolon_ekle(conn, "matches_v2", "mbs", "INTEGER")
         # iddaa lig adı — kanonik koda çevrilemeyen ligler için TEK bilgi
-        try:
-            conn.execute("ALTER TABLE matches_v2 "
-                         "ADD COLUMN iddaa_league_name TEXT")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        _kolon_ekle(conn, "matches_v2", "iddaa_league_name", "TEXT")
         now = datetime.utcnow().isoformat()
         n_ins_m2 = 0
         n_upd_m2 = 0

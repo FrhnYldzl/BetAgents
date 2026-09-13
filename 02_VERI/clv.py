@@ -60,13 +60,12 @@ def _to_float(v):
 
 
 def ensure_columns(conn) -> None:
-    """paper_bets'e closing_odds + clv kolonlarını idempotent ekle."""
+    """paper_bets'e closing_odds + clv kolonlarını idempotent ekle.
+
+    Kolon varsa tabloya DOKUNMAZ (bkz. db.kolon_ekle): koşulsuz ALTER her
+    kapanış turunda paper_bets'in en ağır kilidini istiyordu."""
     for col, typ in (("closing_odds", "REAL"), ("clv", "REAL")):
-        try:
-            conn.execute(f"ALTER TABLE paper_bets ADD COLUMN {col} {typ}")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        db.kolon_ekle(conn, "paper_bets", col, typ)
 
 
 def closing_for(match_row: dict, market: str, pick: str):

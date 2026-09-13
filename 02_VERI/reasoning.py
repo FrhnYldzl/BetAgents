@@ -160,12 +160,13 @@ def postmortem(market: str, pick: str, hs: int, aws: int, won: bool) -> str:
 
 
 def ensure_columns(conn) -> None:
+    # Kolon varsa tabloya DOKUNMAZ (bkz. db.kolon_ekle). 13 Eylül 2026:
+    # buradaki koşulsuz "ALTER TABLE paper_bets ADD COLUMN reason" (kolon
+    # aylardır vardı) her kupon yerleşiminde en ağır kilidi istedi,
+    # kapanmamış bir okuma işleminin arkasında bekledi ve kupon kapatmayı
+    # saatlerce tıkadı — oynanmış maçlar "açık" göründü.
     for col in ("reason", "postmortem"):
-        try:
-            conn.execute(f"ALTER TABLE paper_bets ADD COLUMN {col} TEXT")
-            conn.commit()
-        except Exception:
-            conn.rollback()
+        db.kolon_ekle(conn, "paper_bets", col, "TEXT")
 
 
 def backfill_postmortems(limit: int = 500) -> int:
