@@ -706,6 +706,171 @@ def m_clv(conn) -> dict:
     }
 
 
+def m_mimar_fiyat_gecmisi(conn) -> dict:
+    """MİMAR — iddaa'nın KENDİ fiyat geçmişinde erken oynamak kapanıştan
+    iyi fiyat getiriyor mu? Ön kayıtlı karar (price_history.py).
+
+    Kuralın METNİ fiyat kaydı başlarken yazıldı (price_history.py):
+      1. Fiyatlar hareket ediyor mu?  → maçların ≥%30'unda ≥0.05
+      2. Yön tahmin edilebiliyor mu?  → bir özellik tabandan ≥8 puan
+                                        sapmalı VE eğitim+sınavda tutmalı
+      3. Erken oynamanın CLV kazancı  → ≥+3 puan
+      4. (3) < +3 puan ise MİMAR KONSEPTİ REDDEDİLİR.
+
+    OPERASYONEL TANIM — 13.09.2026'da, SAYILARA BAKILMADAN yazıldı.
+    Metin bazı ayrıntıları açık bırakıyordu; hepsi burada, sonuçtan önce
+    sabitlendi ki sonuç görülünce esnetilemesin:
+      · Birim: başlama saati GEÇMİŞ maç; yalnız maç öncesi kayıtlar
+        (lead_h > 0). Açılış = ilk kayıt, kapanış = son kayıt (kayıt
+        yalnız fiyat DEĞİŞİNCE yazılır → son kayıt başlama anının fiyatı).
+      · Gözlenebilirlik: ilk kayıt başlamadan ≥6 saat önce (3 saatlik
+        çekimle en az iki fırsat). Geç görülen maçın "hareketsiz"
+        görünmesi yokluktur, bilgi değil — o maç sayılmaz.
+      · Yeterlilik: ≥300 uygun maç (price_history.test_stage_b eşiği).
+        Altında karar VERİLMEZ: ertelenir, reddedilmez.
+      · (1) hareket: maçın 7 fiyatından herhangi birinde |kapanış−açılış|.
+      · (2) yön: seçim başına "kısaldı" = kapanış < açılış − 0,005. Maçlar
+        başlama saatine göre sıralanır: ilk %70 eğitim, son %30 sınav.
+        Açılış ANINDA bilinen dört özellik dilimlenir: pazar, oran düzeyi,
+        açılışın öne süresi, lig kodlu mu. Dilim eğitimde ve sınavda AYNI
+        YÖNDE ≥8 puan sapmalı; her iki tarafta n ≥ 30 (ürünün tek eşiği).
+      · (3) CLV: strateji YALNIZ eğitimde seçilir — eğitimde kısalmaya
+        ≥8 puan yatkın dilimler. Kazanç SINAVDA ölçülür: o dilimlerdeki
+        seçimlerin ortalama (açılış/kapanış − 1). Eğitimde böyle dilim
+        yoksa strateji yoktur; ölçülen, sınavdaki tüm seçimleri erken
+        oynamanın kazancıdır.
+      · Hüküm yalnız (3)'e bağlı (kural 4); (1) ve (2) gerekçe olarak
+        raporlanır.
+
+    ⚠️ Metindeki "tablo silinir" adımı OTOMATİK DEĞİL. Silmek geri
+    alınamaz; ölçüm RED derse bu fonksiyon yalnız SÖYLER, silmez.
+    """
+    from datetime import datetime
+    alanlar = ("o1", "ox", "o2", "over25", "under25", "btts_yes", "btts_no")
+    try:
+        rows = conn.execute(
+            "SELECT iddaa_event_id ev, ts, kickoff_utc ko, league_code lg, "
+            "lead_h lh, o1, ox, o2, over25, under25, btts_yes, btts_no "
+            "FROM odds_history WHERE lead_h > 0 "
+            "ORDER BY iddaa_event_id, ts").fetchall()
+    except Exception:
+        conn.rollback()                 # tablo yoksa: henüz birikim yok
+        return {"n": 0, "yetersiz": True}
+
+    simdi = datetime.utcnow().isoformat()
+    olay: dict = {}
+    for x in rows:
+        d = dict(x)
+        ko = str(d.get("ko") or "").replace(" ", "T")[:19]
+        if not ko or ko >= simdi:       # başlamamış maçın kapanışı yok
+            continue
+        d["ko"] = ko
+        olay.setdefault(str(d["ev"]), []).append(d)
+
+    maclar = []
+    for ev, L in olay.items():
+        try:
+            if float(L[0]["lh"] or 0) < 6.0:
+                continue
+        except (TypeError, ValueError):
+            continue
+        maclar.append((L[0]["ko"], ev, L[0], L[-1]))
+    n = len(maclar)
+    if n < 300:
+        return {"n": n, "yetersiz": True}
+    maclar.sort(key=lambda z: (z[0], z[1]))
+
+    def _f(v):
+        try:
+            v = float(v)
+            return v if v > 1.0 else None
+        except (TypeError, ValueError):
+            return None
+
+    # (1) HAREKET
+    hareketli = 0
+    secimler = []           # (sıra, alan, açılış, kapanış, öne_sa, kodlu)
+    for i, (_ko, _ev, ilk, son) in enumerate(maclar):
+        en_buyuk = 0.0
+        kodlu = str(ilk.get("lg") or "") not in ("", "ALL", "None")
+        for a in alanlar:
+            o, c = _f(ilk.get(a)), _f(son.get(a))
+            if o is None or c is None:
+                continue
+            en_buyuk = max(en_buyuk, abs(c - o))
+            secimler.append((i, a, o, c, float(ilk["lh"]), kodlu))
+        if en_buyuk >= 0.05:
+            hareketli += 1
+    pay = hareketli / n
+    k1 = pay >= 0.30
+
+    # (2) YÖN — zamana göre ilk %70 eğitim, son %30 sınav
+    kesim = int(n * 0.7)
+    egit = [s for s in secimler if s[0] < kesim]
+    sinav = [s for s in secimler if s[0] >= kesim]
+    if not egit or not sinav:
+        return {"n": n, "yetersiz": True}
+
+    def _kisa(s) -> bool:
+        return s[3] < s[2] - 0.005
+
+    def _dilimler(s):
+        _i, a, o, _c, lh, kodlu = s
+        duzey = ("<1,6" if o < 1.6 else "1,6–2,2" if o < 2.2
+                 else "2,2–3,5" if o < 3.5 else "≥3,5")
+        sure = "<24sa" if lh < 24 else ("24–72sa" if lh < 72 else "≥72sa")
+        return (("pazar", a), ("oran", duzey), ("öne", sure),
+                ("lig", "kodlu" if kodlu else "kodsuz"))
+
+    taban_e = sum(1 for s in egit if _kisa(s)) / len(egit)
+    taban_s = sum(1 for s in sinav if _kisa(s)) / len(sinav)
+    say: dict = {}
+    for grup, kume in (("e", egit), ("s", sinav)):
+        for s in kume:
+            for dl in _dilimler(s):
+                t = say.setdefault(dl, {"e": [0, 0], "s": [0, 0]})
+                t[grup][0] += 1
+                t[grup][1] += 1 if _kisa(s) else 0
+    tutan, en_iyi = [], None
+    for dl, t in say.items():
+        ne, ke = t["e"]
+        ns, ks = t["s"]
+        if ne < 30 or ns < 30:
+            continue
+        se, ss = ke / ne - taban_e, ks / ns - taban_s
+        guc = min(abs(se), abs(ss)) if se * ss > 0 else 0.0
+        if en_iyi is None or guc > en_iyi[0]:
+            en_iyi = (guc, dl, se, ss)
+        if se * ss > 0 and abs(se) >= 0.08 and abs(ss) >= 0.08:
+            tutan.append(dl)
+    k2 = bool(tutan)
+
+    # (3) ERKEN OYNAMA CLV — strateji eğitimde seçilir, sınavda ölçülür
+    secili = {dl for dl, t in say.items()
+              if t["e"][0] >= 30 and (t["e"][1] / t["e"][0] - taban_e) >= 0.08}
+    if secili:
+        oyna = [s for s in sinav if any(dl in secili for dl in _dilimler(s))]
+        strateji = f"eğitimde kısalmaya yatkın {len(secili)} dilim"
+    else:
+        oyna = list(sinav)
+        strateji = "yatkın dilim yok → sınavdaki tüm seçimler"
+    clv = (sum(s[2] / s[3] - 1.0 for s in oyna) / len(oyna) * 100) if oyna else 0.0
+    k3 = clv >= 3.0
+
+    _en = (f"{en_iyi[1][0]}={en_iyi[1][1]} eğitim {en_iyi[2]*100:+.1f}p / "
+           f"sınav {en_iyi[3]*100:+.1f}p" if en_iyi else "ölçülebilir dilim yok")
+    return {
+        "n": n, "deger": clv,
+        "detay": (f"{n} maç · (1) hareket≥0,05 %{pay*100:.0f} "
+                  f"{'✓' if k1 else '✗'} · (2) en güçlü dilim {_en} "
+                  f"{'✓' if k2 else '✗'} · (3) erken oynama CLV {clv:+.2f}p "
+                  f"({strateji}, sınav n={len(oyna)}) {'✓' if k3 else '✗'} · " +
+                  ("KONSEPT AYAKTA" if k3 else
+                   "KURAL 4: MİMAR REDDEDİLDİ — tablo silme kullanıcı onayında")),
+        "gecti": k3,
+    }
+
+
 # ══════════════════════════════════════════════════════════════
 # DEFTER — kural ve hedef, sonuç görülmeden yazılır
 # ══════════════════════════════════════════════════════════════
@@ -733,6 +898,15 @@ FINDINGS = {
         "hedef": "her koşuda · iddaa fiyat geçmişi biriktikçe güçlenir",
         "onceki": "ilk ölçüm (12.09.2026) · kaynak: TAHMİN SİSTEMİ v3 §3.1",
         "fn": m_kapanis_tahmini, "agir": True,
+    },
+    "MIMAR_FIYAT_GECMISI": {
+        "baslik": "MİMAR — iddaa'da erken oynamak kapanıştan iyi fiyat getiriyor mu",
+        "kural": "sınavda erken oynama CLV ≥ +3 puan · altındaysa MİMAR "
+                 "REDDEDİLİR (price_history.py ön kaydı, kural 4)",
+        "hedef": "≥300 uygun maç (karar) · ~2.400 maç (tam güç)",
+        "onceki": "karar tarihi 13.09.2026 · ilk koşu · tanım sayılara "
+                  "bakılmadan sabitlendi",
+        "fn": m_mimar_fiyat_gecmisi, "agir": False,
     },
     "SIDAK_KAPISI": {
         "baslik": "Seçim yanlılığı düzeltildikten sonra kaç ajan ayakta",

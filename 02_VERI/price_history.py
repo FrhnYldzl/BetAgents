@@ -173,19 +173,29 @@ def stats() -> dict:
 
 
 def test_stage_b() -> None:
-    """Önceden kayıtlı karar kuralına göre Mimar konseptini ölç."""
+    """Önceden kayıtlı karar kuralına göre Mimar konseptini ölç.
+
+    Eskiden burada ölçüm YOKTU: yeterli veri olsa bile "analiz başka
+    yerden koşulacak" deyip çıkıyordu — karar tarihi gelse de karar
+    verilemezdi. Ölçüm artık ölçüm defterinde
+    (olcum_defteri.m_mimar_fiyat_gecmisi); worker her gün koşar ve
+    arşive yazar. Burası elle bakmak için: ARŞİVE YAZMAZ, HİÇBİR ŞEY
+    SİLMEZ."""
+    import olcum_defteri as OD
     conn = db.connect()
     try:
-        rows = conn.execute(
-            "SELECT h.iddaa_event_id, MIN(h.ts) t0, MAX(h.ts) t1 FROM odds_history h "
-            "GROUP BY h.iddaa_event_id HAVING COUNT(*) > 1").fetchall()
-        print(f"hareketli maç: {len(rows)}")
-        if len(rows) < 300:
-            print("⏳ Aşama-B için veri henüz yetersiz (hedef ~2.400 sonuçlanmış maç).")
-            return
-        print("Aşama-B ölçümü hazır — analiz backtest.py çerçevesinden koşulacak.")
+        r = OD.m_mimar_fiyat_gecmisi(conn)
     finally:
         conn.close()
+    if r.get("yetersiz"):
+        print(f"⏳ Aşama-B için veri yetersiz: {r.get('n', 0)} uygun maç "
+              f"(karar eşiği 300 · tam güç ~2.400). Karar ERTELENİR, "
+              f"reddedilmez.")
+        return
+    print(r["detay"])
+    if not r["gecti"]:
+        print("\n⚠️ Kural 4 tetiklendi. Tabloyu silmek GERİ ALINAMAZ — bu "
+              "betik silmez; karar kullanıcının.")
 
 
 if __name__ == "__main__":
