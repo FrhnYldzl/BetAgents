@@ -408,6 +408,7 @@ def load_board() -> list[dict]:
             "mk": r["mk"], "pk": r["pk"], "o": float(r["o"]),
             "m": MARGIN.get(str(r["mk"]).upper(), 1.18),
             "ko": _tr_saat(r["ko"]),
+            "ko_ham": str(r["ko"]),
             "gecti": _basladi_mi(r["ko"]),
         })
     return out
@@ -1799,10 +1800,17 @@ def load_pozisyon() -> list[dict]:
             "p": k["p"], "em": k["p"],
             "ad": str(k["p"]).rsplit("_", 1)[0],
             "n": len(L), "co": float(k["co"] or 0), "sk": float(k["sk"] or 0),
-            "pr": float(k["pr"] or 0), "ko": _tr_saat(L[0]["ko"]),
+            # Başlangıç = SIRADAKİ (henüz başlamamış) ayağın saati. İlk
+            # ayağın saati, o ayak oynandıktan sonra kuponu "geçmiş"
+            # gösteriyordu; kupon ise kalan ayaklar yüzünden hâlâ açık.
+            # Hepsi başladıysa kupon sonucunu bekliyordur — öyle yazılır.
+            "pr": float(k["pr"] or 0),
+            "ko": next((_tr_saat(x["ko"]) for x in L
+                        if not _basladi_mi(x["ko"])), "sonuç bekleniyor"),
             "ko_ham": str(L[0]["ko"]),
             "ayak": [{"h": x["h"], "a": x["a"], "mk": x["mk"],
-                      "pk": x["pk"], "o": float(x["o"] or 0)} for x in L],
+                      "pk": x["pk"], "o": float(x["o"] or 0),
+                      "basladi": _basladi_mi(x["ko"])} for x in L],
         })
     # Gösterim metni ("14.09 21:45") sıralanamaz — ham UTC ile sırala.
     out.sort(key=lambda z: z["ko_ham"])
@@ -2529,7 +2537,11 @@ def page_desk() -> None:
     if poz:
         sat = []
         for k in poz[:14]:
+            # ⏳ = maçı başladı/bitti, sonucu işleniyor. DÜZ METİN işaret:
+            # bu dize aşağıda [:92] ile kesiliyor; içine HTML koymak etiketi
+            # yarıdan bölüp sayfaya ham HTML sızdırırdı.
             ayaklar = " + ".join(
+                ("⏳" if x.get("basladi") else "") +
                 str(x["h"])[:12] + " " + str(x["pk"])[:10] for x in k["ayak"])
             sat.append(
                 "<tr><td><span class='ag'>" + _rozet(k["p"]) + k["ad"] +
@@ -2545,7 +2557,8 @@ def page_desk() -> None:
             "</div></div><div class='v2body'>"
             "<div class='v2mb'>Tahta tek tek <b>seçimleri</b> gösterir; "
             "burası <b>kuponu</b>: kaç ayak, toplam oran, tutarsa ne döner. "
-            "İkisi farklı sorulara cevap verir.</div>"
+            "İkisi farklı sorulara cevap verir. <b>⏳</b> o ayağın maçı "
+            "oynandı, sonucu işleniyor demektir.</div>"
             "<table class='v2'><thead><tr><th>Ajan ve ayaklar</th>"
             "<th class='r opt'>Ayak</th><th class='r'>Oran</th>"
             "<th class='r opt'>Yatan</th><th class='r'>Döner</th>"
@@ -2974,7 +2987,11 @@ def page_sepet() -> None:
                         "<div class='ad'>" + str(b["h"]) + " — " +
                         str(b["a"]) + "</div><div class='alt'>" +
                         str(b["ad"]) + " · " + str(b["mk"]) + " · " +
-                        str(b["pk"]) + "</div></div>"
+                        str(b["pk"]) +
+                        (" · <b style='color:var(--ng,#b3261e);'>maç "
+                         "başladı — çıkar</b>"
+                         if _basladi_mi(b.get("ko_ham")) else "") +
+                        "</div></div>"
                         "<div style='font-family:\"JetBrains Mono\",monospace;"
                         "font-size:17px;font-weight:500;'>" + _num(b["o"]) +
                         "</div></div>", unsafe_allow_html=True)
@@ -3025,8 +3042,19 @@ def page_sepet() -> None:
                 " ₺</b> döner. Bu kayıt kâğıt ile saha arasındaki farkı "
                 "ölçmeyi mümkün kılar — iddaa arşivi siliyor.</div>",
                 unsafe_allow_html=True)
+            # Başlamış maç GERÇEK deftere yazılamaz: kaydedilecek oran maç
+            # öncesinin oranı, saha artık o oranı vermiyor. Kâğıt ile saha
+            # arasındaki farkı ölçen defter yanlış oranla kirlenirdi.
+            _baslamis = [b for b in sp if _basladi_mi(b.get("ko_ham"))]
+            if _baslamis:
+                st.markdown(
+                    "<div class='dq' style='margin:0 0 var(--s2);'><b>" +
+                    str(len(_baslamis)) + " seçimin maçı başladı.</b> "
+                    "Maç öncesi oranla deftere yazılamaz — soldan sil, "
+                    "sonra oyna.</div>", unsafe_allow_html=True)
             if st.button("Oyna ve deftere yaz", type="primary",
-                         use_container_width=True, key="v2_oyna"):
+                         use_container_width=True, key="v2_oyna",
+                         disabled=bool(_baslamis)):
                 try:
                     import manual_book as mb
                     r = mb.play_custom([b["id"] for b in sp],
