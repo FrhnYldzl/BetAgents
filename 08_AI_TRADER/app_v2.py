@@ -427,7 +427,9 @@ def load_era_ozet() -> dict:
     "hiçbir şey yok" gibi görünür. İkisi çok farklı: veri yokluğu bir
     arıza olabilir, dönem başlangıcı değildir. Sayfa hangisi olduğunu
     söylemeli."""
-    r = _rows("SELECT COALESCE(era_no,1) e, COUNT(*) n, MAX(era_start) bas "
+    # EN ERKEN başlangıç: tek bir ajana yeni ölçüm penceresi açılabilir
+    # (CESUR v1.2 kredisi). MAX, dönemi o gün başlamış gibi gösterirdi.
+    r = _rows("SELECT COALESCE(era_no,1) e, COUNT(*) n, MIN(era_start) bas "
               "FROM paper_portfolio GROUP BY COALESCE(era_no,1) "
               "ORDER BY 1 DESC LIMIT 1", sessiz=True)
     if not r:

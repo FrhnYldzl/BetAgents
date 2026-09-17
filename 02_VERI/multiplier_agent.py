@@ -270,7 +270,13 @@ def candidates(combo_market: str = "1X2_OU", min_edge: float = MIN_EDGE,
                 # kova EKSİK tahmin ediliyor. Orada 1.5x uygulamak, ölçülmemiş
                 # bir katsayıyı devralmak olurdu.
                 _frag_mult = 1.5 if (fragile and "sürekli" not in method) else 1.0
-                need = min_edge * _frag_mult * EDGE_MULT.get(sf_label, 1.0)
+                _m = _frag_mult * EDGE_MULT.get(sf_label, 1.0)
+                # ⚠️ Risk çarpanı eşiği SIKILAŞTIRMALI. Pozitif eşikte çarpmak
+                # sıkılaştırır (%8 × 1,8 = %14,4). Keşif modunun NEGATİF
+                # eşiğinde çarpmak GEVŞETİRDİ (−%6 × 1,8 = −%10,8): zayıf
+                # "tuzak bölgesine" DAHA KOLAY girilirdi. Negatifte bölmek
+                # doğru yön (−%6 ÷ 1,8 = −%3,3).
+                need = min_edge * _m if min_edge >= 0 else min_edge / _m
                 if edge < need or edge > MAX_EDGE:
                     continue                      # 🛑 akıl sağlığı tavanı
                 if not (min_odds <= combo <= max_odds):
@@ -366,5 +372,41 @@ def model_candidates(market: str = "TOTAL_GOALS", min_edge: float = 0.10,
     return out
 
 
+def dagilim(market: str | None = None, gate: bool = True) -> None:
+    """EŞİK AYARI İÇİN — bugünkü adayların edge DAĞILIMI.
+
+    Sonuç verisi KULLANMAZ: hangi adayın kazandığına bakılmaz, yalnız
+    "şu eşikte kaç aday çıkar" sorusu cevaplanır. Eşiği bu soruya göre
+    seçmek hacim ayarıdır; sonuca göre eşik uydurmak (p-hacking) değildir."""
+    _mm = globals().get("MODEL_MARKETS") or {"TOTAL_GOALS", "HT_FT"}
+    mks = [market] if market else (list(MARKETS) + sorted(_mm))
+    for mk in mks:
+        if mk in _mm:
+            cs = model_candidates(market=mk, min_edge=-1.0,
+                                  min_odds=1.01, max_odds=1000.0)
+        else:
+            cs = candidates(mk, min_edge=-1.0, min_odds=1.01,
+                            max_odds=1000.0, residual_gate=gate)
+        e = sorted(c["edge"] / 100.0 for c in cs)
+        maclar = len({c["event_id"] for c in cs})
+        print(f"\n🔴 {mk} — {len(e)} fiyatlı seçim · {maclar} maç"
+              + ("" if gate or mk in _mm else " · artık-bilgi kapısı KAPALI"))
+        if not e:
+            print("   (aday yok — pazar defterinde bu pazarın fiyatı yok)")
+            continue
+        for esik in (0.10, 0.08, 0.05, 0.03, 0.01, 0.0, -0.03, -0.06):
+            n = sum(1 for x in e if x >= esik)
+            print(f"   edge ≥ {esik*100:+4.0f}% : {n:4d} seçim")
+        print(f"   en yüksek {e[-1]*100:+.1f}% · medyan {e[len(e)//2]*100:+.1f}%")
+        for c in sorted(cs, key=lambda z: -z["edge"])[:5]:
+            print(f"     {str(c['home'])[:14]:14s}-{str(c['away'])[:14]:14s} "
+                  f"{str(c['pick'])[:14]:14s} oran {c['odds']:.2f} "
+                  f"edge {c['edge']:+.1f}%")
+
+
 if __name__ == "__main__":
-    report(sys.argv[1] if len(sys.argv) > 1 else None)
+    _args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--dagilim" in sys.argv:
+        dagilim(_args[0] if _args else None, gate="--kapisiz" not in sys.argv)
+    else:
+        report(_args[0] if _args else None)

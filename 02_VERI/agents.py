@@ -160,12 +160,33 @@ PROFILES: dict[str, dict] = {
         # iddaa marjı ORTA-ORAN (1.60-2.00) favorilerde en ince: −%2.6
         # (sıfıra en yakın bölge, n=449). Tüm eski ajanlar en pahalı bölgede
         # (1.10-1.40: −14/−22) kümelenmişti. CESUR tek başına bu bölgeyi oynar.
-        "name": "CESUR (orta-oran avcısı 1.60-2.00) v1.1",
-        "model": "MOTOR-V1",
+        "name": "CESUR (orta-oran ÜST avcısı 1.60-2.00) v1.2",
+        # ⚠️ Model beyanı DÜZELTİLDİ (v1.2): CESUR hiçbir model kullanmaz —
+        # adayı vig'siz PİYASA olasılığından seçer (_midband_candidates).
+        # Eski "MOTOR-V1" beyanı yanlıştı (davranışı etkilemiyordu).
+        "model": "YOK-FIYAT-BANDI",
         # v1.1 (canlı veri, 2026-08-14): ALT bacağı atıldı (%38/−39.5 sızıntı);
         # UST %75/+21.9 · KG_YOK %71/+16 · TEK +27.4 vs K3 −5.5 → TEK ağırlık.
+        # v1.2 (ajan_karne.py, 2026-09-17) — kullanıcı: "Cesur'da sorun var,
+        # önceki haline bak, düzelt, kredi aç." 98 bahis üç dönemde incelendi:
+        #   · TEKNİK HATA YOK: dönem 3'ün 17 bahsinin skoru iddaa'dan yeniden
+        #     çekildi, 17'si de defterle uyuşuyor. Kod v1.1'den beri aynı.
+        #   · KG_YOK BACAĞI ÇÖKTÜ: v1.1'den beri 8/21 (%38, fiyat %61), dönem
+        #     3'te 0/6. ÜST üç dönemde 33/52 (%63,5, fiyat %61) ve CLV'si her
+        #     dönem pozitif → v1.1'de ALT nasıl atıldıysa KG_YOK atıldı.
+        #   · GEÇ GİRİŞ: maça <12 sa kala kurulan bahis ÜÇ dönemde de fiyatın
+        #     altında (11/21). Dönem 3'te bahislerin %47'si bu bölgedeydi
+        #     (önceki dönemlerde %14-19). 36 sa+ girişler dönem 1-2'de 17/22.
+        #   · DÜRÜST NOT: 98 bahisin tamamında CESUR fiyatın ~6 puan altında;
+        #     dönem 2'nin parlak sonucu büyük ölçüde şanstı. v1.2 kanıtlanmış
+        #     bir üstünlüğü geri getirmez — kaçağı kapatır, yeni sınav açar.
+        # ÖN KAYITLI KARAR (v1.2 penceresi, 40 bahiste — sonuç görülmeden):
+        #   CLV ort. > 0 VE isabet ≥ fiyat           → sürer
+        #   CLV ort. ≤ 0 VE isabet < fiyat − 5 puan  → emekli
+        #   arası                                    → 80 bahise uzatılır
         "stop_pct": -0.25,
-        "markets": {"UST_25", "KG_YOK"},
+        "markets": {"UST_25"},
+        "min_lead_h": 12,
         "fav_min": 0.50,
         "min_mp": 0.48, "min_odds": 1.60, "max_odds": 2.00,
         "combo_cap": 4.50, "max_daily": 3, "max_open": 6,
@@ -260,7 +281,19 @@ PROFILES: dict[str, dict] = {
         # Kullanıcı PoC istisnası tanıdı: veri birikir birikmez oynar,
         # ölçüm canlıda yapılır. Diğer ajanlar bu hesaptan HİÇBİR ŞEY
         # okumaz; KONSEY oylamasına da dahil değildir.
-        "name": "KOMBO (maç içi korelasyon — 1X2 × A/Ü)",
+        # 🔬 KEŞİF MODU (2026-09-17) — kullanıcı: "kriterleri esnetelim, oynar
+        # hale gelsinler." ÖLÇÜLEN GERÇEK (multiplier_agent.py --dagilim):
+        # model adil fiyatı iddaa'nın KENDİ bileşen fiyatlarından türettiği
+        # için iddaa'yla hemen hep aynı yerde — 1.018 fiyatlı seçimde medyan
+        # edge −%16, sıfırın üstünde tek seçim. Eşik bu yüzden NEGATİF: ajan
+        # günün EN AZ KÖTÜ kombinelerini oynar. BEKLENEN ROI NEGATİFTİR; amaç
+        # kâr değil KANIT: "modelin en iyi bulduğu kombine gerçekte fiyatı
+        # yeniyor mu?" (SİMETRİ, KAVŞAK, BANT aynı kurala bağlı.)
+        # ÖN KAYITLI KARAR (ajan başına 60 bahiste — sonuç görülmeden):
+        #   gerçekleşen ROI, modelin öngördüğü ortalama edge'in 5 puan
+        #   ALTINDA → model kombineyi yanlış fiyatlıyor, keşif kapanır;
+        #   ÜSTÜNDE VE CLV > 0 → sıralama bilgi taşıyor, sürer.
+        "name": "KOMBO (maç içi korelasyon — 1X2 × A/Ü) · keşif",
         "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
@@ -269,7 +302,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,          # yüksek varyans: mola yok
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "1X2_OU", "min_edge": 0.08, "residual_gate": True,
+        "combo_market": "1X2_OU", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,                 # veri birikene dek sabır
     },
     "SIMETRI_V1": {
@@ -277,7 +310,7 @@ PROFILES: dict[str, dict] = {
         # kartı: ölçülen korelasyon 0.33 ile 1.97 arasında (4.261 maç).
         # "ALT ve YOK" gerçekte çarpımın 1.97 katı; "ÜST ve YOK" 0.40'ı.
         # Bu, tüm kombo pazarları içinde en keskin ayrışma.
-        "name": "SİMETRİ (A/Ü × KG korelasyonu)",
+        "name": "SİMETRİ (A/Ü × KG korelasyonu) · keşif",
         "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
@@ -286,7 +319,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "OU_BTTS", "min_edge": 0.08, "residual_gate": True,
+        "combo_market": "OU_BTTS", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,
     },
     "KAVSAK_V1": {
@@ -295,7 +328,7 @@ PROFILES: dict[str, dict] = {
         # "0 ve YOK" ise 0.44 — 0-0 nadir. Beraberliği TEK BAŞINA oynamak
         # kaybettiriyor (ölçüldü: her segmentte −%12/−%21) ama KG ile
         # birleştirilince korelasyon değeri doğuyor.
-        "name": "KAVŞAK (1X2 × KG korelasyonu)",
+        "name": "KAVŞAK (1X2 × KG korelasyonu) · keşif",
         "model": "SKOR-SUREKLI",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
@@ -304,7 +337,7 @@ PROFILES: dict[str, dict] = {
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
         "sort": "score", "mode": "multiplier",
-        "combo_market": "1X2_BTTS", "min_edge": 0.08, "residual_gate": True,
+        "combo_market": "1X2_BTTS", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,
     },
     "BANT_V1": {
@@ -313,17 +346,25 @@ PROFILES: dict[str, dict] = {
         # dağılımdan gelen açık YOK. Ama bant FİYATLARI hiç test edilmedi —
         # TOTAL_GOALS oranları yeni toplanmaya başladı. Yeterli veri birikince
         # PoC çerçevesinden geçirilip aktive/reddedilecek.
-        "name": "BANT (gol aralıkları — Poisson adil fiyat)",
+        # 🔬 KEŞİF (2026-09-17, CARPAN notuna bak): TOTAL_GOALS'ta en iyi
+        # bant bile −%11,5 — model iddaa'nın bant fiyatını hiç geçemiyor.
+        # Eşik −%12 ve günde TEK bahis: en pahalı keşif bu, hacmi dar tutuldu.
+        "name": "BANT (gol aralıkları — Poisson adil fiyat) · keşif",
         "model": "SKOR-SUREKLI",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 3.00, "max_odds": 40.0,
-        "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
-        "max_tek": 2, "loss_streak": 99,
+        "combo_cap": 99.0, "max_daily": 1, "max_open": 5,
+        "max_tek": 1, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
-        "mode": "multiplier", "combo_market": "TOTAL_GOALS", "min_edge": 0.10,
+        "mode": "multiplier", "combo_market": "TOTAL_GOALS", "min_edge": -0.12,
         "pas_tolerance_days": 60,
     },
     "DEVRE_V1": {
+        # ⚠️ KEŞİFE ALINMADI (2026-09-17): kupon kapatma (paper_engine.
+        # _determine_outcome) İY/MS pazarını TANIMIYOR — "2/2" gibi bir seçim
+        # VOID yazılır, bahis ölçülemez. iddaa maç kartı ilk yarı skorunu
+        # veriyor (h.sfh / a.sfh); önce yarı skoru toplanıp kapanış kuralı
+        # yazılmalı. Eşik o zamana dek eski yerinde (oynamaz).
         # ⏱ DEVRE — İLK YARI pazarları. YEDEK: SONUÇ verisi eksik.
         # 18.059 maçın HİÇBİRİNDE yarı skoru yok (home_score_ht boş).
         # HT oranlarını topluyoruz; yarı skorları da toplanınca test edilecek.
@@ -862,7 +903,22 @@ def _midband_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]
     motoru bu bandda yapısal olarak sessiz (eşikleri düşük-oran için) —
     bu yüzden kendi kaynağı var."""
     picks: list[dict] = []
+    # v1.2: maça min_lead_h saatten az kalan maç aday DEĞİL — geç giriş üç
+    # dönemde de fiyatın altında kaldı (ajan_karne.py, 17.09.2026).
+    from datetime import datetime as _dtm
+    _min_lead = float(prof.get("min_lead_h") or 0)
+    _simdi = _dtm.utcnow()
+    _gec = 0
     for m in matches:
+        if _min_lead:
+            try:
+                _ko = _dtm.fromisoformat(
+                    str(m.get("kickoff_utc") or "").replace("Z", "")[:19])
+            except ValueError:
+                continue
+            if (_ko - _simdi).total_seconds() / 3600.0 < _min_lead:
+                _gec += 1
+                continue
         opts = []
         for pair, legs in (
             (("closing_over25", "closing_under25"),
@@ -896,7 +952,8 @@ def _midband_candidates(prof: dict, tag: str, matches: list[dict]) -> list[dict]
             "edge": mp - 1.0 / o, "signal_name": "MIDBAND",
             "signal_score": mp, "_match": m,
         })
-    print(f"{tag} 🦁 orta-band aday: {len(picks)}")
+    print(f"{tag} 🦁 orta-band aday: {len(picks)}"
+          + (f" · {_gec} maç elendi (maça <{_min_lead:.0f} sa)" if _gec else ""))
     return picks
 
 
