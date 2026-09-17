@@ -220,7 +220,12 @@ def m_izleme_kapisi(conn) -> dict:
         "AND pp.era_no = (SELECT MAX(COALESCE(era_no,1)) "
         "                 FROM paper_portfolio) "
         "AND pp.era_start IS NOT NULL "
-        "AND pc.created_at >= pp.era_start "
+        # Dönemin BAŞINDAN — ajanın kendi penceresinden değil: bir ajana
+        # kredi + yeni pencere açılınca (CESUR v1.2, 17.09) eski kayıpları
+        # sistem düşüşünden SİLİNMEMELİ. (Kayan pencere CLV aşağıda ajanın
+        # kendi penceresinde kalır — o bir ajan hükmüdür.)
+        "AND pc.created_at >= (SELECT MIN(p2.era_start) FROM paper_portfolio p2 "
+        "WHERE p2.era_no = pp.era_no) "
         "ORDER BY pc.settled_at").fetchall()
     # ⚠️ DÜŞÜŞ KASAYA GÖRE ÖLÇÜLÜR, KÂR EĞRİSİNE GÖRE DEĞİL.
     # İlk halim tepe'yi kümülatif PnL eğrisinin tepesi alıyordu ve o

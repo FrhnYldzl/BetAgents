@@ -1065,11 +1065,27 @@ def _isabet(a) -> str:
     return "isabet " + _pct(a["hit"]) + " (" + str(k) + "/" + str(a["n"]) + ")"
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _isabet_toplam(kisa: bool = False) -> str:
-    """Sahadaki ajanların dönem içi toplam isabeti (seçim bazında)."""
-    ags = load_agents()
-    n = sum(int(a.get("n") or 0) for a in ags)
-    k = sum(int(a.get("won") or 0) for a in ags)
+    """Sahadaki ajanların DÖNEM içi toplam isabeti (seçim bazında).
+
+    ⚠️ Dönemin başından sayılır, ajanların kendi pencerelerinden DEĞİL.
+    CESUR'a 17.09'da yeni pencere açılınca eski 5/17'si ajan satırından
+    düştü (doğru: v1.2 ayrı ölçülüyor) — ama sistem toplamından da düşseydi
+    toplam isabet bir gecede %56'dan %68'e "iyileşmiş" görünürdü."""
+    r = _rows(
+        "SELECT COUNT(*) n, "
+        "COALESCE(SUM(CASE WHEN pb.status='won' THEN 1 ELSE 0 END),0) k "
+        "FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+        "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
+        "AND pp.era_start IS NOT NULL "
+        "AND pc.created_at >= (SELECT MIN(p2.era_start) FROM paper_portfolio p2 "
+        "WHERE p2.era_no = pp.era_no)"
+        + _sahada_sql("pb.portfolio_id"), sessiz=True)
+    n = int(r[0]["n"] or 0) if r else 0
+    k = int(r[0]["k"] or 0) if r else 0
     if not n:
         return "—"
     return _pct(k / n) if kisa else _pct(k / n) + " · " + str(k) + "/" + str(n)
@@ -1329,7 +1345,14 @@ def load_alternatif() -> dict:
         return {}
     # Aynı sermaye para piyasasında dururken ne olurdu (basit oranlı)
     faiz = ib * PARA_PIYASASI * (gun / 365.0)
-    bahis = cb - ib
+    # ⚠️ BAHİS GETİRİSİ KUPONLARDAN, KASA FARKINDAN DEĞİL. Kasa farkı
+    # (güncel − başlangıç) bir ajana kredi açılınca bozulur: CESUR'a 17.09'da
+    # yeni kasa verildi ve 869 ₺'lik kaybı kasa farkından silindi. Kupon
+    # PnL'i dönemin başından toplanır — kredi kâr sayılmaz.
+    pn = _rows("SELECT COALESCE(SUM(pc.pnl),0) t FROM paper_coupons pc "
+               "WHERE pc.status IN ('won','lost') AND pc.created_at >= ?"
+               + _sahada_sql("pc.portfolio_id"), (bas,), sessiz=True)
+    bahis = float(pn[0]["t"] or 0) if pn else (cb - ib)
     return {"ib": ib, "cb": cb, "gun": gun, "bahis": bahis, "faiz": faiz,
             "fark": bahis - faiz, "oran": PARA_PIYASASI}
 
@@ -2215,7 +2238,14 @@ def load_egri_ham() -> list[dict]:
         "FROM paper_coupons pc "
         "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
         "WHERE pc.status IN ('won','lost') AND pc.settled_at IS NOT NULL "
-        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start) "
+        # ⚠️ DÖNEMİN başlangıcı — ajanın KENDİ penceresi değil. Bir ajana
+        # kredi + yeni pencere açılınca (CESUR v1.2, 17.09) eski penceresinin
+        # kayıpları sistem eğrisinden DÜŞMEMELİ: yoksa kredi, sistem kârı gibi
+        # görünür (NET −821 ₺ bir gecede +48 ₺ olacaktı). Ajan hükmü kendi
+        # penceresinden; sistemin parası dönemin başından.
+        "AND pp.era_start IS NOT NULL "
+        "AND pc.created_at >= (SELECT MIN(p2.era_start) FROM paper_portfolio p2 "
+        "WHERE p2.era_no = pp.era_no) "
         + _sahada_sql("pc.portfolio_id") + " "
         "ORDER BY pc.settled_at", sessiz=True)
 
