@@ -258,11 +258,16 @@ def load_agents() -> list[dict]:
     # gösterdi: emekli ajanlar ve önceki dönem sayıları duruyordu.
     # Dönem sıfırlaması KASAYI sıfırlıyor ama tabloyu sıfırlamıyorsa
     # ekran ile gerçek ayrışır — ve hangisine güvenileceği belirsizleşir.
+    # Dönem ölçütü KUPONUN KURULDUĞU an — load_lig ile AYNI. Eskiden maç
+    # saatine bakılıyordu: önceki dönemde kurulup yeni dönemde oynanan bir
+    # kupon burada sayılıyor, Ajan Ligi'nde sayılmıyordu. Aynı ajan iki
+    # sayfada iki farklı isabet gösterebilirdi.
     rows = _rows(
         "SELECT pb.portfolio_id p, pb.odds o, pb.status s FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
         "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
         "WHERE pb.status IN ('won','lost') AND pb.odds > 1.01 "
-        "AND (pp.era_start IS NULL OR pb.kickoff_utc >= pp.era_start)"
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)"
         + _sahada_sql("pb.portfolio_id"),
         sessiz=True)
     # EMEKLİ ajanlar tabloda görünmez: yeni bahis üretmiyorlar, sıralamada
@@ -302,7 +307,7 @@ def load_agents() -> list[dict]:
         if n == 0:
             out.append({
                 "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
-                "n": 0, "hit": 0.0, "exp": 0.0, "edge": 0.0,
+                "n": 0, "won": 0, "hit": 0.0, "exp": 0.0, "edge": 0.0,
                 "odds": 0.0, "skill": 0.0, "t": None, "perfect": False,
                 "bekliyor": True,
             })
@@ -318,7 +323,7 @@ def load_agents() -> list[dict]:
         t = (skill / se) if (se > 1e-9 and not perfect) else None
         out.append({
             "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
-            "n": n, "hit": hit, "exp": exp, "edge": hit - exp,
+            "n": n, "won": won, "hit": hit, "exp": exp, "edge": hit - exp,
             "odds": sum(float(x["o"]) for x in v) / n,
             "skill": skill, "t": t, "perfect": perfect,
             "bekliyor": False,
@@ -1023,6 +1028,51 @@ def _num(v: float, d: int = 2) -> str:
 KANIT_ESIGI = 30
 
 
+def _hukum(a: dict) -> tuple:
+    """TEK hüküm kuralı — Karar Masası tablosu, tahta satırı ve Ajan Ligi
+    AYNI dili konuşur.
+
+    ⚠️ Bu kural üç yerde ayrı ayrı kopyalanmıştı ve ikisi kanıt eşiğini
+    unutmuştu: CESUR n=17 ile güven tablosunda ÖLÇÜLEMEZ, tahtada KÖTÜ
+    görünüyordu. Aynı ajana iki sayfada iki hüküm, hiçbirine
+    güvenilmemesi demektir."""
+    if a.get("bekliyor") or not a.get("n"):
+        return "g2", "BEKLİYOR"
+    if a["n"] < KANIT_ESIGI or a.get("perfect"):
+        return "g2", "ÖLÇÜLEMEZ"
+    if a.get("t") is None:
+        return "g2", "GÜRÜLTÜ"
+    if a["t"] <= -1.96:
+        return "g3", "KÖTÜ"
+    if a["t"] >= 1.96:
+        return "g1", "İYİ"
+    return "g2", "GÜRÜLTÜ"
+
+
+def _isabet(a) -> str:
+    """İsabet oranı — HER ZAMAN örneklemiyle: "isabet 63,6% (7/11)".
+
+    Kullanıcı isabeti hiçbir yerde göremiyordu: sütunlar dar panelde ve
+    telefonda gizleniyordu. Artık ajan adının altındaki satırda, her
+    genişlikte görünür. Sayı n'siz yazılmaz — 1/1 "%100" diye okunur."""
+    if not a or not a.get("n"):
+        return "isabet —"
+    k = a.get("won")
+    if k is None:
+        k = round(a["hit"] * a["n"])
+    return "isabet " + _pct(a["hit"]) + " (" + str(k) + "/" + str(a["n"]) + ")"
+
+
+def _isabet_toplam(kisa: bool = False) -> str:
+    """Sahadaki ajanların dönem içi toplam isabeti (seçim bazında)."""
+    ags = load_agents()
+    n = sum(int(a.get("n") or 0) for a in ags)
+    k = sum(int(a.get("won") or 0) for a in ags)
+    if not n:
+        return "—"
+    return _pct(k / n) if kisa else _pct(k / n) + " · " + str(k) + "/" + str(n)
+
+
 def _olculebilir(n: int, esik: int = KANIT_ESIGI) -> bool:
     """Bu örneklem bir hüküm taşıyabilir mi?"""
     return int(n or 0) >= esik
@@ -1190,7 +1240,7 @@ def load_lig() -> dict:
         ib = float(k.get("ib") or 1000)
         cb = float(k.get("cb") or 0)
         return {"pid": pid, "ad": pid.rsplit("_", 1)[0],
-                "em": pid, "n": n, "hit": hit, "exp": exp,
+                "em": pid, "n": n, "won": won, "hit": hit, "exp": exp,
                 "edge": hit - exp, "skill": skill,
                 "t": (skill / se) if (se > 1e-9 and not perfect) else None,
                 "perfect": perfect, "kasa": cb, "ilk": ib,
@@ -2277,6 +2327,7 @@ def page_desk() -> None:
         [{"ad": "Açık pozisyon", "deger": str(r["acik"])},
          {"ad": "Kapanmış bahis",
           "deger": "{:,}".format(r["kapali"]).replace(",", ".")},
+         {"ad": "İsabet (dönem)", "deger": _isabet_toplam()},
          {"ad": "Beceri k",
           "deger": ("henüz yok" if r["k"] is None
                     else ("%+.3f" % r["k"]).replace(".", ",")),
@@ -2300,16 +2351,10 @@ def page_desk() -> None:
     # 16 ajan içinde 13. sıradaydı (−11,0p). Solda okuduğun uyarı, sağda
     # seçim yaparken kayboluyordu. Sıra ve hüküm artık seçim satırında.
     _sira_h = {}
+    _ag_h = {_a["pid"]: _a for _a in ags}      # isabet: tahta + kuponlar
     for _i, _a in enumerate(ags, 1):
-        if _a["perfect"] or _a["t"] is None:
-            _hk = "ÖLÇÜLEMEZ" if _a["perfect"] else "GÜRÜLTÜ"
-        elif _a["t"] <= -1.96:
-            _hk = "KÖTÜ"
-        elif _a["t"] >= 1.96:
-            _hk = "İYİ"
-        else:
-            _hk = "GÜRÜLTÜ"
-        _sira_h[_a["pid"]] = {"sira": _i, "hukum": _hk,
+        # Hüküm TEK kuraldan (_hukum) — tablo ile tahta ayrışmasın.
+        _sira_h[_a["pid"]] = {"sira": _i, "hukum": _hukum(_a)[1],
                               "toplam": len(ags), "edge": _a["edge"]}
 
     # ── SOL: ajan güveni ──────────────────────────────────────
@@ -2325,20 +2370,7 @@ def page_desk() -> None:
                 break
         body = []
         for i, a in enumerate(ags, 1):
-            if a.get("bekliyor"):
-                g, txt = "g2", "BEKLİYOR"
-            elif a["n"] < KANIT_ESIGI:
-                g, txt = "g2", "ÖLÇÜLEMEZ"
-            elif a["perfect"]:
-                g, txt = "g2", "ÖLÇÜLEMEZ"
-            elif a["t"] is None:
-                g, txt = "g2", "GÜRÜLTÜ"
-            elif a["t"] <= -1.96:
-                g, txt = "g3", "KÖTÜ"
-            elif a["t"] >= 1.96:
-                g, txt = "g1", "İYİ"
-            else:
-                g, txt = "g2", "GÜRÜLTÜ"
+            g, txt = _hukum(a)
             # 0,5 puandan kucuk fark isaretlenmez — +0,0p yesil
             # gostermek, olcum gurultusunu avantaj gibi sunmaktir.
             adv = " class='adv'" if a["edge"] >= 0.005 else ""
@@ -2347,7 +2379,8 @@ def page_desk() -> None:
                 f"<td><span class='ag'>{_rozet(a['pid'])}{a['ad']}</span>"
                 + (f"<span class='sb'>henüz bahis kurmadı</span></td>"
                    if a.get("bekliyor") else
-                   f"<span class='sb'>n={a['n']} · oran {_num(a['odds'])}</span></td>")
+                   # İsabet alt satırda: sütunu bu dar panelde gizleniyordu.
+                   f"<span class='sb'>{_isabet(a)} · oran {_num(a['odds'])}</span></td>")
                 + (f"<td class='r n opt dar'>—</td>"
                    f"<td class='r n opt dar'>—</td>"
                    f"<td class='r'><span class='sb'>—</span></td>"
@@ -2480,7 +2513,9 @@ def page_desk() -> None:
                 _lg = (b["iddaa_lig"] or "") if b["lg"] == "ALL" else ""
                 _sh = _sira_h.get(b["pid"])
                 _rank = (f" {_sh['sira']}/{_sh['toplam']}" if _sh else "")
-                lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}{_rank}"
+                _isb = ("  ·  " + _isabet(_ag_h.get(b["pid"]))
+                        if b["pid"] in _ag_h else "")
+                lbl = (f"{b['h']} — {b['a']}  ·  {b['ad']}{_rank}{_isb}"
                        f"  ·  {b['mk']} {b['pk']}  ·  {b['ko']}"
                        + (f"  ·  {_lg}" if _lg else ""))
                 _sepette = any(x["id"] == b["id"] for x in _sepet())
@@ -2554,7 +2589,8 @@ def page_desk() -> None:
                 str(x["h"])[:12] + " " + str(x["pk"])[:10] for x in k["ayak"])
             sat.append(
                 "<tr><td><span class='ag'>" + _rozet(k["p"]) + k["ad"] +
-                "</span><span class='sb'>" + ayaklar[:92] + "</span></td>"
+                "</span><span class='sb'>" + _isabet(_ag_h.get(k["p"])) +
+                " · " + ayaklar[:92] + "</span></td>"
                 "<td class='r n opt'>" + str(k["n"]) + "</td>"
                 "<td class='r n'>" + _num(k["co"]) + "</td>"
                 "<td class='r n opt'>" + "{:.0f}".format(k["sk"]) + " ₺</td>"
@@ -2764,7 +2800,7 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
             _rozet(pid) + a["ad"] + "</span>"
             "<span style='font-family:\"JetBrains Mono\",monospace;"
             "font-size:var(--t-alt);color:var(--muted);'>dönem " +
-            str(a["era"] or "—") + " · n=" + str(a["n"]) + " · kasa " +
+            str(a["era"] or "—") + " · " + _isabet(a) + " · kasa " +
             "{:,.0f}".format(a["kasa"]).replace(",", ".") + " ₺</span></div>",
             unsafe_allow_html=True)
     with kapat:
@@ -2882,18 +2918,7 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
                 "kapanmış bahis yok.</div></div></div>")
     body = []
     for i, a in enumerate(rows, 1):
-        if a["n"] == 0:
-            g, txt = "g2", "BEKLİYOR"
-        elif a["perfect"]:
-            g, txt = "g2", "ÖLÇÜLEMEZ"
-        elif a["t"] is None:
-            g, txt = "g2", "GÜRÜLTÜ"
-        elif a["t"] <= -1.96:
-            g, txt = "g3", "KÖTÜ"
-        elif a["t"] >= 1.96:
-            g, txt = "g1", "İYİ"
-        else:
-            g, txt = "g2", "GÜRÜLTÜ"
+        g, txt = _hukum(a)      # Karar Masası ile AYNI kural (kanıt eşiği dahil)
         # ⚠️ n=1'lik bir farki yesil cip ile one cikarmak, gurultuyu
         # avantaj gibi sunmaktir. KAVSAK n=1 ile +36,8p gosteriyordu.
         # Vurgu icin hem anlamli fark hem asgari orneklem sart.
@@ -2908,8 +2933,9 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
         body.append(
             "<tr" + adv + "><td class='rk'>" + str(i) + "</td>"
             "<td><span class='ag'>" + _rozet(a["pid"]) + a["ad"] + "</span>" + uyari +
-            "<span class='sb'>n=" + str(a["n"]) +
-            (" · oran " + _num(a["odds"]) if a["n"] else " · oynamadı") +
+            # İsabet alt satırda — "İsabet" sütunu telefonda gizleniyor.
+            "<span class='sb'>" +
+            (_isabet(a) + " · oran " + _num(a["odds"]) if a["n"] else "oynamadı") +
             "</span></td>"
             "<td class='opt' style='width:100px;'>" +
             _kivilcim(EG.get(a["pid"], {}).get("seri", [])) + "</td>"
@@ -2961,6 +2987,7 @@ def page_sepet() -> None:
     Tahtada gezerken 'bunu beğendim' demek ucuzdur; kuponu kurup parayı
     yatırmak değildir. Sepet ikisinin arasına bir eşik koyar."""
     sp = _sepet()
+    _ag_s = {a["pid"]: a for a in load_agents()}     # ajan isabeti
     O, p = 1.0, 1.0
     for b in sp:
         O *= b["o"]
@@ -2995,8 +3022,8 @@ def page_sepet() -> None:
                         "<div class='v2sepet-satir'><div>"
                         "<div class='ad'>" + str(b["h"]) + " — " +
                         str(b["a"]) + "</div><div class='alt'>" +
-                        str(b["ad"]) + " · " + str(b["mk"]) + " · " +
-                        str(b["pk"]) +
+                        str(b["ad"]) + " (" + _isabet(_ag_s.get(b.get("pid"))) +
+                        ") · " + str(b["mk"]) + " · " + str(b["pk"]) +
                         (" · <b style='color:var(--ng,#b3261e);'>maç "
                          "başladı — çıkar</b>"
                          if _basladi_mi(b.get("ko_ham")) else "") +
@@ -4206,6 +4233,7 @@ def _marka_serit() -> None:
         "<span>AÇIK</span><b>" + str(r["acik"]) + "</b>"
         "<span>KAPANMIŞ</span><b>" +
         "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
+        "<span>İSABET</span><b>" + _isabet_toplam(kisa=True) + "</b>"
         "</div></div>", unsafe_allow_html=True)
 
 
