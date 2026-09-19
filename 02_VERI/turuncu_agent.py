@@ -60,22 +60,15 @@ def _simdi() -> str:
     return datetime.utcnow().isoformat()
 
 
-def _fiyatlar(conn) -> dict:
-    """market_odds'tan her (maç, pazar, seçim) için EN SON iddaa fiyatı."""
-    out: dict = defaultdict(dict)
-    for r in conn.execute(
-            "SELECT iddaa_event_id, market, selection, odd FROM market_odds "
-            "WHERE kickoff_utc > ? ORDER BY ts", (_simdi(),)).fetchall():
-        mk, sel = str(r[1]), str(r[2])
-        if mk == "1X2" and sel == "X":
-            sel = "0"
-        try:
-            o = float(r[3] or 0)
-        except (TypeError, ValueError):
-            continue
-        if o > 1.0:
-            out[str(r[0])][(mk, sel)] = o
-    return out
+def _fiyatlar() -> dict:
+    """iddaa'nın ŞU ANKİ fiyatı (canli_fiyat — veri katmanı).
+
+    ⚠️ 19.09 DERSİ (kullanıcı: "HARMAN'ın oranları yanlış gibi"): ilk sürüm
+    fiyatı pazar defterinin (market_odds) SON SATIRINDAN okuyordu; o satır
+    günlerce eski olabiliyor (bkz. canli_fiyat.py). Çağrı başarısızsa
+    istisna yükselir → ajan 🔴 TIKANIKLIK yazar."""
+    import canli_fiyat
+    return canli_fiyat.fiyatlar()
 
 
 def _program(conn) -> list[dict]:
@@ -92,18 +85,21 @@ _VERI: dict = {"ts": None, "v": None}
 
 
 def _veri(taze_sn: int = 120) -> tuple[dict, list]:
-    """Fiyat + program, 2 dk önbellekli: bir worker döngüsünde beş ajan üç
-    kez (kalkan, teşhis, koşu) aday üretir; veritabanı proxy'si bağlantı
-    sayısına duyarlı (bkz. railway genel proxy notu)."""
+    """Canlı fiyat + program, 2 dk önbellekli: bir worker döngüsünde beş
+    ajan üç kez (kalkan, teşhis, koşu) aday üretir. Fiyat iddaa'dan canlı
+    geldiği için önbellek en fazla 2 dk eski olabilir — defterin günlerce
+    eski satırıyla karıştırılmasın."""
     simdi = datetime.utcnow()
     if (_VERI["v"] is not None and _VERI["ts"] is not None
             and (simdi - _VERI["ts"]).total_seconds() < taze_sn):
         return _VERI["v"]
+    fiyat = _fiyatlar()
     conn = db.connect()
     try:
-        v = (_fiyatlar(conn), _program(conn))
+        program = _program(conn)
     finally:
         conn.close()
+    v = (fiyat, program)
     _VERI.update(ts=simdi, v=v)
     return v
 
@@ -212,9 +208,68 @@ def kur() -> None:
         conn.close()
 
 
+def iptal(once: str, gerekce: str, uygula: bool = False) -> None:
+    """Turuncu'nun `once`'den önce kurulmuş AÇIK kuponlarını iptal et (void).
+
+    Sistemin kendi 'tüm ayaklar void' kapanışıyla aynı biçim: kupon void,
+    actual_return = stake, pnl = 0; ayaklar void. Kasa DEĞİŞMEZ (bahis
+    kurulurken kasadan düşülmüyor) ve kasa mutabakatı bozulmaz. Portföy
+    sayaçlarına dokunulmaz — geçersiz girdiyle kurulmuş kupon oynanmış
+    sayılmaz. Önce yedek: yedek_turuncu_iptal.json. Yalnız TURUNCU."""
+    import json
+    import agents
+    tur = [p for p, v in agents.PROFILES.items() if v.get("takim") == "turuncu"]
+    conn = db.connect()
+    try:
+        kup = [dict(r) for r in conn.execute(
+            "SELECT * FROM paper_coupons WHERE status='open' AND created_at < ? "
+            "AND portfolio_id IN (" + ",".join("?" * len(tur)) + ")",
+            (once, *tur)).fetchall()]
+        ids = [k["coupon_id"] for k in kup]
+        bah = [dict(r) for r in conn.execute(
+            "SELECT * FROM paper_bets WHERE coupon_id IN (" +
+            ",".join("?" * len(ids)) + ")", tuple(ids)).fetchall()] if ids else []
+        for b in bah:
+            print(f"  {b['portfolio_id']:11s} {str(b['home_team'])[:14]:14s}-"
+                  f"{str(b['away_team'])[:14]:14s} {b['market']:11s} "
+                  f"{str(b['pick']):11s} @{float(b['odds']):.2f}")
+        print(f"  {len(kup)} kupon · {len(bah)} ayak · gerekçe: {gerekce}")
+        if not uygula or not ids:
+            print("  KURU KOŞU — yazmak için --uygula" if ids else "  iptal edilecek kupon yok")
+            return
+        yedek = THIS_DIR / "yedek_turuncu_iptal.json"
+        onceki = json.loads(yedek.read_text(encoding="utf-8")) if yedek.exists() else []
+        onceki.append({"ts": _simdi(), "gerekce": gerekce, "kuponlar": kup, "ayaklar": bah})
+        yedek.write_text(json.dumps(onceki, ensure_ascii=False, default=str, indent=1),
+                         encoding="utf-8")
+        simdi = _simdi()
+        yer = ",".join("?" * len(ids))
+        conn.execute("UPDATE paper_bets SET status='void', settled_at=?, "
+                     "reason=COALESCE(reason,'') || ? WHERE coupon_id IN (" + yer + ")",
+                     (simdi, " · ⛔ İPTAL: " + gerekce, *ids))
+        conn.execute("UPDATE paper_coupons SET status='void', settled_at=?, "
+                     "actual_return=stake, pnl=0 WHERE coupon_id IN (" + yer + ")",
+                     (simdi, *ids))
+        conn.commit()
+        for pid in sorted({k["portfolio_id"] for k in kup}):
+            n = sum(1 for k in kup if k["portfolio_id"] == pid)
+            agents._journal(conn, pid, f"⛔ {n} kupon iptal (void)",
+                            gerekce + " · kasa değişmedi · yedek: yedek_turuncu_iptal.json")
+        conn.commit()
+        print(f"  ✅ {len(ids)} kupon void · yedek {yedek.name}")
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     if "--kur" in sys.argv:
         kur()
+    elif "--iptal" in sys.argv:
+        i = sys.argv.index("--iptal")
+        iptal(sys.argv[i + 1],
+              "fiyat pazar defterinin bayat satırından okundu (ör. Sevilla 10,50 "
+              "— iddaa'da ~8,4); ajan canlı fiyatla yeniden karar verecek",
+              uygula="--uygula" in sys.argv)
     else:
         import agents
         for pid, prof in agents.PROFILES.items():

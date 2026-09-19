@@ -72,8 +72,12 @@ PROFILES: dict[str, dict] = {
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
         "fav_min": 0.58,
         "min_mp": 0.55, "min_odds": 1.30,   # yüksek oran bandı (1.35-1.55 en az kötüydü)
-        "combo_cap": 4.50, "max_daily": 3, "max_open": 6,
-        "max_tek": 2, "loss_streak": 5,
+        # 📈 HACİM (19.09, kullanıcı: "Mavi başarılı, oynasınlar, 10'a kadar
+        # yolu var — kanıt için n lazım"): günde 10 · açık 10 (100 ₺ sabit
+        # bahiste 1.000 ₺ kasayı aşmayan tavan). Tek/kombine oranı korundu:
+        # eski 2/3 → 7/10. (Önceki: günde 3 · açık 6 · tek 2.)
+        "combo_cap": 4.50, "max_daily": 10, "max_open": 10,
+        "max_tek": 7, "loss_streak": 5,
         "tek_stake": 0.06, "k3_stake": 0.05,
         "sort": "hunt",                     # SHARP > edge > oran
     },
@@ -189,8 +193,11 @@ PROFILES: dict[str, dict] = {
         "min_lead_h": 12,
         "fav_min": 0.50,
         "min_mp": 0.48, "min_odds": 1.60, "max_odds": 2.00,
-        "combo_cap": 4.50, "max_daily": 3, "max_open": 6,
-        "max_tek": 3, "loss_streak": 5,
+        # 📈 HACİM (19.09): günde 10 · açık 10 · tek 10 (AVCI notuna bak).
+        # (Önceki: günde 3 · açık 6 · tek 3.) v1.2 ön kaydı bahis SAYISINA
+        # bağlı (40) — hacim kuralı değiştirmez, yalnız hükmü öne çeker.
+        "combo_cap": 4.50, "max_daily": 10, "max_open": 10,
+        "max_tek": 10, "loss_streak": 5,
         "tek_stake": 0.05, "k3_stake": 0.035,
         "sort": "score", "mode": "midband",
     },
@@ -243,8 +250,10 @@ PROFILES: dict[str, dict] = {
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 1.50, "max_odds": 2.20,
-        "combo_cap": 5.00, "max_daily": 2, "max_open": 5,
-        "max_tek": 2, "loss_streak": 99,
+        # 📈 HACİM (19.09): kontrol çizgisi yarıştığı ajanlarla AYNI hacimde
+        # oynamalı — günde 10 · açık 10 · tek 10. (Önceki: 2 · 5 · 2.)
+        "combo_cap": 5.00, "max_daily": 10, "max_open": 10,
+        "max_tek": 10, "loss_streak": 99,
         "tek_stake": 0.03, "k3_stake": 0.025,
         "sort": "score", "mode": "joker",
     },
@@ -412,8 +421,10 @@ PROFILES: dict[str, dict] = {
         "stop_pct": -0.15, "leagues": {"SP1", "I1", "F1", "D1", "E0"},
         "markets": {"KG_YOK", "UST_25", "ALT_25"}, "fav_min": 0.68,
         "min_mp": 0.64, "min_odds": 1.22,
-        "combo_cap": 3.00, "max_daily": 2, "max_open": 4,
-        "max_tek": 1, "loss_streak": 3,
+        # 📈 HACİM (19.09): günde 10 · açık 10 · tek 5 (eski 1/2 oranı).
+        # (Önceki: günde 2 · açık 4 · tek 1.)
+        "combo_cap": 3.00, "max_daily": 10, "max_open": 10,
+        "max_tek": 5, "loss_streak": 3,
         "tek_stake": 0.05, "k3_stake": 0.04, "sort": "safety",
     },
 
@@ -1529,13 +1540,12 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         # montaj ise her koşuda max_daily kadar kupon kurabiliyordu. Günde
         # birkaç koşu olduğu için limit SIZIYORDU (ölçüldü: 01.08'den beri 17
         # ajan-gün — CARPAN 17.09'da 3/2, AVCI ve CESUR 07.09'da 6/3). Montaja
-        # yalnız KALAN hak verilir. Şimdilik yalnız 🔴 Kırmızı (kullanıcı bariz
-        # hatalarının düzeltilmesine izin verdi) ve 🟠 Turuncu; Mavi'nin
-        # davranışı kullanıcı kararı gelene kadar DEĞİŞMEZ.
-        if prof.get("mode") in ("multiplier", "turuncu"):
-            _kalan = min(prof["max_daily"] - n_today, prof["max_open"] - n_open)
-            prof = {**prof, "max_daily": _kalan,
-                    "max_tek": min(prof.get("max_tek", _kalan), _kalan)}
+        # yalnız KALAN hak verilir — TÜM takımlarda aynı kural (kullanıcı:
+        # "standartlaştırmak lazım"). Mavi'nin hacmi limit yükseltilerek
+        # açıldı (günde 10), sızıntıyla değil.
+        _kalan = min(prof["max_daily"] - n_today, prof["max_open"] - n_open)
+        prof = {**prof, "max_daily": _kalan,
+                "max_tek": min(prof.get("max_tek", _kalan), _kalan)}
         rows = conn.execute(
             """
             SELECT * FROM matches_v2

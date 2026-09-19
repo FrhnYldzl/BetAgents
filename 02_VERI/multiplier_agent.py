@@ -67,7 +67,33 @@ def _load_latest() -> tuple[dict, dict]:
         ev = str(r[0])
         latest[(ev, r[5], r[6])] = float(r[7] or 0)
         meta[ev] = {"lg": r[1], "ko": r[2], "home": r[3], "away": r[4], "lead": r[8]}
-    return latest, meta
+    # 🔄 CANLI FİYAT KATMANI (19.09.2026) — defterin son satırı güncel fiyat
+    # DEĞİL: ana çekim 803 maçın yalnız ilk 120'sini işliyor, dışarıda kalan
+    # maçın satırı günlerce eski kalabiliyor (Turuncu'da bulundu: Sevilla
+    # 10,50 — iddaa'da ~8,4). Defter yalnız maç KİMLİĞİNİ verir; fiyat iddaa'dan
+    # canlı okunur. Canlı listede olmayan maç aday OLMAZ; canlı okunamazsa
+    # bayat fiyatla aday ÜRETİLMEZ.
+    try:
+        import canli_fiyat
+        canli = canli_fiyat.fiyatlar()
+    except Exception as e:
+        print(f"  🔴 canlı fiyat okunamadı ({type(e).__name__}: {e}) — "
+              f"bayat defter fiyatıyla aday üretilmez")
+        return {}, {}
+    taze: dict = {}
+    for ev in list(meta):
+        c = canli.get(ev)
+        if not c:
+            meta.pop(ev)
+            continue
+        for (mk, sel), o in c.items():
+            taze[(ev, mk, sel)] = o
+        try:
+            meta[ev]["lead"] = (datetime.fromisoformat(str(meta[ev]["ko"])[:19])
+                                - datetime.utcnow()).total_seconds() / 3600.0
+        except Exception:
+            pass
+    return taze, meta
 
 
 def _norm_probs(latest: dict, ev: str, market: str) -> dict | None:
