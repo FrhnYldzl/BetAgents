@@ -893,6 +893,65 @@ def m_mimar_fiyat_gecmisi(conn) -> dict:
     }
 
 
+def m_turuncu_model(conn) -> dict:
+    """🟠 Turuncu skor modeli — ön kayıtlı ileriye dönük sınav
+    (turuncu_model.SINAV_KURALI; aylık yeniden eğitim, 2024-07 → 2026-06)."""
+    import turuncu_model as _tm
+    return _tm.sinav(conn, yazdir=False)
+
+
+def m_turuncu_saha(conn) -> dict:
+    """🟠 Turuncu ajanlarının saha kuralı — agents.py'deki ön kayıt (19.09,
+    ilk bahisten ÖNCE yazıldı). Ajan başına 60 kapanmış bahiste:
+      CLV ort. > 0 VE ROI > −%8 → SÜRER
+      CLV ort. ≤ 0              → EMEKLİ
+      arası                     → 120 bahise UZAR; 120'de hâlâ arası → EMEKLİ
+    CLV kombine/gol bandında 'son görülen fiyat' vekilidir (bkz. clv.py)."""
+    from agents import PROFILES
+    tur = sorted(p for p, v in PROFILES.items() if v.get("takim") == "turuncu")
+    if not tur:
+        return {"yetersiz": True, "n": 0}
+    rows = [dict(r) for r in conn.execute(
+        "SELECT pb.portfolio_id p, pb.odds o, pb.status s, pb.clv c "
+        "FROM paper_bets pb JOIN paper_coupons pc ON pc.coupon_id=pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id=pb.portfolio_id "
+        "WHERE pb.portfolio_id IN (" + ",".join("?" * len(tur)) + ") "
+        "AND pb.status IN ('won','lost') "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)",
+        tuple(tur)).fetchall()]
+    by: dict = {p: [] for p in tur}
+    for r in rows:
+        by[r["p"]].append(r)
+    enc = max((len(v) for v in by.values()), default=0)
+    if enc < 60:
+        return {"yetersiz": True, "n": enc}
+    parca, surer, en_clv = [], 0, None
+    for p in tur:
+        v = by[p]
+        n = len(v)
+        if n < 60:
+            parca.append(f"{p.split('_')[0]} {n}/60 bekliyor")
+            continue
+        roi = sum((float(x["o"]) - 1.0) if x["s"] == "won" else -1.0
+                  for x in v) / n
+        cl = [float(x["c"]) for x in v if x["c"] is not None]
+        if not cl:
+            parca.append(f"{p.split('_')[0]} n={n} CLV ölçülemedi")
+            continue
+        cm = sum(cl) / len(cl)
+        en_clv = cm if en_clv is None else max(en_clv, cm)
+        if cm > 0 and roi > -0.08:
+            h, surer = "SÜRER", surer + 1
+        elif cm <= 0 or n >= 120:
+            h = "EMEKLİ"
+        else:
+            h = "120'YE UZAR"
+        parca.append(f"{p.split('_')[0]} n={n} CLV {cm*100:+.1f}% "
+                     f"ROI {roi*100:+.1f}% → {h}")
+    return {"n": len(rows), "deger": en_clv or 0.0,
+            "detay": " · ".join(parca), "gecti": surer > 0}
+
+
 # ══════════════════════════════════════════════════════════════
 # DEFTER — kural ve hedef, sonuç görülmeden yazılır
 # ══════════════════════════════════════════════════════════════
@@ -999,6 +1058,30 @@ FINDINGS = {
         "hedef": "skor modeli değişirse",
         "onceki": "oran 0,974–1,067 · ceza GEREKSİZ (31.08)",
         "fn": m_kirilganlik, "agir": True,
+    },
+    "TURUNCU_MODEL": {
+        "baslik": "Turuncu — bağımsız skor modeli kapanış fiyatına bilgi ekliyor mu",
+        "kural": "model+piyasa harmanının log-kaybı kapanıştan anlamlı düşük "
+                 "(t < −2) · 1X2 ve A/Ü 2,5'te AYRI AYRI · ikisi de şart",
+        "hedef": "tek seferlik karar · 2024-07 → 2026-06, her ay yeniden eğitim",
+        "onceki": "karar koşusu 19.09.2026 · kural turuncu_model.py'de sonuç "
+                  "görülmeden yazıldı",
+        # Sınav dönemi SABİT (football-data geçmişi değişmez) — her hafta
+        # koşmak aynı sayıyı üretir. Karar koşusu arşivde; bu model sürümü
+        # yeniden sınanmaz. Yeni veri/yeni model → yeni bulgu kimliği.
+        "kapandi": ("19.09.2026 · RED — harman kapanıştan KÖTÜ: 1X2 +9,5‰ "
+                    "(t=+5,9), A/Ü +4,9‰ (t=+3,6), 2.996 maç · model ≥5p "
+                    "yüksek dediğinde gerçek %23,4 (piyasa %27,2) · ajanlar "
+                    "keşif statüsünde sahada (TURUNCU_SAHA)"),
+        "fn": m_turuncu_model, "agir": True,
+    },
+    "TURUNCU_SAHA": {
+        "baslik": "Turuncu ajanları sahada — keşif hükmü",
+        "kural": "ajan başına 60 bahiste CLV ort. > 0 VE ROI > −%8 → sürer · "
+                 "CLV ≤ 0 → emekli · arası → 120'ye uzar, orada hâlâ arası → emekli",
+        "hedef": "ajan başına 60 kapanmış bahis",
+        "onceki": "saha başlangıcı 19.09.2026 · model sınavı geçmedi → keşif",
+        "fn": m_turuncu_saha, "agir": False,
     },
 }
 

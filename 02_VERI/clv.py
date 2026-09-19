@@ -35,12 +35,22 @@ import db
 CLOSING_COL = {
     ("1X2", "1"):      "closing_1",
     ("1X2", "X"):      "closing_X",
+    ("1X2", "0"):      "closing_X",   # iddaa beraberliği "0" yazar (19.09)
     ("1X2", "2"):      "closing_2",
     ("KG_VAR", "VAR"): "closing_btts_yes",
     ("KG_YOK", "YOK"): "closing_btts_no",
     ("UST_25", "UST"): "closing_over25",
     ("ALT_25", "ALT"): "closing_under25",
 }
+
+# Kombine / gol bandı / İY-MS pazarlarının matches_v2'de kapanış kolonu yok.
+# Kapanış = pazar defterinin (market_odds) maç başlamadan ÖNCEKİ son fiyatı.
+# (19.09 ölçüldü: bu yokken Kırmızı'nın kombine bahislerinin HİÇBİRİNDE CLV
+# yoktu — 37/37 boş. Ana pazarlar eskisi gibi matches_v2'den okunur.)
+# ⚠️ ZAYIF VEKİL: defterin maç öncesi son fotoğrafı medyan 6,1 saat önce
+# (p25 1,5 · p75 15 sa), maç başına medyan 2 fotoğraf. Bu "kapanış" değil
+# "son görülen fiyat"tır; bahis son fotoğrafta kurulduysa CLV tam 0 çıkar.
+DEFTER_PAZAR = {"1X2_OU", "1X2_BTTS", "OU_BTTS", "TOTAL_GOALS", "HT_FT"}
 
 
 def _row_get(row: dict, col: str):
@@ -74,6 +84,22 @@ def closing_for(match_row: dict, market: str, pick: str):
     if not col:
         return None
     return _to_float(_row_get(match_row, col))
+
+
+def closing_defter(conn, ev, market: str, pick: str):
+    """Kombine / gol bandı için kapanış: market_odds'ta maç başlamadan
+    (lead_h > 0) yakalanan SON fiyat. Pazar defteri yoksa None."""
+    if not ev or market not in DEFTER_PAZAR:
+        return None
+    try:
+        r = conn.execute(
+            "SELECT odd FROM market_odds WHERE iddaa_event_id=? AND market=? "
+            "AND selection=? AND lead_h > 0 ORDER BY ts DESC LIMIT 1",
+            (str(ev), market, pick)).fetchone()
+    except Exception:
+        conn.rollback()
+        return None
+    return _to_float(r[0]) if r else None
 
 
 def backfill_clv(portfolio_id: str | None = None, verbose: bool = False) -> dict:
@@ -117,6 +143,10 @@ def backfill_clv(portfolio_id: str | None = None, verbose: bool = False) -> dict
                 continue
 
             closing = closing_for(mrow, bet.get("market", ""), bet.get("pick", ""))
+            if closing is None:
+                closing = closing_defter(
+                    conn, bet.get("iddaa_event_id") or mrow.get("external_id_iddaa"),
+                    bet.get("market", ""), bet.get("pick", ""))
             if closing is None:
                 n_skip += 1
                 continue

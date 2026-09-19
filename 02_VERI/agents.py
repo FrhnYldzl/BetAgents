@@ -416,6 +416,78 @@ PROFILES: dict[str, dict] = {
         "max_tek": 1, "loss_streak": 3,
         "tek_stake": 0.05, "k3_stake": 0.04, "sort": "safety",
     },
+
+    # ══════════════════════════════════════════════════════════════
+    # 🟠 TURUNCU TAKIM — bağımsız skor modeli (kullanıcı kararı 19.09)
+    # ══════════════════════════════════════════════════════════════
+    # Kaynak: kullanıcının "Kombine Market Fiyatlama" eki. DATA → MODEL →
+    # AJAN: turuncu_model (takım gücünden Dixon-Coles skor dağılımı) +
+    # turuncu_agent (aday seçimi). Diğer takımlara DOKUNMAZ.
+    # ⚠️ MODEL SINAVI GEÇMEDİ (19.09, 2.996 maç, ön kayıtlı): model+piyasa
+    # harmanı kapanış fiyatından KÖTÜ (1X2 t=+5,9 · A/Ü t=+3,6); model
+    # "piyasadan ≥5 puan yüksek" dediğinde gerçek %23,4 (piyasa %27,2).
+    # Kullanıcı yöntemi SAHADA denemek istedi — ajanlar KEŞİF statüsünde,
+    # kâğıtta. ÖN KAYITLI KARAR (ajan başına 60 bahiste, sonuç görülmeden):
+    #   CLV ort. > 0 VE ROI > −%8 (iddaa marjının yarısı) → sürer
+    #   CLV ort. ≤ 0                                     → emekli
+    #   arası → 120 bahise uzatılır; 120'de hâlâ arası    → emekli
+    # Ölçüm: olcum_defteri TURUNCU_SAHA (her gün).
+    "TEMEL_V1": {
+        "name": "TEMEL (ana pazarlar — bağımsız skor modeli) · turuncu keşif",
+        "takim": "turuncu", "model": "TURUNCU-DC",
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.40, "max_odds": 6.0,
+        "combo_cap": 1.0,                   # yalnız TEK — akümülatör yok
+        "max_daily": 3, "max_open": 8, "max_tek": 3, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "turuncu", "tur_pazar": ("1X2", "OU2.5", "BTTS"),
+        "min_edge": 0.06, "max_edge": 0.25, "pas_tolerance_days": 30,
+    },
+    "DAR_V1": {
+        "name": "DAR (dar kombineler — etkin skor ≤ 2,2) · turuncu keşif",
+        "takim": "turuncu", "model": "TURUNCU-DC",
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 2.0, "max_odds": 15.0, "combo_cap": 1.0,
+        "max_daily": 2, "max_open": 6, "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "turuncu", "tur_pazar": ("1X2_OU", "1X2_BTTS", "OU_BTTS"),
+        "etkin_max": 2.2, "min_edge": 0.10, "max_edge": 0.25,
+        "pas_tolerance_days": 30,
+    },
+    "GENIS_V1": {
+        "name": "GENİŞ (geniş kombineler — etkin skor ≥ 3) · turuncu keşif",
+        "takim": "turuncu", "model": "TURUNCU-DC",
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 2.0, "max_odds": 12.0, "combo_cap": 1.0,
+        "max_daily": 2, "max_open": 6, "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "turuncu", "tur_pazar": ("1X2_OU", "1X2_BTTS", "OU_BTTS"),
+        "etkin_min": 3.0, "min_edge": 0.06, "max_edge": 0.25,
+        "pas_tolerance_days": 30,
+    },
+    "GOLBANT_V1": {
+        "name": "GOLBANT (toplam gol bantları) · turuncu keşif",
+        "takim": "turuncu", "model": "TURUNCU-DC",
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 2.0, "max_odds": 30.0, "combo_cap": 1.0,
+        "max_daily": 2, "max_open": 6, "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "turuncu", "tur_pazar": ("TOTAL_GOALS",),
+        "min_edge": 0.08, "max_edge": 0.25, "pas_tolerance_days": 30,
+    },
+    "HARMAN_V1": {
+        "name": "HARMAN (model + piyasa harmanı) · turuncu keşif",
+        "takim": "turuncu", "model": "TURUNCU-DC",
+        "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.40, "max_odds": 15.0, "combo_cap": 1.0,
+        "max_daily": 2, "max_open": 6, "max_tek": 2, "loss_streak": 99,
+        "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
+        "mode": "turuncu",
+        "tur_pazar": ("1X2", "OU2.5", "BTTS", "1X2_OU", "1X2_BTTS",
+                      "OU_BTTS", "TOTAL_GOALS"),
+        "harman": 0.5, "min_edge": 0.03, "max_edge": 0.25,
+        "pas_tolerance_days": 30,
+    },
 }
 
 # Bağımsız model rating önbelleği (run_all içinde 1 kez kurulur)
@@ -598,10 +670,14 @@ def review_league() -> None:
 
         from datetime import timedelta as _td
         print("[LIG] 📜 HAFTALIK SOZLESME DEGERLENDIRMESI")
-        # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler
+        # KURUCU_V2 (Era-2) de yarışta — lig kuralları ona da işler.
+        # 🟠 TURUNCU bu ligin DIŞINDA: kendi ön kayıtlı 60 bahis kuralı var.
+        # İçeride olsaydı "lig sonuncusu" ihtarını o alır, asıl sonuncu olan
+        # Mavi/Kırmızı ajan kurtulurdu — diğerlerini etkilememe şartı.
         field = [p for p in list(PROFILES) + ["KURUCU_V2"]
                  if not PROFILES.get(p, {}).get("dormant")
                  and not PROFILES.get(p, {}).get("retired")
+                 and PROFILES.get(p, {}).get("takim") != "turuncu"
                  and not _is_benched(conn, p)]
         stats = []
         for pid in field:
@@ -1449,6 +1525,17 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
             print(f"{tag} limit (bugun {n_today}/{prof['max_daily']}, "
                   f"acik {n_open}/{prof['max_open']}) -> PAS")
             return []
+        # ⚠️ KALAN HAK (19.09): kontrol yalnız "limit doldu mu" diye bakıyor,
+        # montaj ise her koşuda max_daily kadar kupon kurabiliyordu. Günde
+        # birkaç koşu olduğu için limit SIZIYORDU (ölçüldü: 01.08'den beri 17
+        # ajan-gün — CARPAN 17.09'da 3/2, AVCI ve CESUR 07.09'da 6/3). Montaja
+        # yalnız KALAN hak verilir. Şimdilik yalnız 🔴 Kırmızı (kullanıcı bariz
+        # hatalarının düzeltilmesine izin verdi) ve 🟠 Turuncu; Mavi'nin
+        # davranışı kullanıcı kararı gelene kadar DEĞİŞMEZ.
+        if prof.get("mode") in ("multiplier", "turuncu"):
+            _kalan = min(prof["max_daily"] - n_today, prof["max_open"] - n_open)
+            prof = {**prof, "max_daily": _kalan,
+                    "max_tek": min(prof.get("max_tek", _kalan), _kalan)}
         rows = conn.execute(
             """
             SELECT * FROM matches_v2
@@ -1506,6 +1593,15 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
         picks = _council_candidates(prof, tag, matches, eng)
         picks = _lock_open(picks, open_matches, open_keys, tag)
         picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks, unit)
+
+    # 🟠 TURUNCU modu: bağımsız skor modeli (turuncu_agent) — izole hat.
+    # Hata burada YAKALANMAZ: run_profile bu ajanı 🔴 TIKANIKLIK yazar,
+    # diğer ajanlar etkilenmez (fail-loud ilkesi).
+    if mode == "turuncu":
+        import turuncu_agent as _ta
+        picks = _ta.adaylar(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
         return _assemble_coupons(prof, bankroll, picks, unit)
 
     # 🦁 CESUR modu: orta-band (1.60-2.00) kendi aday kaynağı
@@ -1840,6 +1936,10 @@ def diagnose_all() -> list[dict]:
                                 # _engine_candidates'e düşüyor ve teşhisleri
                                 # yanlış çıkıyordu.
                                 picks = _multiplier_candidates(prof, tag)
+                            elif mode == "turuncu":
+                                # 🟠 TURUNCU: kendi model + fiyat hattı
+                                import turuncu_agent as _ta
+                                picks = _ta.adaylar(prof, tag)
                             else:
                                 picks = _engine_candidates(prof, tag, matches, eng)
                             if not picks:
@@ -1859,6 +1959,11 @@ def diagnose_all() -> list[dict]:
                                         f"ÖLÇÜLDÜ: iddaa korelasyonu doğru "
                                         f"fiyatlıyor, marj ~%19 · sürekli model "
                                         f"sahte edge üretmiyor")
+                                if mode == "turuncu":
+                                    detail = (
+                                        "bağımsız skor modeli: eşiği geçen aday "
+                                        "yok (" + ", ".join(prof.get("tur_pazar", ()))
+                                        + ") — keşif, model sınavı geçmedi")
                                 if data_broken:
                                     detail += " · ⚠️ SEBEP SİSTEMİK: veri hattı kesik"
                             else:
@@ -1953,6 +2058,9 @@ def preflight() -> list[str]:
                 _popular_candidates(prof, f"[pre:{pid}]")
             elif mode == "multiplier":
                 _multiplier_candidates(prof, f"[pre:{pid}]")
+            elif mode == "turuncu":
+                import turuncu_agent as _ta
+                _ta.adaylar(prof, f"[pre:{pid}]")
             else:
                 _engine_candidates(prof, f"[pre:{pid}]", matches, eng)
         except Exception as e:

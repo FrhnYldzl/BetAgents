@@ -228,16 +228,20 @@ MONO = {
     "TERS_V1": "TR", "CARPAN_V1": "KM", "SIMETRI_V1": "SI", "KAVSAK_V1": "KV",
     "BANT_V1": "BN", "DEVRE_V1": "DV", "TRIVOX_V1": "TV", "EUVOX_V1": "EU",
     "OPUS5_V1": "O5", "KURUCU_V2": "KU", "PAPER_V1": "PA",
+    "TEMEL_V1": "TM", "DAR_V1": "DR", "GENIS_V1": "GN", "GOLBANT_V1": "GB",
+    "HARMAN_V1": "HR",
 }
 _KIRMIZI_PID = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
+_TURUNCU_PID = {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"}
 
 
 def _rozet(pid: str) -> str:
-    """Ajan monogramı — kırmızı takım sıcak, mavi takım nötr."""
+    """Ajan monogramı — kırmızı takım sıcak, turuncu ılık, mavi nötr."""
     m = MONO.get(pid)
     if not m:
         m = str(pid or "?")[:2].upper()
-    k = " kr" if pid in _KIRMIZI_PID else ""
+    k = (" kr" if pid in _KIRMIZI_PID else
+         (" tu" if pid in _TURUNCU_PID else ""))
     # Sondaki bosluk KASITLI: gorsel araligi margin verir ama metin
     # olarak bitisik okunuyordu ("EUEUVOX"). Ekran okuyucu icin ayrilmali.
     return "<i class='mono" + k + "'>" + m + "</i> "
@@ -511,6 +515,10 @@ V2_CSS = """
   --pos-fill:#e2f2eb;
   --neg:#a52a1c;
   --neg-fill:#fbe9e6;
+  /* Turuncu takım: #d9730d beyazda 3,0 (okunmaz) — metin için #a8520a
+     (beyazda 5,4 · kendi dolgusunda 4,9). Kenar şeridi parlak kalabilir. */
+  --tu:#a8520a;
+  --tu-fill:#fdf0e3;
   --warn:#7d590e;
   --warn-fill:#faf2de;
   /* koyu şerit — kenar çubuğu ve marka için tek koyu yüzey */
@@ -674,6 +682,7 @@ table.v2 tr.adv .ag{color:var(--pos);}
   color:var(--ink-2);background:var(--panel-2);flex:0 0 auto;
   font-family:"JetBrains Mono",monospace;}
 .mono.kr{color:var(--neg);border-color:var(--neg);background:var(--neg-fill);}
+.mono.tu{color:var(--tu);border-color:var(--tu);background:var(--tu-fill);}
 table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   background:var(--pos-fill);}
 .cc{display:inline-block;font-size:9.5px;font-weight:700;
@@ -1197,11 +1206,12 @@ def load_havuz() -> dict:
 
 
 KIRMIZI = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
+TURUNCU = {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"}
 
 
 @st.cache_data(ttl=180, show_spinner=False)
 def load_lig() -> dict:
-    """Dönem-kapsamlı ajan ligi — mavi ve kırmızı AYRI.
+    """Dönem-kapsamlı ajan ligi — mavi, kırmızı ve turuncu AYRI.
 
     ⚠️ Dönem (era) filtresi şart: Era-1 arşivlendi, Era-2 2026-08-23'te
     1.000 TL ile başladı. Era-1 sonuçlarını Era-2 karnesine karıştırmak,
@@ -1284,7 +1294,8 @@ def load_lig() -> dict:
     except Exception:
         pass
     for p in kasa:
-        if p not in by and (p in _aktif or p in KIRMIZI or p in acik):
+        if p not in by and (p in _aktif or p in KIRMIZI or p in TURUNCU
+                            or p in acik):
             tum.append(kur(p, []))
 
     # ⚠️ EMEKLILER ARSIVE — kullanici "listeyi kalabalik gosteriyor" dedi.
@@ -1298,12 +1309,16 @@ def load_lig() -> dict:
     # para defteri), KURUCU_V2 (kurucu portfoyu). KURUCU listede yoktu
     # ve Mavi Takim'da n=80 ile "KADRO DISI" olarak goruunuyordu.
     mavi = [x for x in tum if x["pid"] not in KIRMIZI
+            and x["pid"] not in TURUNCU
             and x["pid"] not in ("PAPER_V1", "OPUS5_V1", "KURUCU_V2")]
     kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
+    turuncu = [x for x in tum if x["pid"] in TURUNCU]
     mavi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
     kirmizi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
+    turuncu.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
     arsiv.sort(key=lambda z: -z["edge"])
-    return {"mavi": mavi, "kirmizi": kirmizi, "arsiv": arsiv}
+    return {"mavi": mavi, "kirmizi": kirmizi, "turuncu": turuncu,
+            "arsiv": arsiv}
 
 
 # Para piyasası yıllık getirisi — belge §2.3'te 35/40/45 senaryoları
@@ -2817,7 +2832,7 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
     V1'de her ajanın kendi sayfası vardı (20 menü girdisi). Ayrı sayfa
     bağlamı koparır: ligden çıkıp geri dönmek karşılaştırmayı bozar.
     Panel, sıralamanın hemen altında açılır ve kapanır."""
-    tum = lig["mavi"] + lig["kirmizi"]
+    tum = lig["mavi"] + lig["kirmizi"] + lig.get("turuncu", [])
     a = next((x for x in tum if x["pid"] == pid), None)
     if not a:
         return
@@ -3148,13 +3163,15 @@ def page_sepet() -> None:
 
 
 def page_lig() -> None:
-    """🏆 Lig — mavi ve kırmızı takım, dönem kapsamlı."""
+    """🏆 Lig — mavi, kırmızı ve turuncu takım, dönem kapsamlı."""
     d = load_lig()
     ham = load_egri_ham()
-    _ak = sum(x["acik_kupon"] for x in (d["mavi"] + d["kirmizi"]))
-    _rk = sum(x["riskte"] for x in (d["mavi"] + d["kirmizi"]))
+    _tu = d.get("turuncu", [])
+    _ak = sum(x["acik_kupon"] for x in (d["mavi"] + d["kirmizi"] + _tu))
+    _rk = sum(x["riskte"] for x in (d["mavi"] + d["kirmizi"] + _tu))
     kpi = [{"ad": "Mavi takım", "deger": str(len(d["mavi"])) + " ajan"},
            {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"},
+           {"ad": "Turuncu takım", "deger": str(len(_tu)) + " ajan"},
            {"ad": "Açık kupon", "deger": str(_ak) + "  ·  " +
             "{:,.0f}".format(_rk).replace(",", ".") + " ₺"}]
     if ham:
@@ -3279,8 +3296,27 @@ def page_lig() -> None:
     st.markdown(_takim_tablo(d["kirmizi"], "Kırmızı Takım",
                              "kombo pazarları · " + str(len(d["kirmizi"])) + " ajan",
                              "#a82f22", ae), unsafe_allow_html=True)
+    # 🟠 TURUNCU — bağımsız skor modeli (19.09). Keşif statüsü ekranda
+    # AÇIKÇA yazılır: model ön kayıtlı sınavı geçmedi; ajanlar sahada
+    # sınanıyor, bir kanıt iddiası taşımıyor.
+    st.markdown(_takim_tablo(_tu, "Turuncu Takım",
+                             "bağımsız skor modeli · keşif · " + str(len(_tu)) +
+                             " ajan", "#d9730d", ae), unsafe_allow_html=True)
+    st.markdown(
+        "<div class='dq'><b>Turuncu takım keşif statüsünde.</b> Takımların "
+        "geçmiş gollerinden iddaa'ya bakmadan skor dağılımı kurar (Dixon-Coles) "
+        "ve fiyatı ondan çıkarır. Model ön kayıtlı sınavı <b>geçmedi</b>: "
+        "2.996 maçta kapanış fiyatına bilgi eklemiyor, iddaa'dan ≥5 puan "
+        "ayrıştığında gerçek sonuç piyasaya daha yakın. Sahada beş hipotez "
+        "yarışıyor: ana pazar · dar kombine · geniş kombine · gol bandı · "
+        "harman. <b>Karar kuralı</b> (ajan başına 60 bahiste, sonuç "
+        "görülmeden yazıldı): CLV ort. &gt; 0 ve ROI &gt; −%8 → sürer · "
+        "CLV ≤ 0 → emekli · arası → 120 bahise uzar, orada hâlâ arası → "
+        "emekli. Hüküm Ölçüm Defteri'nde (TURUNCU_SAHA). Haftalık lig "
+        "değerlendirmesine girmez; diğer takımları etkilemez.</div>",
+        unsafe_allow_html=True)
     # ── ajan dosyasına iniş: liste + panel (ayrı sayfa değil)
-    tum = d["mavi"] + d["kirmizi"]
+    tum = d["mavi"] + d["kirmizi"] + _tu
     if "v2_ajan" not in st.session_state:
         st.session_state["v2_ajan"] = None
     secenek = ["— ajan seç —"] + [x["ad"] for x in tum]
