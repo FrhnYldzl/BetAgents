@@ -743,11 +743,13 @@ table.v2 .sb{display:block;font-size:var(--t-alt);color:var(--muted);
 [data-testid="stMultiSelect"] div[data-baseweb="select"] *,
 [data-testid="stExpander"] summary *{font-size:var(--t-govde)!important;}
 /* ...ama seçilmiş değer ÇİPİ mono kalır (sayı/etiket) — üstteki genel
-   kuraldan SONRA ve daha özgül, yoksa çip de Archivo 13,5 olurdu. */
-[data-testid="stMultiSelect"] div[data-baseweb="tag"],
-[data-testid="stMultiSelect"] div[data-baseweb="tag"] *{
+   kuraldan SONRA ve daha ÖZGÜL (0,3,1 > 0,2,1), yoksa çip de Archivo 13,5
+   olurdu. ⚠️ Çip öğesi SPAN (Streamlit 1.57 DOM'undan okundu); eski kural
+   div[data-baseweb="tag"] diyordu ve amber çip stili HİÇ uygulanmıyordu. */
+[data-testid="stMultiSelect"] div[data-baseweb="select"] [data-baseweb="tag"],
+[data-testid="stMultiSelect"] div[data-baseweb="select"] [data-baseweb="tag"] *{
   font-family:"JetBrains Mono",monospace!important;
-  font-size:var(--t-kucuk)!important;}
+  font-size:var(--t-kucuk)!important;color:var(--brand)!important;}
 /* Ajan dosyası başlığı */
 .v2ajan-bas{display:flex;align-items:baseline;flex-wrap:wrap;
   gap:var(--s3);margin:var(--s4) 0 var(--s3);}
@@ -979,7 +981,7 @@ div[data-testid="column"]:last-child{padding-right:0;}
 [data-testid="stNumberInput"] input{background:var(--panel)!important;
   border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;}
-div[data-baseweb="tag"]{background:var(--brand-fill)!important;
+[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;font-size:var(--t-kucuk)!important;}
 
