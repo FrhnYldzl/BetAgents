@@ -68,6 +68,15 @@ else:
             print("[start.py] inline worker başlatıldı (arka plan: auto_play + auto_settle)", flush=True)
         except Exception as e:
             print(f"[start.py] inline worker başlatılamadı: {e}", flush=True)
+    # SÜPER TOTO — BetAgents'tan AYRI süreç, yalnız toto_* tablolarına yazar.
+    # TOTO_WORKER=0 ile kapanır; çökerse yalnız Toto durur.
+    _toto = THIS / "09_TOTO" / "toto_worker.py"
+    if (os.environ.get("TOTO_WORKER", "1").strip() != "0") and _toto.exists():
+        try:
+            subprocess.Popen([sys.executable, str(_toto)])
+            print("[start.py] Toto zamanlayıcı başlatıldı (ayrı süreç)", flush=True)
+        except Exception as e:
+            print(f"[start.py] Toto zamanlayıcı başlatılamadı: {e}", flush=True)
     _cmd = [sys.executable, "-m", "streamlit", "run", str(app_file),
             "--server.port", port,
             "--server.address", "0.0.0.0",

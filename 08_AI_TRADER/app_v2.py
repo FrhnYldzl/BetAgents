@@ -4699,6 +4699,31 @@ def page_inceleme() -> None:
 # gezinme ekrandan kayboluyordu); mobilde standart açılır çekmece.
 # Hikâye ilkesi korundu: her sayfa bir SORUYA cevap verir, başlık o soruyu
 # yazar, alttaki gezinme bir sonraki soruya devreder.
+# ── SÜPER TOTO — ayrı ürün, ayrı veri (09_TOTO) ─────────────────
+# Kullanıcı (19.09.2026): "SÜPER TOTO sayfası ve panelde ayrı bir yer…
+# sakın karıştırma, BetAgents'la birbirini etkilemeyecekler." Sayfa
+# gövdeleri 09_TOTO/toto_panel.py'de, veri yalnız toto_* tablolarında.
+# Burada yalnız gezinme girişi var: Toto tarafında bir hata olursa YALNIZ
+# o sayfa bir uyarı gösterir; BetAgents sayfaları etkilenmez.
+_TOTO_DIZIN = str(THIS_DIR.parent / "09_TOTO")
+
+
+def _toto_sayfa(ad: str):
+    def _f():
+        try:
+            if _TOTO_DIZIN not in sys.path:
+                sys.path.append(_TOTO_DIZIN)      # SONA: ad çakışmasında BetAgents modülü kazanır
+            import toto_panel
+            getattr(toto_panel, ad)(_sayfa_basligi)
+        except Exception as _e:
+            import html as _h
+            st.markdown("<div class='v2bos'>Toto sayfası şu an çizilemedi — BetAgents etkilenmez. "
+                        "Ayrıntı: " + _h.escape(f"{type(_e).__name__}: {_e}")[:240] + "</div>",
+                        unsafe_allow_html=True)
+    _f.__name__ = "toto_" + ad
+    return _f
+
+
 SAYFA_TANIM = [
     ("MASA", [
         ("Karar Masası", page_desk, ":material/space_dashboard:", "masa",
@@ -4726,6 +4751,15 @@ SAYFA_TANIM = [
          "Neden kaybediyorum?"),
         ("Çakışma ve Arşiv", page_cakisma, ":material/join_inner:",
          "cakisma", "Kaç bağımsız görüş var?")]),
+    ("SÜPER TOTO", [
+        ("Toto · Bu Hafta", _toto_sayfa("bu_hafta"), ":material/sports_soccer:", "toto",
+         "Bu hafta Toto'da ne oynayalım, neden?"),
+        ("Toto · Ajan Pazarı", _toto_sayfa("ajan_pazari"), ":material/storefront:", "toto-pazar",
+         "Hangi ajanın sesi ne kadar, neden?"),
+        ("Toto · Geçmiş Test", _toto_sayfa("gecmis_test"), ":material/history:", "toto-test",
+         "Bu sistemle geçmişte oynasaydık ne olurdu?"),
+        ("Toto · Arşiv", _toto_sayfa("arsiv"), ":material/inventory_2:", "toto-arsiv",
+         "Ne oynadık, ne oldu, ne öğrendik?")]),
     ("SİSTEM", [
         ("Ölçüm Defteri", page_defter, ":material/menu_book:", "defter",
          "Hangi bulgu hâlâ ayakta?"),
