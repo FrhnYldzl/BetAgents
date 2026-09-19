@@ -188,7 +188,46 @@ def pazar_defteri(conn, olaylar: list, uygula_: bool) -> int:
     return len(fark)
 
 
+def bahis_etiketleri(uygula_: bool) -> None:
+    """paper_bets.league → maçın DÜZELTİLMİŞ kodu (bu sezonun iddaa satırları).
+
+    İlk karar etikete dokunmamaktı ("bahis anında görülen etiketin kaydı").
+    Canlıda görüldü ki ajan dosyasında "Cardiff City — Charlton · E0" yazıyor
+    ve ajan karnesinin lig kırılımı bu etiketi okuyor — kullanıcının şartı
+    "ölçümler sonra etkilenmesin" bunu gerektirir. Eski etiket yedekte
+    (yedek_lig_kodu_bahis.json) — ajanın o gün ne gördüğü kaybolmaz."""
+    yedek = THIS_DIR / "yedek_lig_kodu_bahis.json"
+    conn = db.connect()
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT pb.bet_id, pb.portfolio_id, pb.league eski, m.league_code yeni "
+            "FROM paper_bets pb JOIN matches_v2 m ON m.match_id = pb.match_id "
+            "WHERE m.kickoff_utc >= ? AND m.external_id_fd IS NULL "
+            "AND COALESCE(pb.league,'') <> COALESCE(m.league_code,'')",
+            (BASLANGIC,)).fetchall()]
+        print(f"  bahis etiketi: {len(rows)} bahis · " +
+              ", ".join(f"{e}→{y} {n}" for (e, y), n in
+                        Counter((r['eski'], r['yeni']) for r in rows).most_common(8)))
+        if not uygula_ or not rows:
+            return
+        onceki = json.loads(yedek.read_text(encoding="utf-8")) if yedek.exists() else []
+        onceki.append({"ts": datetime.utcnow().isoformat(), "bahisler": rows})
+        yedek.write_text(json.dumps(onceki, ensure_ascii=False, default=str, indent=1),
+                         encoding="utf-8")
+        for i in range(0, len(rows), 200):
+            for r in rows[i:i + 200]:
+                conn.execute("UPDATE paper_bets SET league=? WHERE bet_id=?",
+                             (r["yeni"], r["bet_id"]))
+            conn.commit()
+        print(f"  ✅ paper_bets.league: {len(rows)} bahis · yedek {yedek.name}")
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
+    if "--bahis" in sys.argv:
+        bahis_etiketleri("--uygula" in sys.argv)
+        sys.exit(0)
     from iddaa_odds_scraper import fetch_events
     yaz = "--uygula" in sys.argv
     olaylar = fetch_events(1)
