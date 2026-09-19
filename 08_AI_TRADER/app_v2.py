@@ -556,7 +556,7 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 .mono,.v2kpi b,.v2kpi span,.ro b,.ro span,table.v2 td.n,table.v2 th,
 .gr,.dp,.dm,.cc,.v2suz,.v2gez-orta,table.v2 .sb,.v2grup,.v2head .hint,
 .dq,.v2ust .marka span,.v2ust-durum,.v2ust-durum *,.v2yan-alt,
-.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt{
+.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt,.gs-sec,.gs-tarih{
   font-family:"JetBrains Mono",ui-monospace,monospace!important;
   font-variant-numeric:tabular-nums;}
 
@@ -683,6 +683,27 @@ table.v2 tr.adv .ag{color:var(--pos);}
   font-family:"JetBrains Mono",monospace;}
 .mono.kr{color:var(--neg);border-color:var(--neg);background:var(--neg-fill);}
 .mono.tu{color:var(--tu);border-color:var(--tu);background:var(--tu-fill);}
+
+/* ── GEREKÇE VE SONUÇ — liste (tablo değil) ──────────────
+   Kullanıcı (19.09): "sağa çek sola çek tablo gibi oluyor". Metin tam ve
+   SARILARAK gösterilir; yatay kaydırma yok, bir punto küçük. */
+.gs-list{display:flex;flex-direction:column;}
+.gs{padding:10px 0;border-bottom:1px solid var(--line);}
+.gs:last-child{border-bottom:0;padding-bottom:0;}
+.gs:first-child{padding-top:0;}
+.gs-ust{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;
+  font-size:13px;line-height:1.35;}
+.gs-ust b{font-weight:600;color:var(--ink);}
+.gs-sec{font-size:12px;color:var(--ink-2);}
+.gs-tarih{font-size:11px;color:var(--muted);margin-left:auto;}
+.gs-sonuc{font-size:9.5px;font-weight:700;letter-spacing:.06em;
+  padding:3px 7px;border-radius:var(--r);align-self:center;}
+.gs-sonuc.won{background:var(--pos-fill);color:var(--pos);}
+.gs-sonuc.lost{background:var(--neg-fill);color:var(--neg);}
+.gs-sat{font-size:12px;line-height:1.5;color:var(--ink-2);margin-top:5px;
+  white-space:normal;overflow-wrap:anywhere;}
+.gs-et{display:inline-block;min-width:62px;font-size:9.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
 table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   background:var(--pos-fill);}
 .cc{display:inline-block;font-size:9.5px;font-weight:700;
@@ -2029,7 +2050,7 @@ def load_ajan_detay(pid: str) -> dict:
     bet = _rows(
         "SELECT pb.home_team h, pb.away_team a, pb.market mk, pb.pick pk, "
         "pb.odds o, pb.status s, pb.reason rsn, pb.postmortem pm, "
-        "pb.settled_at sat, pb.league lg "
+        "pb.settled_at sat, pb.league lg, pb.result res, pb.kickoff_utc ko "
         "FROM paper_bets pb "
         "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
         "JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
@@ -2878,6 +2899,7 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
             (ic or "<div class='dq'>Dönem içi veri yok.</div>") +
             "</div></div>", unsafe_allow_html=True)
 
+    with sag:
         if d["acik"]:
             sat = "".join(
                 "<tr><td><span class='ag'>" + str(x["h"])[:16] + " — " +
@@ -2893,32 +2915,56 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
                 "<th class='r'>Oran</th><th class='r opt'>Başlangıç</th>"
                 "</tr></thead><tbody>" + sat + "</tbody></table></div></div>",
                 unsafe_allow_html=True)
-
-    with sag:
-        if d["bet"]:
-            sat = "".join(
-                "<tr><td><span class='ag'>" + str(x["h"])[:15] + " — " +
-                str(x["a"])[:15] + "</span><span class='sb'>" +
-                str(x["rsn"] or "—")[:88] + "</span></td>"
-                "<td class='r'><span class='" +
-                ("dp" if x["s"] == "won" else "dm") + "'>" +
-                str(x["pk"])[:14] + "</span>"
-                "<span class='sb' style='text-align:right;'>" +
-                str(x["pm"] or "")[:52] + "</span></td></tr>"
-                for x in d["bet"])
-            st.markdown(
-                "<div class='v2card'><div class='v2head'>"
-                "<h2>Gerekçe ve Sonuç</h2><div class='hint'>son " +
-                str(len(d["bet"])) + " bahis</div></div><div class='v2body'>"
-                "<table class='v2'><thead><tr><th>Maç ve gerekçe</th>"
-                "<th class='r'>Seçim · ne oldu</th></tr></thead><tbody>" +
-                sat + "</tbody></table></div></div>", unsafe_allow_html=True)
         else:
             st.markdown(
-                "<div class='v2card'><div class='v2head'>"
-                "<h2>Gerekçe ve Sonuç</h2><div class='hint'>boş</div></div>"
-                "<div class='v2body'><div class='dq'>Dönem içi kapanmış "
-                "bahis yok.</div></div></div>", unsafe_allow_html=True)
+                "<div class='v2card'><div class='v2head'><h2>Açık Pozisyon</h2>"
+                "<div class='hint'>yok</div></div><div class='v2body'>"
+                "<div class='dq'>Şu an açık bahis yok.</div></div></div>",
+                unsafe_allow_html=True)
+
+    # ── GEREKÇE VE SONUÇ — tam genişlik, tablo değil LİSTE.
+    # Kullanıcı (19.09): "gerekçe ve sonuç daha net görünsün, sağa çek sola
+    # çek tablo gibi oluyor". Eski hâl yarım genişlikte iki sütunlu tabloydu;
+    # alt satırlar sarılmıyordu (.sb nowrap), gerekçe 88, sonuç 52 karakterde
+    # KESİLİYORDU ve kart yatay kaydırmaya düşüyordu. Şimdi her bahis bir
+    # blok: üstte sonuç rozeti · maç · seçim @ oran · skor · tarih; altında
+    # gerekçe ve sonuç TAM metin, sarılarak, bir punto küçük.
+    import html as _h
+    if d["bet"]:
+        blok = []
+        for x in d["bet"]:
+            kaz = x["s"] == "won"
+            skor = str(x.get("res") or "").strip()
+            blok.append(
+                "<div class='gs'><div class='gs-ust'>"
+                "<span class='gs-sonuc " + ("won" if kaz else "lost") + "'>" +
+                ("KAZANDI" if kaz else "KAYBETTİ") + "</span>"
+                "<b>" + _h.escape(str(x["h"])) + " — " + _h.escape(str(x["a"])) +
+                "</b><span class='gs-sec'>" + _h.escape(str(x["mk"])) + " · " +
+                _h.escape(str(x["pk"])) + " @ " + _num(float(x["o"] or 0)) +
+                "</span>" +
+                ("<span class='gs-sec'>skor " + _h.escape(skor) + "</span>"
+                 if skor else "") +
+                "<span class='gs-tarih'>" + _tr_saat(x.get("ko") or x.get("sat")) +
+                (" · " + _h.escape(str(x["lg"])) if x.get("lg") else "") +
+                "</span></div>"
+                "<div class='gs-sat'><span class='gs-et'>Gerekçe</span>" +
+                _h.escape(str(x["rsn"] or "—")) + "</div>" +
+                ("<div class='gs-sat'><span class='gs-et'>Sonuç</span>" +
+                 _h.escape(str(x["pm"])) + "</div>" if x.get("pm") else "") +
+                "</div>")
+        st.markdown(
+            "<div class='v2card'><div class='v2head'>"
+            "<h2>Gerekçe ve Sonuç</h2><div class='hint'>son " +
+            str(len(d["bet"])) + " bahis · yeniden eskiye</div></div>"
+            "<div class='v2body'><div class='gs-list'>" + "".join(blok) +
+            "</div></div></div>", unsafe_allow_html=True)
+    else:
+        st.markdown(
+            "<div class='v2card'><div class='v2head'>"
+            "<h2>Gerekçe ve Sonuç</h2><div class='hint'>boş</div></div>"
+            "<div class='v2body'><div class='dq'>Dönem içi kapanmış "
+            "bahis yok.</div></div></div>", unsafe_allow_html=True)
 
 
 def _gezinme_alt() -> None:
