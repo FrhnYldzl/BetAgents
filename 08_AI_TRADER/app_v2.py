@@ -562,6 +562,7 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 .v2sepet-satir,.v2sepet-satir *,.v2bos,.dq,.dq *,.v2dip,.v2dip *,
 .tk-kart,.tk-kart *,.v2ajan-bas,.v2ajan-bas *,.sb,
 [data-testid="stSelectbox"] div[data-baseweb="select"] *,
+[data-testid="stMultiSelect"] div[data-baseweb="select"] *,
 [data-testid="stExpander"] summary *,
 [data-baseweb="popover"] [role="option"],[data-baseweb="popover"] [role="option"] *{
   font-family:Archivo,"Segoe UI",system-ui,sans-serif!important;}
@@ -735,9 +736,18 @@ table.v2 .sb{display:block;font-size:var(--t-alt);color:var(--muted);
 /* Tablo DIŞINDAKİ alt satır (kart dipnotu) — yalnız tablo içi tanımlıydı,
    dışarıdakiler 16 px'e düşüyordu (Defter, Çakışma dipnotları). */
 .sb{font-size:var(--t-alt);color:var(--muted);line-height:1.55;}
-/* Streamlit seçim kutusu ve açılır bölüm başlığı — gövde puntosu */
+/* Streamlit seçim kutuları ve açılır bölüm başlığı — gövde puntosu.
+   Çoklu seçimdeki yer tutucu ("tümü") 16 px Source Sans'a düşüyordu —
+   kasa eğrisi süzgeçleri; yalnız canlıda görüldü (önizlemede çizilmiyor). */
 [data-testid="stSelectbox"] div[data-baseweb="select"] *,
+[data-testid="stMultiSelect"] div[data-baseweb="select"] *,
 [data-testid="stExpander"] summary *{font-size:var(--t-govde)!important;}
+/* ...ama seçilmiş değer ÇİPİ mono kalır (sayı/etiket) — üstteki genel
+   kuraldan SONRA ve daha özgül, yoksa çip de Archivo 13,5 olurdu. */
+[data-testid="stMultiSelect"] div[data-baseweb="tag"],
+[data-testid="stMultiSelect"] div[data-baseweb="tag"] *{
+  font-family:"JetBrains Mono",monospace!important;
+  font-size:var(--t-kucuk)!important;}
 /* Ajan dosyası başlığı */
 .v2ajan-bas{display:flex;align-items:baseline;flex-wrap:wrap;
   gap:var(--s3);margin:var(--s4) 0 var(--s3);}
