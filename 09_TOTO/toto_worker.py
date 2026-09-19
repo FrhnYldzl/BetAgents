@@ -16,6 +16,7 @@ Elle:  python toto_worker.py --bir-kez      (senkron + analiz, sonra çık)
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import traceback
@@ -88,7 +89,7 @@ def analiz() -> None:
         if not prog.get("kapanis") or prog["kapanis"] <= _tr_simdi():
             print("  açık hafta yok", flush=True)
             return
-        A = canli.analiz(program=prog, hafta_listesi=haftalar())
+        A = canli.analiz(program=prog, hafta_listesi=haftalar(), cuzdan_db=True)
         toto_db.analiz_yaz(prog["id"], canli.jsonla(A))
         toto_db.kupon_yaz(prog["id"], A["kuponlar"])
         toto_db.kayit("analiz", f"{prog['sezon']} {prog['ad']} · iddaa {A['iddaa_kapsam']}/15 · {A['sure_sn']} sn")
@@ -165,8 +166,18 @@ def kapat(h: dict, kupon: list[dict]) -> None:
     print(f"  {h['sezon']} {h['ad']} kapatıldı", flush=True)
 
 
+def _uretim_korumasi() -> None:
+    """Yerelde (Railway dışında) üretim veritabanına BAĞLANMA — .env yerelde otomatik yüklenir ve
+    genel proxy bağlantısı canlı siteyi dondurabilir (railway-genel-proxy dersi)."""
+    import db
+    railway = any(k.startswith("RAILWAY_") for k in os.environ)
+    if db.is_postgres() and not railway and os.environ.get("TOTO_URETIM_ONAY") != "1":
+        sys.exit("toto_worker yerelde üretime bağlanmaz. Önizleme için: python 09_TOTO/yerel.py")
+
+
 def main() -> None:
     from apscheduler.schedulers.blocking import BlockingScheduler
+    _uretim_korumasi()
     toto_db.kur()
     toto_db.kayit("basla", "Toto zamanlayıcı başladı")
     print(f"[{_ts()}] TOTO zamanlayıcı başladı", flush=True)
@@ -180,6 +191,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     if "--bir-kez" in sys.argv:
+        _uretim_korumasi()
         toto_db.kur()
         senkron()
         if "--analiz" in sys.argv:

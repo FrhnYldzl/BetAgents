@@ -280,11 +280,18 @@ def sans_metni(p: float) -> str:
 
 
 # ── 4–7. hafta analizi ────────────────────────────────────────────
-def _cuzdanlar(param: dict) -> dict:
-    """{"KULUP": {...}, "MILLI": {...}} — önce Toto'nun kendi tablosu (haftalık güncellenir),
-    yoksa kalibrasyon dosyası. Milli cüzdan tabloda "M:" önekiyle durur."""
+def _cuzdanlar(param: dict, db_oku: bool = False) -> dict:
+    """{"KULUP": {...}, "MILLI": {...}} — üretimde (db_oku=True) önce Toto'nun kendi tablosu (haftalık
+    güncellenir), yoksa kalibrasyon dosyası. Milli cüzdan tabloda "M:" önekiyle durur.
+
+    ⚠️ Yerel komut satırı ve zamanlanmış hatırlatıcı db_oku=False çalışır: .env yerelde otomatik
+    yüklendiği için veritabanına dokunmak ÜRETİME bağlanmak demektir (railway-genel-proxy dersi —
+    genel proxy bağlantısı canlı siteyi dondurabilir). Veritabanını yalnız Railway'deki Toto
+    zamanlayıcısı okur/yazar."""
     out = {"KULUP": dict(param.get("pazar_servet") or {}),
            "MILLI": dict(param.get("pazar_servet_milli") or param.get("pazar_servet") or {})}
+    if not db_oku:
+        return out
     try:
         import toto_db
         w = toto_db.son_cuzdan()
@@ -301,7 +308,7 @@ def _cuzdanlar(param: dict) -> dict:
 
 
 def analiz(butceler=(32, 256, 2048), profiller=("FAVORİ", "15_AVCISI", "DENGELİ"), program: dict | None = None,
-           olaylar: list | None = None, hafta_listesi: list | None = None) -> dict:
+           olaylar: list | None = None, hafta_listesi: list | None = None, cuzdan_db: bool = False) -> dict:
     t0 = time.time()
     param = json.loads(PARAM_DOSYA.read_text(encoding="utf-8"))
     th = parametreler()
@@ -313,7 +320,7 @@ def analiz(butceler=(32, 256, 2048), profiller=("FAVORİ", "15_AVCISI", "DENGEL�
         olaylar = []
     idd = iddaa_esle(maclar, olaylar)
     AJ = Ajanlar()
-    CZ = _cuzdanlar(param)
+    CZ = _cuzdanlar(param, db_oku=cuzdan_db)
     PZ = {a: Pazar(CZ[a], kesir=KESIR[a]) for a in ("KULUP", "MILLI")}
     H = hafta_listesi if hafta_listesi is not None else haftalar()
     satir = []
