@@ -141,6 +141,23 @@ def job_fetch_program():
         print(f"[{_ts()}] AGENTS(FETCH) HATA: {e}")
 
 
+def job_kapanis():
+    """⏱ KAPANIŞ YAKALAMA — maça ≤45 dk kalan maçların fiyatı, 15 dk'da bir.
+
+    Neden (19.09.2026, kullanıcı onayı: "maliyeti çok artırmaz"): ana çekim
+    3 saatte bir; CLV'nin 'kapanışı' çoğu zaman maçtan saatler önceki
+    fiyattı. Maliyet: TEK API çağrısı (fiyatlar olayın içinde), pazar
+    defterine yalnız değişen fiyat. Ana çekimle aynı anda koşmaz (kilit)."""
+    try:
+        from fetch_iddaa_live import kapanis_yakala
+        r = kapanis_yakala()
+        if r.get("olay"):
+            print(f"[{_ts()}] ⏱ KAPANIŞ: {r['olay']} maç · defter "
+                  f"{r.get('defter', 0)} yeni fiyat · matches_v2 {r.get('mac', 0)}")
+    except Exception as e:
+        print(f"[{_ts()}] KAPANIŞ HATA: {type(e).__name__}: {e}")
+
+
 def job_auto_settle():
     print(f"[{_ts()}] >>> AUTO_SETTLE tetiklendi")
     try:
@@ -166,7 +183,7 @@ def job_auto_settle():
 
 def main():
     print(f"[{_ts()}] WORKER BAŞLADI — auto_play (06:00/15:00 UTC) + "
-          f"auto_settle (90 dk) + fetch_program (3 sa) + "
+          f"auto_settle (90 dk) + fetch_program (3 sa) + kapanış (15 dk) + "
           f"ölçüm defteri (04:20 günlük · pzt 03:10 tam)")
 
     # Açılışta: önce settle/temizlik, sonra taze program (deploy sonrası
@@ -189,6 +206,9 @@ def main():
                   id="auto_settle", misfire_grace_time=900, coalesce=True)
     sched.add_job(job_fetch_program, "interval", hours=3,
                   id="fetch_program", misfire_grace_time=1800, coalesce=True)
+    sched.add_job(job_kapanis, "interval", minutes=15,
+                  id="kapanis", misfire_grace_time=300, coalesce=True,
+                  max_instances=1)
     # 📓 ölçüm defteri — sessiz saatte, auto_play'den (06:00) önce.
     # Günlük hafif: hızlı değişen ölçümler (K_BECERI her bahisle kayar).
     # Pazartesi tam: ağır olanlar da (skor modeli kalibrasyonu).

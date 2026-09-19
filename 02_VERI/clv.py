@@ -47,9 +47,15 @@ CLOSING_COL = {
 # Kapanış = pazar defterinin (market_odds) maç başlamadan ÖNCEKİ son fiyatı.
 # (19.09 ölçüldü: bu yokken Kırmızı'nın kombine bahislerinin HİÇBİRİNDE CLV
 # yoktu — 37/37 boş. Ana pazarlar eskisi gibi matches_v2'den okunur.)
-# ⚠️ ZAYIF VEKİL: defterin maç öncesi son fotoğrafı medyan 6,1 saat önce
-# (p25 1,5 · p75 15 sa), maç başına medyan 2 fotoğraf. Bu "kapanış" değil
-# "son görülen fiyat"tır; bahis son fotoğrafta kurulduysa CLV tam 0 çıkar.
+# ⚠️ DEFTER YALNIZ DEĞİŞEN FİYATI YAZAR: "son satır" son BAKIŞ değil son
+# DEĞİŞİMDİR (ilk ölçümdeki "son fotoğraf medyan 6,1 sa önce" okuması bu
+# yüzden yanıltıcıydı). Asıl kusur KAPSAMDI (19.09 ölçüldü): ana çekim 803
+# maçın yalnız ilk 120'sini işliyordu; takipteki maçların çoğu günlerce hiç
+# görülmüyor, ana pazar CLV'lerinin %49'u TAM SIFIR çıkıyordu (giriş =
+# "kapanış" = aynı bayat fiyat). 19.09'dan beri her çekim takipteki tüm
+# maçları işler, maça ≤45 dk kala 15 dk'da bir kapanış yakalanır
+# (fetch_iddaa_live.kapanis_yakala). Bu tarihten önceki CLV'ler sıfıra
+# doğru seyreltilmiştir — eski hükümler bununla okunmalı.
 DEFTER_PAZAR = {"1X2_OU", "1X2_BTTS", "OU_BTTS", "TOTAL_GOALS", "HT_FT"}
 
 

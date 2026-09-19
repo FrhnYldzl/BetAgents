@@ -37,21 +37,17 @@ from iddaa_odds_scraper import (
 )
 
 
-# iddia competition_id → canonical league_code
-# (iddia.com /sportsbook/competitions endpoint'inden tespit edilen)
+# iddia competition_id → canonical league_code — YALNIZ ana 6 lig DIŞINDAKİ
+# kodlar için sabit eşleme. Ana 6 lig kadro saflığıyla TANINIR (ci_ligleri).
+# ⚠️ 19.09.2026 denetimi: ci numaraları sezonla değişiyor ve sabit eşleme
+# sessizce çürüyordu — 347 (eski "D1") ve 1484 ("INTL") artık boş; 970
+# ("USA1") MLS değil USL Championship'ti (Birmingham Legion, Detroit City…).
+# Doğrulanan: 348 = Brezilya Série A · 15 = MLS (Atlanta United–Orlando City).
 IDDAA_CI_MAPPING = {
-    # Ana 6 büyük lig (sezon arası boş kalabilir)
-    347: "D1",   # Almanya Bundesliga
-    # 348: "I1", # Brezilya Serie A — NOT, bu Brezilya değil İtalya'yı bekleyebiliriz
-    # 579: "I1", # İtalya Serie A Playoff (sezon sonu)
-    # Premier, La Liga, Süper Lig, Ligue 1, Serie A: yaz arası iddia ci yok
-    # Sezon başında yeni ci'lar gelir.
-
-    # GEÇICI YAZ ARASI Active liglerden:
-    1484: "INTL",  # Uluslararası Hazırlık (geçici test için)
-    348: "BRA1",   # Brezilya Serie A
-    970: "USA1",   # MLS
+    348: "BRA1",   # Brezilya Série A (doğrulandı 19.09.2026)
+    15: "USA1",    # MLS (doğrulandı 19.09.2026)
 }
+ANA_LIGLER = ("E0", "SP1", "I1", "D1", "F1", "T1")
 
 
 # Lig kategorileri — UI'da grupla
@@ -216,6 +212,201 @@ def map_iddaa_league(event: dict) -> str | None:
     return map_league_by_name(event.get("cn") or "")
 
 
+# ══════════════════════════════════════════════════════════════════════
+# 🏷 LİG KODU — yarışmanın KADRO SAFLIĞI (19.09.2026)
+# ══════════════════════════════════════════════════════════════════════
+# NEDEN: iddaa olaylarla birlikte lig ADINI (cn) artık göndermiyor — üretimde
+# tek bir satırda bile yok. Kod yalnız "ünlü takım adı" oylamasıyla (yukarıdaki
+# learn_ci_leagues) öğreniliyordu ve bu, yarışmayı içindeki ünlü takımdan
+# tanıyordu: Şampiyonlar Ligi (Milan–Benfica) → E0, Lig Kupası ve Championship
+# (Bristol City–Watford) → E0, DFB-Pokal ve 3. Liga ("köln" işareti Viktoria
+# Köln'ü yakaladı) → D1, İspanyol alt ligi ("Real Madrid C") → SP1, TFF 1. Lig
+# → T1. Sezon başı lig maçları ise 'ALL' kaldı (Deportivo–Elche 17.08).
+#
+# YENİ KURAL: bir yarışma (ci) ancak TAKIMLARININ ÇOĞU o ligin kadrosundaysa
+# o ligdir. Kadro = son sezonun football-data adları + daha önce bu kuralla
+# tanınmış ci'ların takımları (lig_ci tablosu — football-data güncellenmese
+# de kadro kendini sezondan sezona taşır). Kanıt = son 120 günün satırları
+# (competition_id ile) + bu çekimin olayları.
+ASGARI_TAKIM = 17      # en küçük ana lig 18 takım; kupanın son turları elenir
+ASGARI_SAFLIK = 0.70   # takımların en az %70'i ligin kadrosunda
+_CI_ONBELLEK: dict = {"ts": None, "v": None}
+
+
+def _lig_ci_tablosu(conn) -> None:
+    conn.execute("CREATE TABLE IF NOT EXISTS lig_ci (ci INTEGER PRIMARY KEY, "
+                 "league_code TEXT, saflik REAL, n INTEGER, ts TEXT, kaynak TEXT)")
+    conn.commit()
+
+
+# Tohum: 19.09.2026'da takım listelerine bakılarak ELLE doğrulandı. Kanıt
+# o gün inceydi (eski kapsam hatası yüzünden Bundesliga'nın 45'inde yalnız 3
+# satır vardı) — tohum olmadan saflık kuralı Bundesliga'yı "ana lig değil"
+# sayardı. Tohum kalıcı bir sabit eşleme DEĞİL: kayıtlı ci, güçlü karşı kanıtla
+# (≥ 17 takım ve kadro payı < %50) düşer; yeni sezonun ci'ları saflıkla tanınır.
+TOHUM_CI = {43: "E0", 129: "SP1", 143: "I1", 45: "D1", 381: "F1", 584: "T1"}
+
+
+def lig_ci_tohumla() -> None:
+    conn = db.connect()
+    try:
+        _lig_ci_tablosu(conn)
+        for ci, lg in TOHUM_CI.items():
+            conn.execute(
+                "INSERT INTO lig_ci (ci, league_code, saflik, n, ts, kaynak) "
+                "VALUES (?,?,NULL,0,?,?) ON CONFLICT (ci) DO NOTHING",
+                (ci, lg, datetime.utcnow().isoformat(), "elle doğrulandı 19.09.2026"))
+        conn.commit()
+        for r in conn.execute("SELECT ci, league_code, saflik, n, kaynak FROM lig_ci "
+                              "ORDER BY league_code").fetchall():
+            print(f"  ci={r[0]:<7} {r[1]:4s} saflık {r[2]} n={r[3]} · {r[4]}")
+    finally:
+        conn.close()
+
+
+def _kadrolar(conn) -> dict:
+    """Ana ligin kadrosu: son 450 günün football-data adları + lig_ci'da o
+    lige tanınmış yarışmaların son 400 gündeki takımları."""
+    from collections import defaultdict
+    simdi = datetime.utcnow()
+    out: dict = defaultdict(set)
+    yer = ",".join("'" + l + "'" for l in ANA_LIGLER)
+    for r in conn.execute(
+            "SELECT league_code, home_team, away_team FROM matches_v2 "
+            "WHERE external_id_fd IS NOT NULL AND kickoff_utc >= ? "
+            "AND league_code IN (" + yer + ")",
+            ((simdi - timedelta(days=450)).isoformat(),)).fetchall():
+        out[r[0]].update((r[1], r[2]))
+    try:
+        for r in conn.execute(
+                "SELECT l.league_code, m.home_team, m.away_team FROM matches_v2 m "
+                "JOIN lig_ci l ON l.ci = CAST(m.competition_id AS INTEGER) "
+                "WHERE m.kickoff_utc >= ?",
+                ((simdi - timedelta(days=400)).isoformat(),)).fetchall():
+            out[r[0]].update((r[1], r[2]))
+    except Exception:
+        conn.rollback()
+    return out
+
+
+def _ci_takimlari(conn, events: list) -> dict:
+    """ci → farklı takım adları: son 120 günün satırları + bu çekimin olayları."""
+    from collections import defaultdict
+    out: dict = defaultdict(set)
+    for r in conn.execute(
+            "SELECT competition_id, home_team, away_team FROM matches_v2 "
+            "WHERE competition_id IS NOT NULL AND kickoff_utc >= ?",
+            ((datetime.utcnow() - timedelta(days=120)).isoformat(),)).fetchall():
+        try:
+            out[int(r[0])].update(x for x in (r[1], r[2]) if x)
+        except (TypeError, ValueError):
+            continue
+    for ev in events or []:
+        try:
+            ci = int(ev.get("ci"))
+        except (TypeError, ValueError):
+            continue
+        out[ci].update(x for x in (ev.get("hn"), ev.get("an")) if x)
+    return out
+
+
+def ci_ligleri(conn, events: list, taze_dk: int = 60) -> tuple[dict, set]:
+    """(tanınan {ci: lig}, 'ana lig DEĞİL' kesin ci kümesi).
+
+    Bir ci ancak şu üç şartla X olur:
+      · ASGARI_TAKIM (17) farklı takım — kupanın son turu elenir
+      · takımların ≥ %70'i X'in kadrosunda
+      · başka hiçbir ana ligden 2+ takım yok — Avrupa kupası elenir
+    ≥ 8 farklı takımı olup şartları sağlamayan ci 'ana lig değil'dir: eski
+    yanlış kodu düzeltmeye yeter kanıt var. Daha azı 'bilinmiyor' (satırın
+    mevcut kodu korunur)."""
+    simdi = datetime.utcnow()
+    if (_CI_ONBELLEK["v"] is not None and _CI_ONBELLEK["ts"] is not None
+            and (simdi - _CI_ONBELLEK["ts"]).total_seconds() < taze_dk * 60):
+        return _CI_ONBELLEK["v"]
+    from takim_adi import esle_ad, _jeton, _onek, _temiz, _yedek_mi, ELLE
+    _lig_ci_tablosu(conn)
+    kadro = _kadrolar(conn)
+    havuz = {lg: {t for ad in adlar for t in _jeton(ad)} for lg, adlar in kadro.items()}
+    kayitli = {int(r[0]): r[1] for r in conn.execute(
+        "SELECT ci, league_code FROM lig_ci").fetchall()}
+    bellek: dict = {}
+
+    def uye(ad: str, lg: str) -> bool:
+        k = (ad, lg)
+        if k not in bellek:
+            t = _temiz(ad)
+            if _yedek_mi(ad):
+                bellek[k] = False
+            elif ad in kadro[lg] or (t in ELLE and ELLE[t] in kadro[lg]):
+                bellek[k] = True        # birebir ya da elle eşleme — süzgeçten ÖNCE
+            else:
+                j = _jeton(ad)
+                bellek[k] = (any(_onek(a, u) for a in j for u in havuz.get(lg, ()))
+                             and esle_ad(ad, kadro[lg]) is not None)
+        return bellek[k]
+
+    tanindi: dict = {}
+    degil: set = set()
+    kayit = []
+    for ci, takimlar in _ci_takimlari(conn, events).items():
+        if ci in IDDAA_CI_MAPPING:
+            continue
+        n = len(takimlar)
+        if n < 4:
+            if ci in kayitli:
+                tanindi[ci] = kayitli[ci]
+            continue
+        say = {lg: sum(1 for t in takimlar if uye(t, lg)) for lg in ANA_LIGLER}
+        en = max(say, key=say.get)
+        diger = max((v for k, v in say.items() if k != en), default=0)
+        if n >= ASGARI_TAKIM and say[en] >= ASGARI_SAFLIK * n and diger <= 1:
+            tanindi[ci] = en
+            kayit.append((ci, en, round(say[en] / n, 3), n, simdi.isoformat(), "saflık"))
+        elif ci in kayitli:
+            lg = kayitli[ci]
+            # Kayıtlı ci yalnız GÜÇLÜ karşı kanıtla düşer: ci numarası yeni
+            # sezonda başka yarışmaya verildiyse (ör. 45 → 2. Bundesliga)
+            # kadro payı çöker.
+            if n >= ASGARI_TAKIM and say.get(lg, 0) < 0.5 * n:
+                degil.add(ci)
+                print(f"  ⚠️ lig_ci {ci}={lg} düştü: {say.get(lg, 0)}/{n} kadro payı")
+            else:
+                tanindi[ci] = lg
+        elif n >= 8:
+            degil.add(ci)
+    try:
+        for k in kayit:
+            conn.execute(
+                "INSERT INTO lig_ci (ci, league_code, saflik, n, ts, kaynak) "
+                "VALUES (?,?,?,?,?,?) "
+                "ON CONFLICT (ci) DO UPDATE SET league_code=excluded.league_code, "
+                "saflik=excluded.saflik, n=excluded.n, ts=excluded.ts, "
+                "kaynak=excluded.kaynak", k)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"  (lig_ci yazılamadı: {e})")
+    v = (tanindi, degil)
+    _CI_ONBELLEK.update(ts=simdi, v=v)
+    return v
+
+
+def lig_kodu(ev: dict, tanindi: dict, degil: set) -> tuple[str, bool]:
+    """(kod, kesin_mi). kesin=False → mevcut satırın kodu korunur."""
+    try:
+        ci = int(ev.get("ci"))
+    except (TypeError, ValueError):
+        return "ALL", False
+    if ci in IDDAA_CI_MAPPING:
+        return IDDAA_CI_MAPPING[ci], True
+    if ci in tanindi:
+        return tanindi[ci], True
+    if ci in degil:
+        return "ALL", True
+    return "ALL", False
+
+
 def extract_odds_from_market(market: dict) -> dict:
     """Bir market dict'inden 1X2 veya KG veya A/Ü odds'unu çıkar."""
     market_type = market.get("t")
@@ -257,7 +448,7 @@ def extract_odds_from_market(market: dict) -> dict:
     return odds_data
 
 
-def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
+def _fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                     only_target_leagues: bool = True):
     """Ana ingest."""
     print("=" * 70)
@@ -279,89 +470,68 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
         print("  Boş — iddia.com'da bugün/yakın maç yok veya endpoint değişti")
         return
 
-    # 1.5) LİG KODU — sıra ÖNEMLİ, ve eskiden TERSTİ.
-    #
-    # ⚠️ 2026-09-01'de bulundu: öğrenme (takım adı çoğunluk oyu) ÖNCE
-    # koşuyor, iddaa'nın kendi söylediği lig adını EZİYORDU. Sonuç:
-    #   Nottingham Forest - Brest      -> E0 + I1 + SP1  (dört ayrı satır)
-    #   Real Madrid (K) - Atletico (K) -> SP1  (kadın maçı, erkek ligi)
-    #   Millonarios - Int. de Bogota   -> I1   (Kolombiya maçı, Serie A)
-    #   Aguilas FC - Lorca Deportiva   -> SP1  (İspanya 4. lig)
-    # Sebep: "inter" alt dizisi "Internacional de Bogota"ya da uyuyor;
-    # kadın takımları erkek takımıyla aynı adı taşıyor; red listesi
-    # yalnız lig ADI yolunda uygulanıyordu, takım adı yolunda hiç.
-    #
-    # YANLIŞ KOD, 'ALL'DEN KÖTÜDÜR. 'ALL' dürüsttür — "bilmiyorum" der.
-    # 'D1' bir kadın maçına yazıldığında Bundesliga analizini KİRLETİR
-    # ve bunu kimse fark etmez.
-    #
-    # ANAHTAR AKIL YÜRÜTME: lig adı (cn) VARSA ve bizim 6 lige UYMUYORSA,
-    # bu "bilgi yok" değil "BU LİG O DEĞİL" demektir. Yokluğun kanıtıdır.
-    # Öğrenme yalnız cn'in hiç olmadığı yerde konuşabilir.
-    learned = {}
+    # 1.5) LİG KODU — yarışmanın KADRO SAFLIĞI (bkz. ci_ligleri, 19.09.2026).
+    # ⚠️ Eski yol (takım adı oylaması, learn_ci_leagues) Şampiyonlar Ligi'ni,
+    # Lig Kupası'nı ve Championship'i E0 yapıyordu; lig adı (cn) iddaa'dan
+    # artık HİÇ gelmiyor. Oylama kullanılmaz. Kural değişmedi: YANLIŞ KOD,
+    # 'ALL'DAN KÖTÜDÜR — tanınmayan yarışma 'ALL' kalır.
+    conn_l = db.connect()
     try:
-        learned = learn_ci_leagues(events)
-        if learned:
-            print(f"  ci öğrenme (yalnız cn yoksa kullanılır): {learned}")
-    except Exception as e:
-        print(f"  lig öğrenme atlandı: {e}")
-
-    n_ad, n_ogr, n_bilinmez = 0, 0, 0
+        tanindi, degil = ci_ligleri(conn_l, events)
+        izlenen, acik = _takip_kumeleri(conn_l)
+    finally:
+        conn_l.close()
+    n_bilinmez = 0
     for ev in events:
-        cn = (ev.get("cn") or "").strip()
-        kod = map_iddaa_league(ev)          # 1) sabit ci eşlemesi + LİG ADI
-        if kod:
-            ev["_league_code"] = kod
-            n_ad += 1
-        elif not cn:
-            # 2) lig adı YOK — öğrenme konuşabilir (tek bilgi kaynağı)
-            kod = learned.get(ev.get("ci"))
-            if kod:
-                ev["_league_code"] = kod
-                n_ogr += 1
-            else:
-                n_bilinmez += 1
-        else:
-            # 3) lig adı VAR ama uymuyor -> bu lig o DEĞİL. 'ALL' kalır.
-            n_bilinmez += 1
-    print(f"  lig kodu: {n_ad} ad/eşlemeden · {n_ogr} öğrenmeden · "
-          f"{n_bilinmez} bilinmiyor ('ALL')")
+        kod, kesin = lig_kodu(ev, tanindi, degil)
+        ev["_league_code"], ev["_lig_kesin"] = kod, kesin
+        n_bilinmez += 0 if kesin else 1
+    print(f"  lig kodu: {len(tanindi)} ana lig yarışması tanındı "
+          f"{sorted(tanindi.items())} · {len(degil)} yarışma 'ana lig değil' · "
+          f"{n_bilinmez} olay bilinmiyor")
 
-    # 2) Filter target leagues via competition_id (ci)
+    # 2) HANGİ OLAYLAR İŞLENİR
+    # ⚠️ 19.09.2026: yalnız ilk max_events (120) olay işleniyordu ve liste
+    # tarihe göre SIRALI DEĞİL. Önümüzdeki 3 günün 27 ana lig maçının 22'sinin
+    # fiyatı 17-56 saattir tazelenmemişti: ajanlar bayat fiyattan oynuyor,
+    # ana pazar CLV'lerinin %49'u TAM SIFIR çıkıyordu (giriş = "kapanış" = aynı
+    # bayat fiyat). Artık: ilk max_events + TAKİPTEKİ her maç (veritabanında
+    # oynanmamış) + 7 gün içindeki ana lig maçları. Fiyatlar olayın içinde
+    # gelir — ek API çağrısı yok, yalnız veritabanı yazımı.
+    simdi_ts = datetime.utcnow().timestamp()
+
+    def _ana_yakin(ev: dict) -> bool:
+        return (ev.get("_league_code") in ANA_LIGLER and bool(ev.get("_lig_kesin"))
+                and 0 < (ev.get("d") or 0) - simdi_ts <= 7 * 86400)
+
+    def _birlesik(*gruplar) -> list:
+        gor, out = set(), []
+        for g in gruplar:
+            for ev in g:
+                k = str(ev.get("i"))
+                if k and k not in gor:
+                    gor.add(k)
+                    out.append(ev)
+        return out
+
     if only_target_leagues:
-        filtered = []
-        for ev in events:
-            lg_code = map_iddaa_league(ev)  # ci-based mapping
-            if lg_code:
-                ev["_league_code"] = lg_code
-                filtered.append(ev)
-        events = filtered
-        print(f"  Target lig filter sonrasi: {len(events)} event")
+        secili = [ev for ev in events if _ana_yakin(ev)]
     else:
-        # Tüm-ligler modunda da kanonik kodu ata (sezonda T1/E0... 'ALL' düşmesin).
-        n_mapped = 0
-        for ev in events:
-            if "_league_code" not in ev:
-                code = map_iddaa_league(ev)
-                if code:
-                    ev["_league_code"] = code
-                    n_mapped += 1
-        if n_mapped:
-            print(f"  Lig adi eslemesi: {n_mapped} event kanonik koda baglandi")
+        secili = _birlesik(events[:max_events],
+                           [e for e in events if str(e.get("i")) in izlenen],
+                           [e for e in events if _ana_yakin(e)])
+    print(f"  işlenecek: {len(secili)} olay (ilk {max_events} + takipteki "
+          f"{len(izlenen)} maç + 7 gün içi ana lig)")
 
-    if not events:
-        print("  Bizim 6 lig için event yok. Yaz arası olabilir.")
-        print("  Tüm liglerden örnek:")
-        # Show what's available
-        raw_events = fetch_events(sport_type=1)[:5]
-        for ev in raw_events:
-            print(f"    {ev.get('cn','?')}: {ev.get('eh','?')} vs {ev.get('ea','?')}")
+    if not secili:
+        print("  İşlenecek olay yok.")
         return
 
-    # 3) Detail fetch (event-by-event, limit)
-    print(f"\n[2] {min(max_events, len(events))} event için detay çekiliyor...")
+    # 3) Fiyatlar — olayın içinden; yoksa SINIRLI detay çağrısı
+    print(f"\n[2] {len(secili)} olay işleniyor...")
     results = []
-    for i, ev in enumerate(events[:max_events]):
+    detay_hak = 40
+    for i, ev in enumerate(secili):
         event_id = ev.get("i")
         if not event_id: continue
 
@@ -378,13 +548,17 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
 
         if dry_run:
             print(f"  [DRY] {home_name} vs {away_name} "
-                  f"(ci={ev.get('ci','?')}, "
+                  f"({ev.get('_league_code')}{'' if ev.get('_lig_kesin') else '?'}, "
+                  f"ci={ev.get('ci','?')}, "
                   f"{kickoff_iso[:16] if kickoff_iso else '?'})")
             continue
 
         # Direkt event'in m (markets) field'ı varsa kullan, yoksa detail çek
         markets = ev.get("m", [])
         if not markets:
+            if detay_hak <= 0:
+                continue
+            detay_hak -= 1
             detail = fetch_event_detail(event_id)
             if not detail: continue
             markets = detail.get("m", [])
@@ -396,23 +570,22 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
         results.append({
             "event_id": event_id,
             "lig_code": ev.get("_league_code", "ALL"),
+            "lig_kesin": bool(ev.get("_lig_kesin")),
             "kickoff": kickoff_iso,
             "home": home_name,
             "away": away_name,
             "competition_id": ev.get("ci"),
-            # ⚠️ Lig ADI eskiden ATILIYORDU. Kanonik koda çeviremediğimizde
-            # 'ALL' yazıp adı çöpe atmak, bilgiyi iki kez kaybetmektir:
-            # hangi lig olduğunu da bilmiyoruz. Ham adı saklamak, sahte
-            # kanonik kod uydurmadan lig bazlı analizi mümkün kılar.
+            # ⚠️ Lig ADI eskiden ATILIYORDU. (19.09: iddaa artık göndermiyor —
+            # alan boş kalır; ci her satırda saklanır, lig ci'dan kurulur.)
             "lig_adi": (ev.get("cn") or "").strip() or None,
             "mbs": ev.get("mbc"),   # iddaa Minimum Bahis Sayısı (1=tek olur, 3=3'lü zorunlu)
             "odds": odds_combined,
         })
 
-        if (i+1) % 10 == 0:
-            print(f"  {i+1}/{min(max_events, len(events))} ...")
+        if (i+1) % 50 == 0:
+            print(f"  {i+1}/{len(secili)} ...")
 
-    print(f"\n[3] {len(results)} event detayli cekildi")
+    print(f"\n[3] {len(results)} olay fiyatlandı")
 
     # 📈 FİYAT GEÇMİŞİ: bu veri zaten elimizde, kaydetmeden atıyorduk.
     # Sıfır ek API çağrısı; yalnız DEĞİŞEN fiyatlar yazılır. Asla patlamaz.
@@ -428,12 +601,18 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
     # 🎰 PAZAR DEFTERİ: yüksek çarpanlı + maç içi KOMBİNE pazarlar
     # (1X2_OU, 1X2_BTTS, HT_FT, TOTAL_GOALS...). AYRI tabloya yazılır;
     # matches_v2'ye dokunulmaz, sinyal motoru bu veriyi HİÇ görmez.
+    # Kapsam (19.09): ilk max_events + 7 gün içi ana lig + AÇIK bahisli maçlar
+    # — açık bahsin kapanış fiyatı (CLV) kaçmasın. Takipteki her maç DEĞİL:
+    # defter yalnız değişen fiyatı yazsa da günün ilk çekimi hepsini yazar.
     if not dry_run:
         try:
             import market_book
-            n_mb = market_book.capture(events[:max_events])
+            defter = _birlesik(events[:max_events],
+                               [e for e in events if _ana_yakin(e)],
+                               [e for e in events if str(e.get("i")) in acik])
+            n_mb = market_book.capture(defter)
             if n_mb:
-                print(f"  🎰 pazar defteri: {n_mb} yeni fiyat kaydi")
+                print(f"  🎰 pazar defteri: {n_mb} yeni fiyat kaydi ({len(defter)} olay)")
         except Exception as e:
             print(f"  (pazar defteri atlandi: {e})")
 
@@ -454,6 +633,18 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
         n_ins_m2 = 0
         n_upd_m2 = 0
         n_btts_added = 0
+
+        # Kimlik araması TOPLU: olay başına bir SELECT, proxy üzerinden
+        # yüzlerce gidiş-dönüş demekti (kapsam 120'den ~400 olaya çıktı).
+        var_olan: dict = {}
+        _ids = [str(r["event_id"]) for r in results if r.get("event_id")]
+        for _i in range(0, len(_ids), 400):
+            _p = _ids[_i:_i + 400]
+            for _row in conn.execute(
+                    "SELECT external_id_iddaa, match_id FROM matches_v2 "
+                    "WHERE external_id_iddaa IN (" + ",".join("?" * len(_p)) + ")",
+                    tuple(_p)).fetchall():
+                var_olan[str(_row[0])] = _row[1]
 
         for r in results:
             try:
@@ -485,24 +676,23 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                 # Yedek anahtarda da league_code YOK — football-data'dan
                 # gelmiş bir satırı iddaa akışıyla eşleştirirken kodlar
                 # zaten farklı olur.
-                existing = None
-                if r.get("event_id"):
-                    existing = conn.execute(
-                        "SELECT match_id FROM matches_v2 "
-                        "WHERE external_id_iddaa=?",
-                        (str(r["event_id"]),)).fetchone()
-                if existing is None:
-                    existing = conn.execute("""
+                existing_id = var_olan.get(str(r.get("event_id")))
+                if existing_id is None:
+                    _ex = conn.execute("""
                         SELECT match_id FROM matches_v2
                         WHERE season=? AND matchday=?
                           AND home_team=? AND away_team=?
                     """, (season, md, r["home"], r["away"])).fetchone()
+                    existing_id = _ex["match_id"] if _ex else None
 
-                if existing:
+                if existing_id is not None:
                     # UPDATE odds
+                    # Lig kodu yalnız KESİN karar varsa yazılır (tanınan lig
+                    # ya da "ana lig değil" kanıtı) — eski yanlış kod da böyle
+                    # düzelir. Bilinmiyorsa mevcut kod korunur.
                     conn.execute("""
                         UPDATE matches_v2
-                        SET league_code=CASE WHEN ? != 'ALL' THEN ? ELSE league_code END,
+                        SET league_code=CASE WHEN ?=1 THEN ? ELSE league_code END,
                             closing_1=?, closing_X=?, closing_2=?,
                             closing_over25=?, closing_under25=?,
                             closing_btts_yes=?, closing_btts_no=?,
@@ -514,7 +704,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                             refreshed_at=?
                         WHERE match_id=?
                     """, (
-                        lg, lg,
+                        1 if r.get("lig_kesin") else 0, lg,
                         odds.get("1"), odds.get("X"), odds.get("2"),
                         odds.get("over25"), odds.get("under25"),
                         odds.get("btts_yes"), odds.get("btts_no"),
@@ -523,7 +713,7 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
                         r.get("lig_adi"),
                         r.get("competition_id"),
                         now,
-                        existing["match_id"]
+                        existing_id
                     ))
                     n_upd_m2 += 1
                 else:
@@ -574,6 +764,107 @@ def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
     return results
 
 
+def _takip_kumeleri(conn) -> tuple[set, set]:
+    """(takipteki oynanmamış maçların iddaa id'leri, AÇIK bahisli maçlarınki)."""
+    izlenen = {str(r[0]) for r in conn.execute(
+        "SELECT external_id_iddaa FROM matches_v2 WHERE is_settled=0 "
+        "AND external_id_iddaa IS NOT NULL AND kickoff_utc > ?",
+        (datetime.utcnow().isoformat(),)).fetchall()}
+    try:
+        acik = {str(r[0]) for r in conn.execute(
+            "SELECT DISTINCT COALESCE(pb.iddaa_event_id, m.external_id_iddaa) "
+            "FROM paper_bets pb JOIN paper_coupons pc ON pc.coupon_id=pb.coupon_id "
+            "LEFT JOIN matches_v2 m ON m.match_id=pb.match_id "
+            "WHERE pc.status='open'").fetchall() if r[0]}
+    except Exception:
+        conn.rollback()
+        acik = set()
+    return izlenen, acik
+
+
+_KILIT = __import__("threading").Lock()
+
+
+def kapanis_yakala(pencere_dk: int = 45) -> dict:
+    """⏱ KAPANIŞ YAKALAMA — maça ≤ pencere_dk kalan maçların fiyatını yaz.
+
+    Worker 15 dakikada bir çağırır. Maliyet: TEK API çağrısı (fiyatlar
+    olayın içinde), detay çağrısı yok; pazar defterine yalnız DEĞİŞEN fiyat.
+    Kapsam: takipteki maçlar + açık bahisli maçlar + tanınmış ana lig maçları.
+
+    NEDEN (19.09.2026, kullanıcı onayı): ana çekim 3 saatte bir koşuyor —
+    son saatlerdeki fiyat hareketi kaçıyordu; CLV'nin "kapanışı" maçtan
+    saatler (çoğu zaman günler) önceki fiyattı."""
+    if not _KILIT.acquire(blocking=False):
+        return {"olay": 0, "atlandi": "ana çekim sürüyor"}
+    try:
+        events = fetch_events(sport_type=1)
+        simdi_ts = datetime.utcnow().timestamp()
+        conn = db.connect()
+        try:
+            tanindi, degil = ci_ligleri(conn, events)
+            izlenen, acik = _takip_kumeleri(conn)
+        finally:
+            conn.close()
+        secili = []
+        for ev in events:
+            kalan = (ev.get("d") or 0) - simdi_ts
+            if not (0 < kalan <= pencere_dk * 60):
+                continue
+            kod, kesin = lig_kodu(ev, tanindi, degil)
+            ev["_league_code"], ev["_lig_kesin"] = kod, kesin
+            k = str(ev.get("i"))
+            if k in izlenen or k in acik or (kod in ANA_LIGLER and kesin):
+                secili.append(ev)
+        if not secili:
+            return {"olay": 0, "defter": 0, "mac": 0}
+        n_mb = 0
+        try:
+            import market_book
+            n_mb = market_book.capture(secili)
+        except Exception as e:
+            print(f"  (kapanış: pazar defteri atlandı: {e})")
+        conn = db.connect()
+        n_m = 0
+        try:
+            simdi = datetime.utcnow().isoformat()
+            for ev in secili:
+                odds: dict = {}
+                for m in ev.get("m") or []:
+                    odds.update(extract_odds_from_market(m))
+                if not odds:
+                    continue
+                conn.execute(
+                    "UPDATE matches_v2 SET closing_1=COALESCE(?,closing_1), "
+                    "closing_X=COALESCE(?,closing_X), closing_2=COALESCE(?,closing_2), "
+                    "closing_over25=COALESCE(?,closing_over25), "
+                    "closing_under25=COALESCE(?,closing_under25), "
+                    "closing_btts_yes=COALESCE(?,closing_btts_yes), "
+                    "closing_btts_no=COALESCE(?,closing_btts_no), refreshed_at=? "
+                    "WHERE external_id_iddaa=? AND is_settled=0",
+                    (odds.get("1"), odds.get("X"), odds.get("2"),
+                     odds.get("over25"), odds.get("under25"),
+                     odds.get("btts_yes"), odds.get("btts_no"),
+                     simdi, str(ev.get("i"))))
+                n_m += 1
+            conn.commit()
+        finally:
+            conn.close()
+        return {"olay": len(secili), "defter": n_mb, "mac": n_m}
+    finally:
+        _KILIT.release()
+
+
+def fetch_and_ingest(dry_run: bool = False, max_events: int = 50,
+                     only_target_leagues: bool = True):
+    """Ana ingest — kapanış yakalamayla AYNI ANDA koşmaz (kilit): ikisi de
+    matches_v2 ve pazar defterine yazar; üst üste binerse defter mükerrer
+    satır alır."""
+    with _KILIT:
+        return _fetch_and_ingest(dry_run=dry_run, max_events=max_events,
+                                 only_target_leagues=only_target_leagues)
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -581,10 +872,19 @@ if __name__ == "__main__":
     parser.add_argument("--max", type=int, default=30, help="Max event detail çek")
     parser.add_argument("--all-leagues", action="store_true",
                         help="6 lig filtresi kapalı")
+    parser.add_argument("--lig-ci-tohum", action="store_true",
+                        help="lig_ci tablosunu elle doğrulanmış 6 ci ile tohumla")
+    parser.add_argument("--kapanis", action="store_true",
+                        help="maça ≤45 dk kalan maçların fiyatını bir kez yakala")
     args = parser.parse_args()
 
-    fetch_and_ingest(
-        dry_run=args.dry,
-        max_events=args.max,
-        only_target_leagues=not args.all_leagues
-    )
+    if args.lig_ci_tohum:
+        lig_ci_tohumla()
+    elif args.kapanis:
+        print(kapanis_yakala())
+    else:
+        fetch_and_ingest(
+            dry_run=args.dry,
+            max_events=args.max,
+            only_target_leagues=not args.all_leagues
+        )
