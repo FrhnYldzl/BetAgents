@@ -57,7 +57,7 @@ if (not os.environ.get("RAILWAY_ENVIRONMENT_NAME")
 # cekmece) zaten standarttir ve CSS ile ele aliniyor.
 try:
     st.set_page_config(page_title="BetAgents Desk", page_icon="◉",
-                       layout="wide", initial_sidebar_state="collapsed")
+                       layout="wide", initial_sidebar_state="expanded")
 except Exception:
     pass
 
@@ -556,7 +556,9 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 .mono,.v2kpi b,.v2kpi span,.ro b,.ro span,table.v2 td.n,table.v2 th,
 .gr,.dp,.dm,.cc,.v2suz,.v2gez-orta,table.v2 .sb,.v2grup,.v2head .hint,
 .dq,.v2ust .marka span,.v2ust-durum,.v2ust-durum *,.v2yan-alt,
-.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt,.gs-sec,.gs-tarih{
+.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt,.gs-sec,.gs-tarih,
+.bant-not,.tk-sayi b,.tk-ust span,.kc-sat b,.kc-baslik,
+[data-testid="stNavSectionHeader"]{
   font-family:"JetBrains Mono",ui-monospace,monospace!important;
   font-variant-numeric:tabular-nums;}
 
@@ -605,19 +607,72 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 .v2ust-durum b{font-family:"JetBrains Mono",monospace;font-size:12.5px;
   font-weight:500;color:var(--koyu-ink);}
 
-/* ── KENAR ÇUBUĞU: KAPALI (üst gezinme onun işini yapıyor) ─ */
-[data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"]{
-  display:none!important;}
-
-/* ── (eski kenar çubuğu stilleri — kullanılmıyor) ─────── */
-[data-testid="stSidebar"]{background:var(--koyu);border-right:0;
-  width:236px!important;min-width:236px!important;}
-[data-testid="stSidebar"] [data-testid="stSidebarContent"]{
-  padding:var(--s5) var(--s3);}
-[data-testid="stSidebar"] *{color:var(--koyu-ink)!important;}
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p{
-  color:var(--koyu-ink)!important;font-size:var(--t-alt)!important;
-  margin:0!important;}
+/* ── SOL PANEL (SaaS) — st.navigation ─────────────────────
+   Kullanıcı (19.09): "Sol SaaS paneli yap — kimliğine ve görünümüne,
+   navigasyona uygun." Koyu zemin + amber vurgu = markanın terminal
+   kimliği. Seçiciler Streamlit 1.57'nin data-testid'lerine bağlı (DOM'dan
+   okundu: stSidebarNavLink · aria-current="page" · stNavSectionHeader).
+   ⚠️ Metin rengi AÇIKÇA verilir: varsayılan koyu metin koyu zeminde
+   görünmüyordu — ilk denemede 13 bağlantının 12'si görünmezdi. */
+[data-testid="stSidebar"]{background:var(--koyu);border-right:1px solid #1c2835;
+  width:248px!important;min-width:248px!important;max-width:248px!important;}
+[data-testid="stSidebarContent"]{background:var(--koyu);}
+[data-testid="stSidebarHeader"]{padding:18px 16px 4px 18px;}
+[data-testid="stSidebarLogo"]{height:30px;max-width:180px;}
+[data-testid="stSidebarNav"]{padding:0 10px;}
+[data-testid="stNavSectionHeader"]{font-size:9.5px!important;font-weight:700!important;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--koyu-dim)!important;
+  padding:12px 10px 3px!important;margin:0!important;line-height:1.2!important;}
+/* Ölçüldü: başlık 38 px, her satırın iki yanında 2 px — menü 726 px idi ve
+   durum kartı son öğeyi örtüyordu. Sıkılaştırıldı (~590 px). */
+[data-testid="stSidebarNavItems"] li{margin:0!important;}
+[data-testid="stNavSectionHeader"] *{color:var(--koyu-dim)!important;}
+[data-testid="stSidebarNavLink"]{border-radius:6px;min-height:30px;height:30px;margin:1px 0;
+  padding:0 10px!important;color:rgba(234,240,245,.80)!important;
+  transition:background .12s ease;}
+[data-testid="stSidebarNavLink"] *{color:inherit!important;}
+[data-testid="stSidebarNavLink"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebarNavLink"] span{font-size:13.5px!important;font-weight:500;}
+[data-testid="stSidebarNavLink"] [data-testid="stIconMaterial"]{
+  color:var(--koyu-dim)!important;font-size:18px!important;}
+[data-testid="stSidebarNavLink"]:hover{background:rgba(255,255,255,.06)!important;
+  color:#ffffff!important;}
+[data-testid="stSidebarNavLink"][aria-current="page"]{
+  background:rgba(192,138,28,.16)!important;color:#ffffff!important;
+  box-shadow:inset 3px 0 0 var(--brand-koyu);}
+[data-testid="stSidebarNavLink"][aria-current="page"] [data-testid="stIconMaterial"]{
+  color:var(--brand-koyu)!important;}
+[data-testid="stSidebarNavSeparator"]{display:none!important;}
+/* Durum kartı kenar çubuğunun DİBİNE sabit (sticky) — menü uzunsa
+   altından kayar, kart hep görünür. Ölçüldü: 1440×900'de kart 831–991 px
+   aralığındaydı, yani ekran dışında; 1366×768 dizüstünde daha da aşağıda. */
+[data-testid="stSidebarUserContent"]{position:sticky;bottom:0;z-index:2;
+  padding:18px 14px 14px!important;
+  background:linear-gradient(to bottom,rgba(13,22,32,0),var(--koyu) 16px);}
+[data-testid="stSidebarCollapseButton"] *{color:var(--koyu-dim)!important;}
+/* Masaüstünde KAPATILAMAZ — eski ders: kullanıcı kapatıyor, gezinme
+   ekrandan kayboluyordu. Mobilde standart açılır çekmece kalır. */
+@media (min-width:992px){
+  [data-testid="stSidebarCollapseButton"]{display:none!important;}
+}
+/* Mobilde kenar çubuğu kapalıyken logo + açma düğmesi sol üstte YÜZER
+   (üst başlık 0 yükseklikte) — sayfa başlığının etiketini örtüyordu.
+   İçerik o denetimlerin altından başlar. */
+@media (max-width:991px){
+  .block-container{padding-top:64px!important;}
+}
+/* Kenar çubuğunun dibi — canlı durum */
+.kc-durum{padding:9px 11px;border-radius:6px;
+  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);}
+.kc-baslik{font-size:9px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--koyu-dim);display:flex;
+  align-items:center;gap:6px;white-space:nowrap;overflow:hidden;}
+.kc-baslik::before{content:"";flex:0 0 6px;height:6px;border-radius:50%;
+  background:#3fb37f;box-shadow:0 0 0 3px rgba(63,179,127,.18);}
+.kc-baslik b{color:var(--koyu-ink);font-weight:600;letter-spacing:.04em;
+  text-transform:none;overflow:hidden;text-overflow:ellipsis;}
+.kc-sat{margin-top:5px;font-size:10.5px;color:var(--koyu-dim);line-height:1.5;}
+.kc-sat b{font-size:11.5px;font-weight:600;color:var(--koyu-ink);}
 .v2grup{font-size:9.5px;letter-spacing:0.18em;text-transform:uppercase;
   color:var(--koyu-dim)!important;padding:var(--s4) var(--s2) 5px;}
 .v2yan-alt{margin-top:var(--s4);padding-top:var(--s4);
@@ -704,6 +759,34 @@ table.v2 tr.adv .ag{color:var(--pos);}
   white-space:normal;overflow-wrap:anywhere;}
 .gs-et{display:inline-block;min-width:62px;font-size:9.5px;font-weight:700;
   letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+
+/* ── TAKIM KARTI (Lig Tablosu) ─────────────────────────── */
+.tk-kart{background:var(--panel);border:1px solid var(--line);
+  border-top:3px solid var(--brand);border-radius:var(--r);
+  padding:14px 16px 12px;margin-bottom:8px;}
+.tk-ust{display:flex;justify-content:space-between;align-items:baseline;
+  gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.tk-ust b{font-size:15px;font-weight:700;color:var(--ink);}
+.tk-ust span{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);}
+.tk-sayi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;}
+.tk-sayi span{display:block;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
+.tk-sayi b{font-size:15px;font-weight:500;color:var(--ink);}
+.tk-sayi b.ps{color:var(--pos);} .tk-sayi b.ng{color:var(--neg);}
+.tk-alt{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--ink-2);}
+
+/* ── İŞLEM BANDI — ajanın altında, borsa işlem şeridi ──── */
+table.v2 tr.ust td{border-bottom:0;padding-bottom:4px;}
+table.v2 tr.bant-satir td{padding-top:0;padding-bottom:12px;}
+table.v2 tbody tr.bant-satir:hover{background:transparent;}
+.bant-kap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.bant{display:block;flex:0 1 auto;}
+.bant-not{font-size:11px;color:var(--muted);}
+.bant-not b{font-weight:600;}
+.dp0{color:var(--pos);} .dm0{color:var(--neg);}
+.bant-buyuk{overflow-x:auto;padding:4px 0 8px;}
 table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   background:var(--pos-fill);}
 .cc{display:inline-block;font-size:9.5px;font-weight:700;
@@ -2012,6 +2095,129 @@ def load_ajan_egri() -> dict:
     return out
 
 
+@st.cache_data(ttl=180, show_spinner=False)
+def load_islem_bandi() -> dict:
+    """Her ajanın İŞLEM BANDI — dönem içi kuponlar kronolojik, borsa işlem
+    şeridi gibi (kullanıcı, 19.09: "ajanların altına seri gibi bir bant —
+    ne kazanıyor ne kaybediyor, kronolojik, borsa trade'leri gibi").
+
+    Kapanmış kupon kapanış sırasıyla; açık kuponlar sonda. Etiket ilk
+    ayaktan ('Maç · pazar seçim'), çok ayaklı kuponda '+N ayak'."""
+    kup = _rows(
+        "SELECT pc.portfolio_id p, pc.coupon_id cid, pc.status s, pc.pnl, "
+        "pc.stake, pc.combined_odds o, pc.created_at ca, pc.settled_at sa, "
+        "pc.num_legs nl FROM paper_coupons pc "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost','open') "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)",
+        sessiz=True)
+    ayak = _rows(
+        "SELECT pb.coupon_id cid, pb.home_team h, pb.away_team a, "
+        "pb.market mk, pb.pick pk FROM paper_bets pb "
+        "JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+        "JOIN paper_portfolio pp ON pp.portfolio_id = pc.portfolio_id "
+        "WHERE pc.status IN ('won','lost','open') "
+        "AND (pp.era_start IS NULL OR pc.created_at >= pp.era_start)",
+        sessiz=True)
+    ilk: dict = {}
+    for x in ayak:
+        ilk.setdefault(x["cid"], x)
+    out: dict = {}
+    for k in kup:
+        a = ilk.get(k["cid"]) or {}
+        et = (str(a.get("h") or "?") + " — " + str(a.get("a") or "?") + " · " +
+              str(a.get("mk") or "") + " " + str(a.get("pk") or ""))
+        if int(k.get("nl") or 1) > 1:
+            et += " +" + str(int(k["nl"]) - 1) + " ayak"
+        try:
+            pnl = float(k["pnl"] or 0)
+        except Exception:
+            pnl = 0.0
+        out.setdefault(k["p"], []).append({
+            "s": k["s"], "pnl": pnl, "stake": float(k.get("stake") or 0),
+            "o": float(k.get("o") or 0), "et": et,
+            "t": str(k.get("sa") or k.get("ca") or ""),
+            "sira": (0 if k["s"] != "open" else 1,
+                     str(k.get("sa") or k.get("ca") or ""))})
+    for v in out.values():
+        v.sort(key=lambda z: z["sira"])
+    return out
+
+
+def _islem_bandi(islem: list, son: int = 40, h: int = 30,
+                 adim: float = 8.0) -> str:
+    """İşlem bandı — her kupon bir çubuk: kazanç YUKARI yeşil, kayıp AŞAĞI
+    kırmızı, boy tutarla orantılı; açık pozisyon sonda gri, içi boş.
+
+    Kıvılcım çizgisi (Seyir) kümülatif ŞEKLİ söyler; bant tek tek İŞLEMLERİ
+    — seri mi kazanıyor, büyük bir kayıp mı yedi, açığı ne kadar. Üzerine
+    gelince maç, seçim, oran ve kâr/zarar görünür (SVG <title>)."""
+    import html as _h
+    if not islem:
+        return ""
+    goster = islem[-son:]
+    n = len(goster)
+    w = max(n * adim, adim)
+    mx = max((abs(x["pnl"]) for x in goster if x["s"] != "open"), default=0.0)
+    mx = max(mx, max((x["stake"] for x in goster), default=0.0), 1.0)
+    orta = h / 2.0
+    parca = [f"<line x1='0' y1='{orta:.1f}' x2='{w:.1f}' y2='{orta:.1f}' "
+             f"stroke='var(--line-2)' stroke-width='1'/>"]
+    for i, x in enumerate(goster):
+        x0 = i * adim + 1
+        tarih = x["t"][8:10] + "." + x["t"][5:7] if len(x["t"]) >= 10 else ""
+        if x["s"] == "open":
+            y, bh, renk, dolgu = orta - 4, 8.0, "var(--muted)", "none"
+            ipucu = (f"{tarih} · AÇIK · {x['et']} · @{x['o']:.2f} · "
+                     f"risk {x['stake']:.0f} ₺")
+        else:
+            oran = min(abs(x["pnl"]) / mx, 1.0)
+            bh = max(oran * (orta - 2), 2.0)
+            kaz = x["s"] == "won"
+            y = orta - bh if kaz else orta
+            renk = "var(--pos)" if kaz else "var(--neg)"
+            dolgu = renk
+            ipucu = (f"{tarih} · {'KAZANDI' if kaz else 'KAYBETTİ'} · {x['et']} · "
+                     f"@{x['o']:.2f} · {'+' if x['pnl'] >= 0 else '−'}"
+                     f"{abs(x['pnl']):.0f} ₺")
+        parca.append(
+            f"<rect x='{x0:.1f}' y='{y:.1f}' width='{adim - 2:.1f}' "
+            f"height='{bh:.1f}' fill='{dolgu}' stroke='{renk}' "
+            f"stroke-width='{1 if dolgu == 'none' else 0}' rx='1'>"
+            f"<title>{_h.escape(ipucu)}</title></rect>")
+    # Çubuk genişliği SABİT (esnetilmez): 3 işlemli ajanın çubukları satır
+    # boyu kalın olmasın, ajanlar arası kıyas bozulmasın. Dar ekranda
+    # orantılı küçülür (max-width).
+    return (f"<svg class='bant' viewBox='0 0 {w:.0f} {h}' width='{w:.0f}' "
+            f"height='{h}' style='max-width:100%;height:auto;' role='img' "
+            f"aria-label='son {n} işlem'>" + "".join(parca) + "</svg>")
+
+
+def _bant_ozet(islem: list, son: int = 40) -> str:
+    """Bandın yanındaki tek satır: işlem sayısı · K/Z · net · seri."""
+    if not islem:
+        return ""
+    goster = islem[-son:]
+    kap = [x for x in goster if x["s"] != "open"]
+    k = sum(1 for x in kap if x["s"] == "won")
+    z = len(kap) - k
+    net = sum(x["pnl"] for x in kap)
+    acik = len(goster) - len(kap)
+    seri, yon = 0, None
+    for x in reversed(kap):
+        if yon is None:
+            yon = x["s"]
+        if x["s"] != yon:
+            break
+        seri += 1
+    return ("son " + str(len(goster)) + " işlem · <b class='dp0'>" + str(k) +
+            " K</b> · <b class='dm0'>" + str(z) + " Z</b> · net <b class='" +
+            ("dp0" if net >= 0 else "dm0") + "'>" + ("+" if net >= 0 else "−") +
+            "{:,.0f}".format(abs(net)).replace(",", ".") + " ₺</b>" +
+            (" · seri " + str(seri) + ("K" if yon == "won" else "Z") if seri > 1 else "") +
+            (" · " + str(acik) + " açık" if acik else ""))
+
+
 def _kivilcim(seri: list, w: int = 96, h: int = 26) -> str:
     """Kıvılcım çizgisi — tablo hücresine sığan mini eğri.
 
@@ -2630,8 +2836,7 @@ def page_desk() -> None:
                 # kutular isaretli kalsa da zarar yok.
                 for b in sel:
                     sepete_ekle(b)
-                st.session_state["v2_page"] = "Sepet"
-                st.rerun()
+                _git("Sepet")
         else:
             st.markdown(
                 "<div class='v2bos'>Tahtadan seçim işaretle.<br>"
@@ -2847,12 +3052,11 @@ def page_opus() -> None:
                 st.error(res.get("msg", "kaydedilemedi"))
 
 
-def _ajan_paneli(pid: str, lig: dict) -> None:
-    """Ajan dosyası — ayrı sayfa değil, ligin İÇİNDE açılır panel.
-
-    V1'de her ajanın kendi sayfası vardı (20 menü girdisi). Ayrı sayfa
-    bağlamı koparır: ligden çıkıp geri dönmek karşılaştırmayı bozar.
-    Panel, sıralamanın hemen altında açılır ve kapanır."""
+def _ajan_paneli(pid: str, lig: dict, sayfa: bool = False) -> None:
+    """Ajan dosyası. 19.09'dan beri kendi sayfası var (Ajan Dosyası, sol
+    panelde TAKIMLAR altında); sayfa=True o kip — Kapat düğmesi yok, büyük
+    işlem bandı var. Takım tablosundaki bant özetin, bu sayfa ayrıntının
+    yeri."""
     tum = lig["mavi"] + lig["kirmizi"] + lig.get("turuncu", [])
     a = next((x for x in tum if x["pid"] == pid), None)
     if not a:
@@ -2871,10 +3075,22 @@ def _ajan_paneli(pid: str, lig: dict) -> None:
             str(a["era"] or "—") + " · " + _isabet(a) + " · kasa " +
             "{:,.0f}".format(a["kasa"]).replace(",", ".") + " ₺</span></div>",
             unsafe_allow_html=True)
-    with kapat:
-        if st.button("Kapat", key="v2_ajan_kapat", use_container_width=True):
-            st.session_state["v2_ajan"] = None
-            st.rerun()
+    if not sayfa:
+        with kapat:
+            if st.button("Kapat", key="v2_ajan_kapat", use_container_width=True):
+                st.session_state["v2_ajan"] = None
+                st.rerun()
+    else:
+        _is = load_islem_bandi().get(pid) or []
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>İşlem Bandı</h2>"
+            "<div class='hint'>kronolojik · son " + str(min(len(_is), 120)) +
+            " işlem</div></div><div class='v2body'>" +
+            ("<div class='bant-buyuk'>" + _islem_bandi(_is, son=120, h=72, adim=14) +
+             "</div><div class='bant-not'>" + _bant_ozet(_is, son=120) +
+             " · çubuğun üzerine gel: maç, seçim, oran, kâr/zarar</div>"
+             if _is else "<div class='dq'>Dönem içi işlem yok.</div>") +
+            "</div></div>", unsafe_allow_html=True)
 
     sol, sag = st.columns([1.0, 1.0], gap="small")
     with sol:
@@ -2981,9 +3197,7 @@ def _gezinme_alt() -> None:
     with c1:
         if onc and st.button("Önceki:  " + onc, key="v2_onc",
                              use_container_width=True):
-            st.session_state["v2_page"] = onc
-            st.session_state["v2_ajan"] = None
-            st.rerun()
+            _git(onc)
     with c2:
         # Zincirde konum + SIRADAKİ SORU. "Sonraki: Sepet" bir menü
         # öğesidir; "Ne kuruyorum, kaça mal oluyor?" bir devir teslimdir.
@@ -2997,13 +3211,12 @@ def _gezinme_alt() -> None:
     with c3:
         if son and st.button("Sonraki:  " + son, key="v2_son",
                              use_container_width=True):
-            st.session_state["v2_page"] = son
-            st.session_state["v2_ajan"] = None
-            st.rerun()
+            _git(son)
 
 
-def _takim_tablo(rows, baslik, alt, renk, EG=None):
+def _takim_tablo(rows, baslik, alt, renk, EG=None, BANT=None):
     EG = EG or {}
+    BANT = BANT or {}
     if not rows:
         return ("<div class='v2card'><div class='v2head'><h2>" + baslik +
                 "</h2><div class='hint'>" + alt + "</div></div>"
@@ -3023,6 +3236,9 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
         elif a["ihtar"]:
             uyari = " <span class='gr g2'>" + str(a["ihtar"]) + " İHTAR</span>"
         kasa_cls = "dp" if a["yuzde"] >= 100 else "dm"
+        _is = BANT.get(a["pid"]) or []
+        if _is:
+            adv = adv.replace("class='", "class='ust ") if adv else " class='ust'"
         body.append(
             "<tr" + adv + "><td class='rk'>" + str(i) + "</td>"
             "<td><span class='ag'>" + _rozet(a["pid"]) + a["ad"] + "</span>" + uyari +
@@ -3049,6 +3265,13 @@ def _takim_tablo(rows, baslik, alt, renk, EG=None):
                                    else "dm") + "'>" +
                 _sgn(a["edge"]) + "</span>" if a["n"] else "—") + "</td>"
             "<td class='r'><span class='gr " + g + "'>" + txt + "</span></td></tr>")
+        # İŞLEM BANDI — ajanın hemen altında, borsa işlem şeridi gibi
+        if _is:
+            body.append(
+                "<tr class='bant-satir'><td></td><td colspan='9'>"
+                "<div class='bant-kap'>" + _islem_bandi(_is) +
+                "<span class='bant-not'>" + _bant_ozet(_is) + "</span>"
+                "</div></td></tr>")
     return ("<div class='v2card' style='border-top:3px solid " + renk + ";'>"
             "<div class='v2head'><h2>" + baslik + "</h2>"
             "<div class='hint'>" + alt + "</div></div><div class='v2body'>"
@@ -3208,33 +3431,211 @@ def page_sepet() -> None:
                 "</div></div>", unsafe_allow_html=True)
 
 
+# ══════════════════════════════════════════════════════════════
+# TAKIMLAR · PORTFÖY · ANALİZ — tek "Ajan Ligi" sayfası bölündü
+# ══════════════════════════════════════════════════════════════
+# Kullanıcı (19.09): "panel sistemine göre bazı sayfaları ayrıştırabilirsin,
+# daha güzel bir navigasyon için". Eski Lig sayfası yedi ayrı şey taşıyordu
+# (KPI · kasa eğrisi · alternatif maliyet · üç takım tablosu · ajan dosyası
+# · arşiv · çakışma) ve her soruya aşağı kaydırarak ulaşılıyordu. Artık her
+# soru kendi sayfasında, sol panelde kendi yerinde.
+
+TAKIM_TANIM = {
+    "mavi": {"ad": "Mavi Takım", "alt": "sinyal motoru", "renk": "#2563a8"},
+    "kirmizi": {"ad": "Kırmızı Takım", "alt": "kombo pazarları · keşif",
+                "renk": "#a82f22"},
+    "turuncu": {"ad": "Turuncu Takım",
+                "alt": "bağımsız skor modeli · keşif", "renk": "#d9730d"},
+}
+TAKIM_NOTU = {
+    "turuncu": (
+        "<div class='dq'><b>Turuncu takım keşif statüsünde.</b> Takımların "
+        "geçmiş gollerinden iddaa'ya bakmadan skor dağılımı kurar (Dixon-Coles) "
+        "ve fiyatı ondan çıkarır. Model ön kayıtlı sınavı <b>geçmedi</b>: "
+        "2.996 maçta kapanış fiyatına bilgi eklemiyor, iddaa'dan ≥5 puan "
+        "ayrıştığında gerçek sonuç piyasaya daha yakın. Sahada beş hipotez "
+        "yarışıyor: ana pazar · dar kombine · geniş kombine · gol bandı · "
+        "harman. <b>Karar kuralı</b> (ajan başına 60 bahiste, sonuç "
+        "görülmeden yazıldı): CLV ort. &gt; 0 ve ROI &gt; −%8 → sürer · "
+        "CLV ≤ 0 → emekli · arası → 120 bahise uzar, orada hâlâ arası → "
+        "emekli. Hüküm Ölçüm Defteri'nde (TURUNCU_SAHA). Haftalık lig "
+        "değerlendirmesine girmez; diğer takımları etkilemez.</div>"),
+    "kirmizi": (
+        "<div class='dq'>Kırmızı takımın sessizliği <b>arıza değil</b>: "
+        "ölçüldü, iddaa kombo pazarlarında korelasyonu doğru fiyatlıyor "
+        "(1X2_OU +%0,1 · 1X2_BTTS −%0,3 · OU_BTTS −%1,2) ve marj %19-20. "
+        "Keşif modunda günün EN AZ KÖTÜ kombinelerini oynar; beklenen ROI "
+        "negatiftir, amaç kanıttır. Ön kayıtlı karar ajan başına 60 "
+        "bahiste.</div>"),
+    "mavi": (
+        "<div class='v2mb'><b>Mavi takım sistemin ana hattı.</b> Sinyal "
+        "motoru ve fiyat bandı ajanları; JOKER rastgele seçim yapan kontrol "
+        "çizgisidir — onu geçemeyen ajan bir şey bilmiyor demektir. Hacim "
+        "19.09'da günde 10 kupona açıldı: kanıt için örneklem lazım.</div>"),
+}
+
+
+def _takim_ozet(rows: list, ham: list) -> dict:
+    """Takımın dönem özeti: ajan · bahis · isabet · fark · net · açık."""
+    pidler = {x["pid"] for x in rows}
+    n = sum(x["n"] for x in rows)
+    won = sum(x.get("won", 0) for x in rows)
+    exp = (sum(x["exp"] * x["n"] for x in rows) / n) if n else 0.0
+    net = sum(float(x["pnl"] or 0) for x in ham if x["p"] in pidler)
+    ciro = sum(float(x["stake"] or 0) for x in ham if x["p"] in pidler)
+    return {"ajan": len(rows), "n": n, "won": won,
+            "hit": (won / n) if n else 0.0, "exp": exp,
+            "fark": ((won / n) - exp) if n else 0.0, "net": net, "ciro": ciro,
+            "acik": sum(x["acik_kupon"] for x in rows),
+            "enIyi": max((x for x in rows if x["n"] >= 10),
+                         key=lambda z: z["edge"], default=None)}
+
+
+def _para(v: float) -> str:
+    return ("+" if v >= 0 else "−") + "{:,.0f}".format(abs(v)).replace(",", ".") + " ₺"
+
+
 def page_lig() -> None:
-    """🏆 Lig — mavi, kırmızı ve turuncu takım, dönem kapsamlı."""
+    """🏆 Lig Tablosu — üç takım yan yana, bütün ajanlar TEK sıralamada.
+    Kullanıcının istediği rekabet burada görünür: takım rengi rozette."""
     d = load_lig()
     ham = load_egri_ham()
-    _tu = d.get("turuncu", [])
-    _ak = sum(x["acik_kupon"] for x in (d["mavi"] + d["kirmizi"] + _tu))
-    _rk = sum(x["riskte"] for x in (d["mavi"] + d["kirmizi"] + _tu))
-    kpi = [{"ad": "Mavi takım", "deger": str(len(d["mavi"])) + " ajan"},
-           {"ad": "Kırmızı takım", "deger": str(len(d["kirmizi"])) + " ajan"},
-           {"ad": "Turuncu takım", "deger": str(len(_tu)) + " ajan"},
+    bant = load_islem_bandi()
+    ae = load_ajan_egri()
+    tum = d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+    _ak = sum(x["acik_kupon"] for x in tum)
+    _rk = sum(x["riskte"] for x in tum)
+    kpi = [{"ad": "Ajan", "deger": str(len(tum))},
            {"ad": "Açık kupon", "deger": str(_ak) + "  ·  " +
             "{:,.0f}".format(_rk).replace(",", ".") + " ₺"}]
     if ham:
         _t = sum(float(x["pnl"] or 0) for x in ham)
-        _c = sum(float(x["stake"] or 0) for x in ham)
-        kpi += [
-            {"ad": "Net", "deger": ("+" if _t >= 0 else "−") +
-             "{:,.0f}".format(abs(_t)).replace(",", ".") + " ₺",
-             "cls": ("ps" if _t >= 0 else "ng")},
-            {"ad": "ROI", "deger": ("+" if _t >= 0 else "−") +
-             _num(abs(_t / _c) * 100, 1) + "%" if _c else "—",
-             "cls": ("ps" if _t >= 0 else "ng")}]
+        kpi.append({"ad": "Net (dönem)", "deger": _para(_t),
+                    "cls": ("ps" if _t >= 0 else "ng")})
     _sayfa_basligi(
-        "Ajan Ligi",
+        "Lig Tablosu",
         "Yürürlükteki dönem. Sıralama isabete göre değil, fiyata göre "
         "üstünlüğe göre — iki ölçü farklı sıralama verir.", kpi)
 
+    # ── TAKIM KARTLARI — üçü yan yana, her biri kendi sayfasına açılır
+    kol = st.columns(3, gap="small")
+    for k_, (kod, t) in zip(kol, TAKIM_TANIM.items()):
+        o = _takim_ozet(d.get(kod, []), ham)
+        with k_:
+            en = o["enIyi"]
+            st.markdown(
+                "<div class='tk-kart' style='border-top-color:" + t["renk"] + ";'>"
+                "<div class='tk-ust'><b>" + t["ad"] + "</b><span>" + t["alt"] +
+                "</span></div>"
+                "<div class='tk-sayi'><div><span>Ajan</span><b>" + str(o["ajan"]) +
+                "</b></div><div><span>Bahis</span><b>" + str(o["n"]) + "</b></div>"
+                "<div><span>İsabet</span><b>" +
+                (_pct(o["hit"]) if o["n"] else "—") + "</b></div>"
+                "<div><span>Fark</span><b class='" +
+                ("ps" if o["fark"] >= 0 else "ng") + "'>" +
+                (_sgn(o["fark"]) if o["n"] else "—") + "</b></div>"
+                "<div><span>Net</span><b class='" + ("ps" if o["net"] >= 0 else "ng") +
+                "'>" + (_para(o["net"]) if o["ciro"] else "—") + "</b></div>"
+                "<div><span>Açık</span><b>" + str(o["acik"]) + "</b></div></div>"
+                "<div class='tk-alt'>" +
+                ("önde: " + _rozet(en["pid"]) + en["ad"] + " · " + _sgn(en["edge"])
+                 if en else "henüz 10 bahisli ajan yok") + "</div></div>",
+                unsafe_allow_html=True)
+            if st.button(t["ad"] + " sayfası", key="lig_ac_" + kod,
+                         use_container_width=True):
+                _git(t["ad"])
+
+    st.markdown(
+        "<div class='v2mb'><b>Tek sıralama, üç takım.</b> Rozet rengi takımı "
+        "söyler (mavi · <span style='color:var(--neg)'>kırmızı</span> · "
+        "<span style='color:var(--tu)'>turuncu</span>). Her ajanın altındaki "
+        "bant son işlemleri: kazanç yukarı yeşil, kayıp aşağı kırmızı, boy "
+        "tutarla orantılı; üzerine gelince maç ve sonuç görünür.</div>",
+        unsafe_allow_html=True)
+    sirali = sorted(tum, key=lambda z: (z["n"] == 0, -z["edge"]))
+    st.markdown(_takim_tablo(sirali, "Tüm Ajanlar",
+                             "yürürlükteki dönem · " + str(len(sirali)) + " ajan",
+                             "var(--brand)", ae, bant), unsafe_allow_html=True)
+
+
+def _takim_sayfasi(kod: str) -> None:
+    t = TAKIM_TANIM[kod]
+    d = load_lig()
+    ham = load_egri_ham()
+    rows = d.get(kod, [])
+    o = _takim_ozet(rows, ham)
+    kpi = [{"ad": "Ajan", "deger": str(o["ajan"])},
+           {"ad": "Bahis", "deger": str(o["n"])},
+           {"ad": "İsabet", "deger": (_pct(o["hit"]) + " · " + str(o["won"]) +
+                                      "/" + str(o["n"])) if o["n"] else "—"},
+           {"ad": "Açık", "deger": str(o["acik"])}]
+    if o["ciro"]:
+        kpi.append({"ad": "Net (dönem)", "deger": _para(o["net"]),
+                    "cls": ("ps" if o["net"] >= 0 else "ng")})
+    _sayfa_basligi(t["ad"], t["alt"] + " · yürürlükteki dönem", kpi)
+    if TAKIM_NOTU.get(kod):
+        st.markdown(TAKIM_NOTU[kod], unsafe_allow_html=True)
+    st.markdown(_takim_tablo(rows, t["ad"], t["alt"] + " · " + str(len(rows)) +
+                             " ajan", t["renk"], load_ajan_egri(),
+                             load_islem_bandi()), unsafe_allow_html=True)
+    if rows:
+        st.markdown("<div class='v2suz'>ajan dosyasına git</div>",
+                    unsafe_allow_html=True)
+        kol = st.columns(min(len(rows), 5), gap="small")
+        for i, a in enumerate(rows):
+            with kol[i % len(kol)]:
+                if st.button(a["ad"], key="tk_ajan_" + a["pid"],
+                             use_container_width=True):
+                    st.session_state["v2_ajan"] = a["pid"]
+                    _git("Ajan Dosyası")
+
+
+def page_mavi() -> None:
+    _takim_sayfasi("mavi")
+
+
+def page_kirmizi() -> None:
+    _takim_sayfasi("kirmizi")
+
+
+def page_turuncu() -> None:
+    _takim_sayfasi("turuncu")
+
+
+def page_ajan() -> None:
+    """👤 Ajan Dosyası — seçilen ajanın seyri, işlem bandı, açık pozisyonu,
+    gerekçesi ve sonucu. Eskiden Lig sayfasının dibindeydi."""
+    d = load_lig()
+    tum = d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+    _sayfa_basligi("Ajan Dosyası", "Bir ajanın her işlemi, gerekçesi ve "
+                   "sonucu — kronolojik.", [])
+    if not tum:
+        st.markdown("<div class='v2bos'>Sahada ajan yok.</div>",
+                    unsafe_allow_html=True)
+        return
+    secenek = [x["ad"] for x in tum]
+    simdi = st.session_state.get("v2_ajan")
+    idx = next((i for i, x in enumerate(tum) if x["pid"] == simdi), 0)
+    sec = st.selectbox("Ajan", secenek, index=idx, key="v2_ajan_sec_sf")
+    pid = next(x["pid"] for x in tum if x["ad"] == sec)
+    st.session_state["v2_ajan"] = pid
+    _ajan_paneli(pid, d, sayfa=True)
+
+
+def page_kasa() -> None:
+    """💰 Kasa ve Getiri — para büyüyor mu, neye göre? Eskiden Lig'deydi."""
+    ham = load_egri_ham()
+    kpi = []
+    if ham:
+        _t = sum(float(x["pnl"] or 0) for x in ham)
+        _c = sum(float(x["stake"] or 0) for x in ham)
+        kpi = [{"ad": "Net", "deger": _para(_t), "cls": ("ps" if _t >= 0 else "ng")},
+               {"ad": "Ciro", "deger": "{:,.0f}".format(_c).replace(",", ".") + " ₺"},
+               {"ad": "ROI", "deger": ("+" if _t >= 0 else "−") +
+                _num(abs(_t / _c) * 100, 1) + "%" if _c else "—",
+                "cls": ("ps" if _t >= 0 else "ng")}]
+    _sayfa_basligi("Kasa ve Getiri", "Yürürlükteki dönemin kasa eğrisi ve "
+                   "para piyasası tabanına göre gerçek katkı.", kpi)
     # ── KASA EĞRİSİ · süzgeçli, zaman eksenli
     if ham:
         tum_ajan = sorted({str(x["p"]) for x in ham})
@@ -3329,79 +3730,13 @@ def page_lig() -> None:
              "maliyeti bu.") +
             "</div></div></div>", unsafe_allow_html=True)
 
-    st.markdown(
-        "<div class='v2mb'><b>Sıralama isabete göre değil, fiyata göre "
-        "üstünlüğe göre.</b> İki ölçü farklı sıralama veriyor ve doğrusu "
-        "bu — %75 isabet oran 1,24'te kötüdür. Rakamlar <b>yürürlükteki "
-        "dönemi</b> kapsar; arşivlenen dönem karneye karışmaz.</div>",
-        unsafe_allow_html=True)
-    ae = load_ajan_egri()
-    st.markdown(_takim_tablo(d["mavi"], "Mavi Takım",
-                             "sinyal motoru · " + str(len(d["mavi"])) + " ajan",
-                             "#2563a8", ae), unsafe_allow_html=True)
-    st.markdown(_takim_tablo(d["kirmizi"], "Kırmızı Takım",
-                             "kombo pazarları · " + str(len(d["kirmizi"])) + " ajan",
-                             "#a82f22", ae), unsafe_allow_html=True)
-    # 🟠 TURUNCU — bağımsız skor modeli (19.09). Keşif statüsü ekranda
-    # AÇIKÇA yazılır: model ön kayıtlı sınavı geçmedi; ajanlar sahada
-    # sınanıyor, bir kanıt iddiası taşımıyor.
-    st.markdown(_takim_tablo(_tu, "Turuncu Takım",
-                             "bağımsız skor modeli · keşif · " + str(len(_tu)) +
-                             " ajan", "#d9730d", ae), unsafe_allow_html=True)
-    st.markdown(
-        "<div class='dq'><b>Turuncu takım keşif statüsünde.</b> Takımların "
-        "geçmiş gollerinden iddaa'ya bakmadan skor dağılımı kurar (Dixon-Coles) "
-        "ve fiyatı ondan çıkarır. Model ön kayıtlı sınavı <b>geçmedi</b>: "
-        "2.996 maçta kapanış fiyatına bilgi eklemiyor, iddaa'dan ≥5 puan "
-        "ayrıştığında gerçek sonuç piyasaya daha yakın. Sahada beş hipotez "
-        "yarışıyor: ana pazar · dar kombine · geniş kombine · gol bandı · "
-        "harman. <b>Karar kuralı</b> (ajan başına 60 bahiste, sonuç "
-        "görülmeden yazıldı): CLV ort. &gt; 0 ve ROI &gt; −%8 → sürer · "
-        "CLV ≤ 0 → emekli · arası → 120 bahise uzar, orada hâlâ arası → "
-        "emekli. Hüküm Ölçüm Defteri'nde (TURUNCU_SAHA). Haftalık lig "
-        "değerlendirmesine girmez; diğer takımları etkilemez.</div>",
-        unsafe_allow_html=True)
-    # ── ajan dosyasına iniş: liste + panel (ayrı sayfa değil)
-    tum = d["mavi"] + d["kirmizi"] + _tu
-    if "v2_ajan" not in st.session_state:
-        st.session_state["v2_ajan"] = None
-    secenek = ["— ajan seç —"] + [x["ad"] for x in tum]
-    simdi = st.session_state["v2_ajan"]
-    idx = 0
-    if simdi:
-        ad_simdi = next((x["ad"] for x in tum if x["pid"] == simdi), None)
-        if ad_simdi in secenek:
-            idx = secenek.index(ad_simdi)
-    sec = st.selectbox("Ajan dosyası aç", secenek, index=idx,
-                       key="v2_ajan_sec",
-                       help="Ajanın seyri, açık pozisyonları, gerekçeleri "
-                            "ve teşhisi — ligden çıkmadan.")
-    yeni = next((x["pid"] for x in tum if x["ad"] == sec), None)
-    if yeni != st.session_state["v2_ajan"]:
-        st.session_state["v2_ajan"] = yeni
-        st.rerun()
-    if st.session_state["v2_ajan"]:
-        _ajan_paneli(st.session_state["v2_ajan"], d)
 
-    # ── ARŞİV — emekli ajanlar ────────────────────────────────
-    # Kullanıcı: "Emekli ajanları arşiv gibi bir şeye alalım, listeyi
-    # kalabalık gösteriyor." Doğru: emekli ajan yeni bahis üretmiyor,
-    # sıralamada yer tutması "kime güvenirim" sorusunu bulandırır.
-    # SİLİNMİYOR — karnesi burada okunabiliyor, karar geri alınabilir.
-    _ar = d.get("arsiv") or []
-    if _ar:
-        with st.expander(f"Arşiv — emekli {len(_ar)} ajan  ·  "
-                         f"dönem 3 tasfiyesi", expanded=False):
-            st.markdown(
-                "<div class='v2mb'>Bu ajanlar <b>yeni bahis üretmiyor</b>. "
-                "Karneleri burada duruyor çünkü <b>silmek ölçümü yok "
-                "etmektir</b> — bir kararı geri almak için de, neden "
-                "verildiğini görmek için de bu satırlara ihtiyaç var. "
-                "Emeklilik bayrağı kaldırılırsa ajan sahaya döner.</div>" +
-                _takim_tablo(_ar, "Emekli Ajanlar",
-                             "dönem 3'te sahada değil", "#8a94a0"),
-                unsafe_allow_html=True)
 
+def page_cakisma() -> None:
+    """🔀 Çakışma ve Arşiv — kaç bağımsız görüş var, kim emekli.
+    Eskiden Lig sayfasının dibindeydi."""
+    d = load_lig()
+    _sayfa_basligi("Çakışma ve Arşiv", "Ajanlar gerçekten farklı şeyler mi oynuyor · emekli ajanların karnesi.", [])
     # ── AJAN ÇAKIŞMASI ────────────────────────────────────────
     _ckd = load_cakisma() or {}
     ck = _ckd.get("ciftler") or []
@@ -3448,12 +3783,25 @@ def page_lig() -> None:
             "söylüyor mu&rdquo;</i> sorusudur.</div>"
             "</div></div>", unsafe_allow_html=True)
 
-    st.markdown(
-        "<div class='dq'>Kırmızı takımın sessizliği <b>arıza değil</b>: "
-        "ölçüldü, iddaa kombo pazarlarında korelasyonu doğru fiyatlıyor "
-        "(1X2_OU +%0,1 · 1X2_BTTS −%0,3 · OU_BTTS −%1,2) ve marj %19-20. "
-        "Sürekli skor modeli sahte edge üretmiyor — 450 adaydan 0'ı eşiği "
-        "geçiyor. <i>Faz 2 · model</i></div>", unsafe_allow_html=True)
+    # ── ARŞİV — emekli ajanlar ────────────────────────────────
+    # Kullanıcı: "Emekli ajanları arşiv gibi bir şeye alalım, listeyi
+    # kalabalık gösteriyor." Doğru: emekli ajan yeni bahis üretmiyor,
+    # sıralamada yer tutması "kime güvenirim" sorusunu bulandırır.
+    # SİLİNMİYOR — karnesi burada okunabiliyor, karar geri alınabilir.
+    _ar = d.get("arsiv") or []
+    if _ar:
+        with st.expander(f"Arşiv — emekli {len(_ar)} ajan  ·  "
+                         f"dönem 3 tasfiyesi", expanded=False):
+            st.markdown(
+                "<div class='v2mb'>Bu ajanlar <b>yeni bahis üretmiyor</b>. "
+                "Karneleri burada duruyor çünkü <b>silmek ölçümü yok "
+                "etmektir</b> — bir kararı geri almak için de, neden "
+                "verildiğini görmek için de bu satırlara ihtiyaç var. "
+                "Emeklilik bayrağı kaldırılırsa ajan sahaya döner.</div>" +
+                _takim_tablo(_ar, "Emekli Ajanlar",
+                             "dönem 3'te sahada değil", "#8a94a0"),
+                unsafe_allow_html=True)
+
 
 
 def page_defter() -> None:
@@ -4288,107 +4636,96 @@ def page_inceleme() -> None:
 
 # Menü etiketleri sade: aktif durumdaki amber şerit zaten yönlendiriyor,
 # emoji sadece gürültü ekliyordu.
-# ── BİLGİ MİMARİSİ ──────────────────────────────────────────
-# Menü üç işe göre bölündü. Düz liste, yedi maddeden sonra
-# "hangisi neydi" sorusunu doğurur; grup o soruyu kaldırır.
-# OPUS 5 artık Lig'in ALTINDA: ikisi de "kim ne yaptı" sorusuna
-# bakar, biri kâğıt ajanlara biri sahaya.
-# ─────────────────────────────────────────────────────────────
-# HİKÂYE — yedi sayfa değil, üç perdelik tek bir soru zinciri
-# ─────────────────────────────────────────────────────────────
-# Kullanıcının teşhisi: "sayfalar bir hikâye anlatmalı, anlatmıyor."
-# Doğruydu. Yedi ayrı ekran vardı; hangisinin neden var olduğu,
-# hangisinden hangisine geçileceği hiçbir yerde yazmıyordu.
+# ── BİLGİ MİMARİSİ — SOL PANEL (SaaS) · 19.09.2026 ─────────────
+# Kullanıcı: "Sol SaaS paneli yap — kimliğine, görünümüne ve navigasyona
+# uygun; eklemeleri oraya mantık dahilinde ekleyelim, feature set olarak
+# görürüz. Ürün mantığına girmiyor böyle."
 #
-# Omurga şu döngü: KARAR VER → KAYDET → HESAP VER → (baştan).
-# Her sayfa bir SORUYA cevap verir ve o soru sayfanın kimliğidir.
-# Ray bu soruları gösterir, sayfa başlığı aynı soruyu tekrarlar,
-# alt gezinme bir sonraki soruya devreder. Kullanıcı zincirde
-# nerede olduğunu her an bilir.
-PERDELER = [
-    ("KARAR", "bugün ne yapacağım",
-     [("Karar Masası", "Kime güvenirim, bugün ne var?"),
-      ("Sepet",        "Ne kuruyorum, kaça mal oluyor?")]),
-    ("KAYIT", "ne olduğu yazılsın",
-     [("Ajan Ligi",    "Kim ne yaptı?"),
-      ("OPUS 5",       "Gerçekte ne oynadım?"),
-      ("İnceleme",     "Neden kaybediyorum?")]),
-    ("HESAP", "neyi gerçekten biliyorum",
-     [("Ölçüm Defteri", "Hangi bulgu hâlâ ayakta?"),
-      ("Sağlık",        "Sistem ayakta mı, veri sağlam mı?")]),
+# Önceki ray ana akışta bir SÜTUNDU ve form düğmeleri gibi duruyordu.
+# Artık Streamlit'in YERLEŞİK çok sayfalı gezinmesi (st.navigation):
+#   · her sayfanın kendi ADRESİ var — tarayıcıda geri/ileri çalışır,
+#     bir sayfa bağlantısı paylaşılabilir;
+#   · oturum KORUNUR — sepet sayfa değişince kaybolmaz;
+#   · bölümler ÖZELLİK SETİDİR: MASA · TAKIMLAR · PORTFÖY · ANALİZ · SİSTEM.
+# Kenar çubuğu masaüstünde KAPATILAMAZ (eski ders: kullanıcı kapatıyor,
+# gezinme ekrandan kayboluyordu); mobilde standart açılır çekmece.
+# Hikâye ilkesi korundu: her sayfa bir SORUYA cevap verir, başlık o soruyu
+# yazar, alttaki gezinme bir sonraki soruya devreder.
+SAYFA_TANIM = [
+    ("MASA", [
+        ("Karar Masası", page_desk, ":material/space_dashboard:", "masa",
+         "Kime güvenirim, bugün ne var?"),
+        ("Sepet", page_sepet, ":material/shopping_basket:", "sepet",
+         "Ne kuruyorum, kaça mal oluyor?")]),
+    ("TAKIMLAR", [
+        ("Lig Tablosu", page_lig, ":material/leaderboard:", "lig",
+         "Kim önde, kim geride?"),
+        ("Mavi Takım", page_mavi, ":material/shield:", "mavi",
+         "Sinyal motoru sahada ne yapıyor?"),
+        ("Kırmızı Takım", page_kirmizi, ":material/local_fire_department:",
+         "kirmizi", "Kombine pazarında değer var mı?"),
+        ("Turuncu Takım", page_turuncu, ":material/science:", "turuncu",
+         "Bağımsız skor modeli sahada ne yapıyor?"),
+        ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
+         "Bu ajan neyi, neden oynadı?")]),
+    ("PORTFÖY", [
+        ("Kasa ve Getiri", page_kasa, ":material/show_chart:", "kasa",
+         "Para büyüyor mu, neye göre?"),
+        ("OPUS 5", page_opus, ":material/account_balance_wallet:", "opus",
+         "Gerçekte ne oynadım?")]),
+    ("ANALİZ", [
+        ("İnceleme", page_inceleme, ":material/troubleshoot:", "inceleme",
+         "Neden kaybediyorum?"),
+        ("Çakışma ve Arşiv", page_cakisma, ":material/join_inner:",
+         "cakisma", "Kaç bağımsız görüş var?")]),
+    ("SİSTEM", [
+        ("Ölçüm Defteri", page_defter, ":material/menu_book:", "defter",
+         "Hangi bulgu hâlâ ayakta?"),
+        ("Sağlık", page_sistem, ":material/monitor_heart:", "saglik",
+         "Sistem ayakta mı, veri sağlam mı?")]),
 ]
-# sayfa adı -> (perde, soru, sıra)
-SORU = {}
-for _pi, (_p, _pa, _ler) in enumerate(PERDELER):
+# sayfa adı -> {bölüm, soru}; PAGES okuma sırasını taşır (alt gezinme)
+SORU: dict = {}
+PAGES: dict = {}
+for _b, _ler in SAYFA_TANIM:
     for _x in _ler:
-        SORU[_x[0]] = {"perde": _p, "perde_alt": _pa, "soru": _x[1]}
-
-GRUPLAR = [
-    ("Karar", [("Karar Masası", page_desk), ("Sepet", page_sepet)]),
-    ("Takip", [("Ajan Ligi", page_lig), ("OPUS 5", page_opus, True),
-               ("İnceleme", page_inceleme)]),
-    ("Sistem", [("Ölçüm Defteri", page_defter), ("Sağlık", page_sistem)]),
-]
-PAGES = {}
-for _g, _ler in GRUPLAR:
-    for _x in _ler:
+        SORU[_x[0]] = {"perde": _b, "soru": _x[4]}
         PAGES[_x[0]] = _x[1]
+_SAYFA_NESNE: dict = {}
+_MARKA_DIZIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "marka")
 
 
-def _marka_serit() -> None:
-    """Marka + canlı durum — tam genişlik, her sayfada aynı yerde."""
+def _git(ad: str) -> None:
+    """Programla sayfa değiştir — oturum (sepet) korunur."""
+    st.session_state["v2_page"] = ad
+    p = _SAYFA_NESNE.get(ad)
+    if p is not None:
+        st.switch_page(p)
+    st.rerun()
+
+
+def _sarmala(ad: str, fn):
+    """Sayfa fonksiyonunu sar: kanonik adı oturuma yaz (başlık ve alt
+    gezinme onu okur), sayfayı çiz, alt gezinmeyi ekle."""
+    def _sayfa():
+        st.session_state["v2_page"] = ad
+        fn()
+        _gezinme_alt()
+    _sayfa.__name__ = "sayfa_" + "".join(c for c in ad.lower() if c.isalnum())
+    return _sayfa
+
+
+def _kenar_durum() -> None:
+    """Kenar çubuğunun dibi — canlı durum. Eskiden üstte koyu bir şeritti;
+    marka kenar çubuğunun başına (st.logo), durum dibine taşındı."""
     r = load_rail()
-    st.markdown(
-        "<div class='v2ust'><div class='marka'>"
-        "<div class='mark'>BA</div>"
-        "<div><b>BetAgents</b><span>Desk · v2</span></div></div>"
-        "<div class='v2ust-durum'>"
-        "<span>KAYNAK</span><b>" + r["kaynak"] + "</b>"
-        "<span>AÇIK</span><b>" + str(r["acik"]) + "</b>"
-        "<span>KAPANMIŞ</span><b>" +
-        "{:,}".format(r["kapali"]).replace(",", ".") + "</b>"
-        "<span>İSABET</span><b>" + _isabet_toplam(kisa=True) + "</b>"
-        "</div></div>", unsafe_allow_html=True)
-
-
-def _hikaye_rayi() -> None:
-    """Sol ray — menü DEĞİL, hikâyenin omurgası.
-
-    ⚠️ NEDEN KENAR ÇUBUĞUNDA DEĞİL: Streamlit'in kenar çubuğu kullanıcı
-    tarafından kapatılabiliyor ve kapalı kalıyor; gezinme kullanıcının
-    ekranında tamamen kaybolmuştu. Bu ray ANA AKIŞTA bir sütun —
-    kapatılamaz. Mobilde Streamlit sütunları yığdığı için ray içeriğin
-    üstüne geçer ve orada üst menü gibi çalışır.
-
-    ⚠️ NEDEN MENÜ DEĞİL: kullanıcının teşhisi "sayfalar bir hikâye
-    anlatmalı, anlatmıyor" idi. Düz bir sayfa listesi hangi sayfanın
-    neden var olduğunu söylemez. Ray üç perdeyi ve her sayfanın
-    CEVAPLADIĞI SORUYU gösterir; aktif sayfanın sorusu açıkça yazılır.
-    Kullanıcı zincirde nerede olduğunu her an bilir."""
-    sp = _sepet()
-    su_an = st.session_state["v2_page"]
-    for pi, (perde, perde_alt, ogeler) in enumerate(PERDELER, 1):
-        icinde = any(o[0] == su_an for o in ogeler)
-        st.markdown(
-            "<div class='ray-perde" + (" aktif" if icinde else "") + "'>"
-            "<span class='no'>" + str(pi) + "</span>"
-            "<span class='ad'>" + perde + "</span>"
-            "<span class='alt'>" + perde_alt + "</span></div>",
-            unsafe_allow_html=True)
-        for ad, soru in ogeler:
-            etiket = ad
-            if ad == "Sepet" and sp:
-                etiket = ad + "  (" + str(len(sp)) + ")"
-            if st.button(etiket, key="ray_" + ad,
-                         use_container_width=True,
-                         type=("primary" if ad == su_an else "secondary")):
-                st.session_state["v2_page"] = ad
-                st.session_state["v2_ajan"] = None
-                st.rerun()
-            if ad == su_an:
-                st.markdown(
-                    "<div class='ray-soru'>" + soru + "</div>",
-                    unsafe_allow_html=True)
+    st.sidebar.markdown(
+        "<div class='kc-durum'>"
+        "<div class='kc-baslik'>Canlı · <b>" + r["kaynak"] + "</b></div>"
+        "<div class='kc-sat'><b>" + str(r["acik"]) + "</b> açık · <b>" +
+        "{:,}".format(r["kapali"]).replace(",", ".") + "</b> kapanmış · <b>" +
+        _isabet_toplam(kisa=True) + "</b> isabet</div></div>",
+        unsafe_allow_html=True)
 
 
 def _db_kapali(hata: Exception) -> None:
@@ -4440,18 +4777,26 @@ def main() -> None:
         return
     if "v2_page" not in st.session_state:
         st.session_state["v2_page"] = "Karar Masası"
-
-    _marka_serit()
-
-    # Ray ANA AKIŞTA bir sütun — Streamlit'in kapatılabilir kenar
-    # çubuğunda değil. Dar tutuldu (%18): tabloların yeri daralmasın.
-    # Taşan tablolar zaten kendi kapsayıcılarında yatay kayıyor.
-    ray, icerik = st.columns([0.15, 0.85], gap="medium")
-    with ray:
-        _hikaye_rayi()
-    with icerik:
-        PAGES[st.session_state["v2_page"]]()
-        _gezinme_alt()
+    try:
+        st.logo(os.path.join(_MARKA_DIZIN, "logo.svg"), size="large",
+                icon_image=os.path.join(_MARKA_DIZIN, "logo-ikon.svg"))
+    except Exception:
+        pass
+    sp = _sepet()
+    bolumler: dict = {}
+    _SAYFA_NESNE.clear()
+    for bolum, ogeler in SAYFA_TANIM:
+        liste = []
+        for ad, fn, ikon, url, _soru in ogeler:
+            baslik = ad + ("  ·  " + str(len(sp)) if ad == "Sepet" and sp else "")
+            pg = st.Page(_sarmala(ad, fn), title=baslik, icon=ikon,
+                         url_path=url, default=(ad == "Karar Masası"))
+            _SAYFA_NESNE[ad] = pg
+            liste.append(pg)
+        bolumler[bolum] = liste
+    nav = st.navigation(bolumler, position="sidebar", expanded=True)
+    _kenar_durum()
+    nav.run()
 
 
 if __name__ == "__main__":

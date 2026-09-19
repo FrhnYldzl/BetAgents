@@ -39,7 +39,10 @@ from pathlib import Path
 warnings.filterwarnings("ignore", message=r".*pandas only supports SQLAlchemy.*")
 
 THIS_DIR = Path(__file__).resolve().parent
-DEFAULT_SQLITE_PATH = THIS_DIR / "bahis_agent.db"
+# BETAGENTS_SQLITE_PATH: arayüzü ÜRETİME DOKUNMADAN yerelde denemek için
+# ayrı bir önizleme dosyası (üretim anlık görüntüsü). Ayarlanmazsa eskisi.
+DEFAULT_SQLITE_PATH = Path(os.environ.get("BETAGENTS_SQLITE_PATH")
+                           or (THIS_DIR / "bahis_agent.db"))
 
 
 # ============================================================
@@ -515,7 +518,11 @@ def connect(sqlite_path: str | os.PathLike | None = None) -> Conn:
     # demek de. Ikisi disaridan ayirt edilemez — o yuzden BAGIRIR.
     _duyur("SQLite (YEREL) -> " + path +
            "  <-- DATABASE_URL yok; bu URETIM VERISI DEGIL")
-    raw = sqlite3.connect(path)
+    # Önizleme kipinde (BETAGENTS_SQLITE_PATH) arayüz bağlantıyı önbelleğe
+    # alıp başka iş parçacığında kullanır; app_v2 paylaşılan bağlantıyı
+    # kilitle sıraya sokar. Varsayılan SQLite davranışı değişmez.
+    raw = sqlite3.connect(
+        path, check_same_thread=not os.environ.get("BETAGENTS_SQLITE_PATH"))
     raw.row_factory = sqlite3.Row
     return Conn(raw, is_pg=False)
 

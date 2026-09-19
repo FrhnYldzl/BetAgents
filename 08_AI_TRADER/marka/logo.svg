@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="32" viewBox="0 0 176 32">
+  <rect x="0" y="2" width="28" height="28" rx="3" fill="#8a5c0c"/>
+  <text x="14" y="20.5" font-family="JetBrains Mono, Consolas, monospace" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">BA</text>
+  <text x="38" y="21.5" font-family="Archivo, Segoe UI, Helvetica, Arial, sans-serif" font-size="16.5" font-weight="700" fill="#eaf0f5" letter-spacing="-0.2">BetAgents</text>
+  <text x="129" y="21" font-family="JetBrains Mono, Consolas, monospace" font-size="8.5" font-weight="700" fill="#c08a1c" letter-spacing="1.8">DESK</text>
+</svg>
