@@ -483,8 +483,17 @@ V2_CSS = """
 :root{
   /* ölçek */
   --s1:4px;  --s2:8px;  --s3:12px; --s4:16px; --s5:22px; --s6:30px;
-  --t-etiket:11px; --t-alt:12.5px; --t-govde:14px; --t-metin:15px;
-  --t-kart:13px; --t-sayfa:22px; --t-okuma:20px; --t-dev:30px;
+  /* TİPOGRAFİ — SOL PANELİN STANDARDI, BÜTÜN ARAYÜZDE (19.09.2026).
+     Kullanıcı: "sol paneldeki punto ve standardı genelleştirelim —
+     minimal yaklaşım, yalnız punto, font, renk." Önceden 18 farklı punto
+     ve büyük harfli etiketlerde 9 farklı harf aralığı vardı. Kural:
+       etiket  9,5 px · mono · büyük harf · .14em · soluk (panel bölüm başlığı)
+       gövde  13,5 px · Archivo (panel menü öğesi)
+       değer   mono — sayılar hizalı durur
+     Metin Archivo, etiket ve sayı mono. Amber yalnız vurgu/aktif. */
+  --t-etiket:9.5px; --t-kucuk:11px; --t-alt:12px; --t-govde:13.5px;
+  --t-metin:13.5px; --t-kart:14px; --t-okuma:18px; --t-sayfa:22px;
+  --t-dev:26px; --ls-etiket:.14em; --w-etiket:600;
   --r:3px; --satir-y:13px; --kart-ic:18px 20px;
 
   /* AÇIK PALET — kâğıt beyazı, serin nötrler, tek amber vurgu */
@@ -550,13 +559,20 @@ html,body,[class*="css"],.stApp,button,input,select,textarea,
 .ray-soru,.ray-perde .alt,
 .v2card,.v2card *,.v2ph,.v2ph *,.v2ust,.v2ust *,
 table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
-.v2sepet-satir,.v2sepet-satir *,.v2bos{
+.v2sepet-satir,.v2sepet-satir *,.v2bos,.dq,.dq *,.v2dip,.v2dip *,
+.tk-kart,.tk-kart *,.v2ajan-bas,.v2ajan-bas *,.sb,
+[data-testid="stSelectbox"] div[data-baseweb="select"] *,
+[data-testid="stExpander"] summary *,
+[data-baseweb="popover"] [role="option"],[data-baseweb="popover"] [role="option"] *{
   font-family:Archivo,"Segoe UI",system-ui,sans-serif!important;}
+[data-baseweb="popover"] [role="option"]{font-size:var(--t-govde)!important;}
 /* TEK istisna: sayılar. Hizalanmaları için tabular monospace. */
 .mono,.v2kpi b,.v2kpi span,.ro b,.ro span,table.v2 td.n,table.v2 th,
 .gr,.dp,.dm,.cc,.v2suz,.v2gez-orta,table.v2 .sb,.v2grup,.v2head .hint,
-.dq,.v2ust .marka span,.v2ust-durum,.v2ust-durum *,.v2yan-alt,
-.pick .odds,.pick .meta,.v2bos,.v2sepet-satir .alt,.gs-sec,.gs-tarih,
+.v2ust .marka span,.v2ust-durum,.v2ust-durum *,.v2yan-alt,
+.pick .odds,.pick .meta,.v2sepet-satir .alt,.gs-sec,.gs-tarih,
+.gs-et,.gs-sonuc,.ro span,.v2ph-ust .perde,.v2ph-ust .sf,
+.tk-sayi span,.v2ajan-bas .alt,
 .bant-not,.tk-sayi b,.tk-ust span,.kc-sat b,.kc-baslik,
 [data-testid="stNavSectionHeader"]{
   font-family:"JetBrains Mono",ui-monospace,monospace!important;
@@ -592,8 +608,8 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   max-width:64ch;}
 .v2ph .sag{display:flex;gap:var(--s5);flex-wrap:wrap;}
 .v2kpi{display:flex;flex-direction:column;gap:2px;align-items:flex-end;}
-.v2kpi span{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;
-  color:var(--muted);}
+.v2kpi span{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  text-transform:uppercase;color:var(--muted);font-weight:var(--w-etiket);}
 .v2kpi b{font-size:var(--t-okuma);font-weight:500;color:var(--ink);
   line-height:1.15;}
 .v2kpi b.ps{color:var(--pos);} .v2kpi b.ng{color:var(--neg);}
@@ -620,8 +636,8 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 [data-testid="stSidebarHeader"]{padding:18px 16px 4px 18px;}
 [data-testid="stSidebarLogo"]{height:30px;max-width:180px;}
 [data-testid="stSidebarNav"]{padding:0 10px;}
-[data-testid="stNavSectionHeader"]{font-size:9.5px!important;font-weight:700!important;
-  letter-spacing:.16em;text-transform:uppercase;color:var(--koyu-dim)!important;
+[data-testid="stNavSectionHeader"]{font-size:var(--t-etiket)!important;
+  font-weight:700!important;letter-spacing:var(--ls-etiket);text-transform:uppercase;color:var(--koyu-dim)!important;
   padding:12px 10px 3px!important;margin:0!important;line-height:1.2!important;}
 /* Ölçüldü: başlık 38 px, her satırın iki yanında 2 px — menü 726 px idi ve
    durum kartı son öğeyi örtüyordu. Sıkılaştırıldı (~590 px). */
@@ -632,7 +648,8 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   transition:background .12s ease;}
 [data-testid="stSidebarNavLink"] *{color:inherit!important;}
 [data-testid="stSidebarNavLink"] [data-testid="stMarkdownContainer"] p,
-[data-testid="stSidebarNavLink"] span{font-size:13.5px!important;font-weight:500;}
+[data-testid="stSidebarNavLink"] span{font-size:var(--t-govde)!important;
+  font-weight:500;}
 [data-testid="stSidebarNavLink"] [data-testid="stIconMaterial"]{
   color:var(--koyu-dim)!important;font-size:18px!important;}
 [data-testid="stSidebarNavLink"]:hover{background:rgba(255,255,255,.06)!important;
@@ -690,14 +707,15 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   background:var(--panel-2);border-radius:var(--r) var(--r) 0 0;}
 .v2head h2{margin:0;font-size:var(--t-kart);font-weight:700;
   letter-spacing:-0.01em;color:var(--ink);}
-.v2head .hint{font-size:9.5px;color:var(--muted);letter-spacing:0.1em;
+.v2head .hint{font-size:var(--t-etiket);color:var(--muted);
+  letter-spacing:var(--ls-etiket);font-weight:var(--w-etiket);
   text-transform:uppercase;white-space:nowrap;}
 .v2body{padding:var(--kart-ic);overflow-x:auto;}
 
 /* ── TABLO ─────────────────────────────────────────────── */
 table.v2{width:100%;border-collapse:collapse;table-layout:auto;}
-table.v2 th{font-size:var(--t-etiket);letter-spacing:0.08em;
-  text-transform:uppercase;color:var(--muted);font-weight:500;
+table.v2 th{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  text-transform:uppercase;color:var(--muted);font-weight:var(--w-etiket);
   text-align:left;white-space:nowrap;padding:0 var(--s3) 9px 0;
   border-bottom:1px solid var(--line-2);}
 table.v2 th:last-child,table.v2 td:last-child{padding-right:0;}
@@ -707,30 +725,42 @@ table.v2 td{padding:var(--satir-y) var(--s3) var(--satir-y) 0;
   color:var(--ink);vertical-align:middle;}
 table.v2 tbody tr:hover{background:var(--panel-2);}
 table.v2 tbody tr:last-child td{border-bottom:0;}
-table.v2 td.n{font-size:13.5px;}
-table.v2 .rk{font-size:11px;color:var(--muted);width:20px;
+table.v2 td.n{font-size:var(--t-govde);}
+table.v2 .rk{font-size:var(--t-kucuk);color:var(--muted);width:20px;
   padding-right:var(--s2);}
 table.v2 .ag{font-weight:600;font-size:var(--t-govde);display:block;
   white-space:nowrap;}
 table.v2 .sb{display:block;font-size:var(--t-alt);color:var(--muted);
   margin-top:3px;white-space:nowrap;}
+/* Tablo DIŞINDAKİ alt satır (kart dipnotu) — yalnız tablo içi tanımlıydı,
+   dışarıdakiler 16 px'e düşüyordu (Defter, Çakışma dipnotları). */
+.sb{font-size:var(--t-alt);color:var(--muted);line-height:1.55;}
+/* Streamlit seçim kutusu ve açılır bölüm başlığı — gövde puntosu */
+[data-testid="stSelectbox"] div[data-baseweb="select"] *,
+[data-testid="stExpander"] summary *{font-size:var(--t-govde)!important;}
+/* Ajan dosyası başlığı */
+.v2ajan-bas{display:flex;align-items:baseline;flex-wrap:wrap;
+  gap:var(--s3);margin:var(--s4) 0 var(--s3);}
+.v2ajan-bas .ad{font-size:var(--t-sayfa);font-weight:700;
+  letter-spacing:-0.02em;color:var(--ink);}
+.v2ajan-bas .alt{font-size:var(--t-alt);color:var(--muted);}
 
 /* ── SEMANTİK ──────────────────────────────────────────── */
 .dp{color:var(--pos);font-weight:700;background:var(--pos-fill);
   padding:3px 8px;border-radius:var(--r);display:inline-block;
-  white-space:nowrap;font-size:12.5px;}
-.dm{color:var(--neg);font-weight:500;white-space:nowrap;font-size:12.5px;}
+  white-space:nowrap;font-size:var(--t-alt);}
+.dm{color:var(--neg);font-weight:500;white-space:nowrap;font-size:var(--t-alt);}
 .dp::before{content:"▲ ";font-size:8px;vertical-align:1.5px;}
 .dm::before{content:"▼ ";font-size:8px;vertical-align:1.5px;opacity:.5;}
 table.v2 tr.adv td:first-child{box-shadow:inset 2px 0 0 var(--pos);}
 table.v2 tr.adv .ag{color:var(--pos);}
-.gr{display:inline-block;font-size:9.5px;font-weight:700;
+.gr{display:inline-block;font-size:var(--t-etiket);font-weight:700;
   letter-spacing:0.06em;padding:4px 7px;border-radius:var(--r);
   white-space:nowrap;}
 .g1{background:var(--pos-fill);color:var(--pos);}
 .g2{background:var(--warn-fill);color:var(--warn);}
 .g3{background:var(--neg-fill);color:var(--neg);}
-.mono{font-style:normal;font-size:9.5px;font-weight:700;
+.mono{font-style:normal;font-size:var(--t-etiket);font-weight:700;
   letter-spacing:0.03em;display:inline-flex;align-items:center;
   justify-content:center;width:23px;height:19px;margin-right:3px;
   vertical-align:-4px;border:1px solid var(--line-2);border-radius:var(--r);
@@ -747,18 +777,19 @@ table.v2 tr.adv .ag{color:var(--pos);}
 .gs:last-child{border-bottom:0;padding-bottom:0;}
 .gs:first-child{padding-top:0;}
 .gs-ust{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;
-  font-size:13px;line-height:1.35;}
+  font-size:var(--t-govde);line-height:1.35;}
 .gs-ust b{font-weight:600;color:var(--ink);}
-.gs-sec{font-size:12px;color:var(--ink-2);}
-.gs-tarih{font-size:11px;color:var(--muted);margin-left:auto;}
-.gs-sonuc{font-size:9.5px;font-weight:700;letter-spacing:.06em;
+.gs-sec{font-size:var(--t-alt);color:var(--ink-2);}
+.gs-tarih{font-size:var(--t-kucuk);color:var(--muted);margin-left:auto;}
+.gs-sonuc{font-size:var(--t-etiket);font-weight:700;letter-spacing:.06em;
   padding:3px 7px;border-radius:var(--r);align-self:center;}
 .gs-sonuc.won{background:var(--pos-fill);color:var(--pos);}
 .gs-sonuc.lost{background:var(--neg-fill);color:var(--neg);}
-.gs-sat{font-size:12px;line-height:1.5;color:var(--ink-2);margin-top:5px;
+.gs-sat{font-size:var(--t-alt);line-height:1.55;color:var(--ink-2);margin-top:5px;
   white-space:normal;overflow-wrap:anywhere;}
-.gs-et{display:inline-block;min-width:62px;font-size:9.5px;font-weight:700;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.gs-et{display:inline-block;min-width:66px;font-size:var(--t-etiket);
+  font-weight:var(--w-etiket);letter-spacing:var(--ls-etiket);
+  text-transform:uppercase;color:var(--muted);}
 
 /* ── TAKIM KARTI (Lig Tablosu) ─────────────────────────── */
 .tk-kart{background:var(--panel);border:1px solid var(--line);
@@ -766,16 +797,17 @@ table.v2 tr.adv .ag{color:var(--pos);}
   padding:14px 16px 12px;margin-bottom:8px;}
 .tk-ust{display:flex;justify-content:space-between;align-items:baseline;
   gap:8px;margin-bottom:10px;flex-wrap:wrap;}
-.tk-ust b{font-size:15px;font-weight:700;color:var(--ink);}
-.tk-ust span{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--muted);}
+.tk-ust b{font-size:var(--t-kart);font-weight:700;color:var(--ink);}
+.tk-ust span{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);}
 .tk-sayi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;}
-.tk-sayi span{display:block;font-size:9.5px;letter-spacing:.12em;
+.tk-sayi span{display:block;font-size:var(--t-etiket);
+  letter-spacing:var(--ls-etiket);font-weight:var(--w-etiket);
   text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
-.tk-sayi b{font-size:15px;font-weight:500;color:var(--ink);}
+.tk-sayi b{font-size:var(--t-kart);font-weight:500;color:var(--ink);}
 .tk-sayi b.ps{color:var(--pos);} .tk-sayi b.ng{color:var(--neg);}
 .tk-alt{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);
-  font-size:12px;color:var(--ink-2);}
+  font-size:var(--t-alt);color:var(--ink-2);}
 
 /* ── İŞLEM BANDI — ajanın altında, borsa işlem şeridi ──── */
 table.v2 tr.ust td{border-bottom:0;padding-bottom:4px;}
@@ -783,20 +815,20 @@ table.v2 tr.bant-satir td{padding-top:0;padding-bottom:12px;}
 table.v2 tbody tr.bant-satir:hover{background:transparent;}
 .bant-kap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .bant{display:block;flex:0 1 auto;}
-.bant-not{font-size:11px;color:var(--muted);}
+.bant-not{font-size:var(--t-kucuk);color:var(--muted);}
 .bant-not b{font-weight:600;}
 .dp0{color:var(--pos);} .dm0{color:var(--neg);}
 .bant-buyuk{overflow-x:auto;padding:4px 0 8px;}
 table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   background:var(--pos-fill);}
-.cc{display:inline-block;font-size:9.5px;font-weight:700;
+.cc{display:inline-block;font-size:var(--t-etiket);font-weight:700;
   letter-spacing:0.04em;min-width:29px;text-align:center;padding:3px 5px;
   margin-right:8px;border:1px solid var(--line-2);border-radius:var(--r);
   color:var(--ink-2);background:var(--panel-2);}
 .cc.no{color:var(--muted);border-style:dashed;opacity:.7;}
 /* açık kupon — riskteki pozisyon, nötr ama görünür */
 .ak{display:inline-block;font-family:"JetBrains Mono",monospace;
-  font-size:13px;font-weight:600;color:var(--ink);
+  font-size:var(--t-govde);font-weight:600;color:var(--ink);
   background:var(--panel-3);border-radius:var(--r);padding:2px 9px;}
 .fl{display:none;} .em{display:none;}
 
@@ -806,7 +838,7 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   font-size:var(--t-metin);color:var(--ink-2);line-height:1.6;
   border-radius:0 var(--r) var(--r) 0;}
 .v2mb b{color:var(--ink);font-weight:600;}
-.dq{font-size:11.5px;line-height:1.75;color:var(--ink-2);
+.dq{font-size:var(--t-alt);line-height:1.6;color:var(--ink-2);
   background:var(--warn-fill);border:1px solid var(--line);
   border-left:3px solid var(--warn);padding:10px var(--s3);
   margin:0 0 var(--s3);border-radius:0 var(--r) var(--r) 0;}
@@ -815,16 +847,19 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
   border-radius:var(--r);}
 .vd b{color:var(--ink);font-weight:600;}
+/* Dipnot — kart dışında duran kısa açıklama satırı */
+.v2dip{font-size:var(--t-kucuk);color:var(--muted);padding:14px 2px;
+  line-height:1.6;}
 .v2bos{border:1px dashed var(--line-2);border-radius:var(--r);
   padding:var(--s5) var(--s3);text-align:center;color:var(--muted);
-  font-family:"JetBrains Mono",monospace;font-size:11.5px;line-height:1.8;}
+  font-size:var(--t-alt);line-height:1.7;}
 
 /* ── OKUMA SATIRLARI ───────────────────────────────────── */
 .ro{display:flex;justify-content:space-between;align-items:baseline;
   padding:11px 0;border-bottom:1px solid var(--line);}
 .ro:last-of-type{border-bottom:0;}
-.ro span{font-size:10px;letter-spacing:0.11em;text-transform:uppercase;
-  color:var(--muted);}
+.ro span{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);}
 .ro b{font-size:var(--t-okuma);font-weight:500;color:var(--ink);}
 .ro.big b{font-size:var(--t-dev);letter-spacing:-0.02em;}
 .ro b.ps{color:var(--pos);} .ro b.ng{color:var(--neg);}
@@ -841,7 +876,7 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
 .pick.on{border-color:var(--brand);background:var(--brand-fill);}
 .pick .match{font-weight:600;font-size:var(--t-govde);}
 .pick .meta{font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
-.pick .odds{font-size:18px;font-weight:500;text-align:right;line-height:1.1;}
+.pick .odds{font-size:var(--t-okuma);font-weight:500;text-align:right;line-height:1.1;}
 
 /* ── SEPET ─────────────────────────────────────────────── */
 .v2sepet-satir{display:flex;align-items:center;justify-content:space-between;
@@ -852,12 +887,14 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
   font-size:var(--t-alt);color:var(--muted);margin-top:2px;}
 
 /* ── SÜZGEÇ / GEZİNME ──────────────────────────────────── */
-.v2suz{display:flex;align-items:center;gap:var(--s2);font-size:10px;
-  letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);
+.v2suz{display:flex;align-items:center;gap:var(--s2);
+  font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);
   margin:0 0 var(--s2);}
 .v2gez{border-top:1px solid var(--line);margin-top:var(--s5);
   padding-top:var(--s4);}
-.v2gez-orta{font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;
+.v2gez-orta{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  font-weight:var(--w-etiket);text-transform:uppercase;
   color:var(--muted);text-align:center;padding-top:9px;}
 
 /* ── STREAMLIT BİLEŞENLERİ ─────────────────────────────── */
@@ -873,7 +910,7 @@ table.v2 tr.adv .mono{border-color:var(--pos);color:var(--pos);
    Sabit renk yerine INHERIT: etiket butonun kendi rengini alır, yani
    primary/secondary/gelecekteki her varyantta doğru çalışır. */
 [data-testid="stMain"] .stButton>button [data-testid="stMarkdownContainer"] p{
-  color:inherit;}
+  color:inherit;font-size:var(--t-govde);}
 [data-testid="stCheckbox"]{margin:0!important;}
 [data-testid="stCheckbox"] label p{
   font-family:Archivo,sans-serif!important;font-size:var(--t-govde)!important;
@@ -925,15 +962,16 @@ div[data-testid="column"]:last-child{padding-right:0;}
 [data-testid="stSelectbox"] [data-testid="stWidgetLabel"] p,
 [data-testid="stMultiSelect"] [data-testid="stWidgetLabel"] p,
 [data-testid="stNumberInput"] [data-testid="stWidgetLabel"] p{
-  font-family:"JetBrains Mono",monospace!important;font-size:10px!important;
-  color:var(--muted)!important;letter-spacing:0.12em;text-transform:uppercase;
-  margin-bottom:5px!important;}
+  font-family:"JetBrains Mono",monospace!important;
+  font-size:var(--t-etiket)!important;font-weight:var(--w-etiket)!important;
+  color:var(--muted)!important;letter-spacing:var(--ls-etiket);
+  text-transform:uppercase;margin-bottom:5px!important;}
 [data-testid="stNumberInput"] input{background:var(--panel)!important;
   border-radius:var(--r)!important;
   font-family:"JetBrains Mono",monospace!important;}
 div[data-baseweb="tag"]{background:var(--brand-fill)!important;
   color:var(--brand)!important;border-radius:var(--r)!important;
-  font-family:"JetBrains Mono",monospace!important;font-size:11px!important;}
+  font-family:"JetBrains Mono",monospace!important;font-size:var(--t-kucuk)!important;}
 
 /* Kart başlığı kelime ORTASINDAN bölünmesin — "Seçtiklerin" dar
    panelde "Seçtikl / erin" oluyordu. Sığmıyorsa küçülsün, kırılmasın. */
@@ -951,12 +989,14 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
 
 /* Sayfa başlığı üst satırı — zincirdeki konum */
 .v2ph-ust{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
-.v2ph-ust .perde{font-family:"JetBrains Mono",monospace;font-size:9.5px;
-  font-weight:700;letter-spacing:.13em;color:var(--brand);
+.v2ph-ust .perde{font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-etiket);font-weight:700;letter-spacing:var(--ls-etiket);
+  color:var(--brand);
   background:var(--brand-fill);padding:2px 7px;border-radius:var(--r);}
-.v2ph-ust .sf{font-family:"JetBrains Mono",monospace;font-size:10px;
-  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
-.v2gez-orta .sonraki-soru{display:block;font-size:10.5px;
+.v2ph-ust .sf{font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);}
+.v2gez-orta .sonraki-soru{display:block;font-size:var(--t-kucuk);
   color:var(--muted);margin-top:3px;letter-spacing:0;text-transform:none;}
 
 /* ── HİKÂYE RAYI ───────────────────────────────────────── */
@@ -1019,7 +1059,7 @@ div[data-baseweb="tag"]{background:var(--brand-fill)!important;
      yiyordu (480 -> 406), tablo taskini 143px'ten 69px'e dusuruyor.
      Secici DAR tutuldu: sadece .ak rozetinin hemen ardindaki .sb. */
   table.v2 td .ak + .sb{display:none;}
-  .v2kpi b{font-size:17px;} .ro.big b{font-size:25px;}
+  :root{--t-okuma:16px;--t-dev:23px;}
   [data-testid="stCheckbox"] label{min-height:44px;}
 
   /* ⚠️ MOBİL TAŞMANIN ASIL SEBEBİ — ölçüldü.
@@ -2224,7 +2264,7 @@ def _kivilcim(seri: list, w: int = 96, h: int = 26) -> str:
     Eksen yok, etiket yok: bu bir grafik değil, bir ŞEKİL. Rakam zaten
     yanındaki sütunda; buradan okunması gereken tek şey yön ve pürüz."""
     if not seri or len(seri) < 2:
-        return "<span style='color:var(--muted);font-size:11px;'>—</span>"
+        return "<span style='color:var(--muted);font-size:var(--t-kucuk);'>—</span>"
     lo, hi = min(seri + [0.0]), max(seri + [0.0])
     if hi - lo < 1e-9:
         hi = lo + 1
@@ -2798,7 +2838,7 @@ def page_desk() -> None:
             with c2:
                 st.markdown(
                     f"<div style='text-align:right;font-family:\"JetBrains Mono\",monospace;"
-                    f"font-size:17px;color:var(--ink);padding-top:3px;"
+                    f"font-size:var(--t-okuma);color:var(--ink);padding-top:3px;"
                     f"white-space:nowrap;'>"
                     f"<span class='cc{' no' if b['lg']=='ALL' else ''}'>{b['code']}</span>"
                     f"{_num(b['o'])}</div>", unsafe_allow_html=True)
@@ -2885,8 +2925,7 @@ def page_desk() -> None:
             unsafe_allow_html=True)
 
     st.markdown(
-        "<div style='font-family:\"JetBrains Mono\",monospace;font-size:10px;"
-        "color:var(--muted);padding:14px 2px;letter-spacing:0.04em;'>"
+        "<div class='v2dip'>"
         "Marj katsayıları ölçüldü (31.08.2026): 1X2 %17,6 · A/Ü %17,4 · "
         "KG %16,4 · kombo %19,5–20,4 · Kâğıt ticaret, kişisel araştırma"
         "</div>", unsafe_allow_html=True)
@@ -3066,12 +3105,9 @@ def _ajan_paneli(pid: str, lig: dict, sayfa: bool = False) -> None:
     ust, kapat = st.columns([6, 1], gap="small")
     with ust:
         st.markdown(
-            "<div style='display:flex;align-items:baseline;gap:var(--s3);"
-            "margin:var(--s4) 0 var(--s3);'>"
-            "<span style='font-size:var(--t-sayfa);font-weight:600;'>" +
-            _rozet(pid) + a["ad"] + "</span>"
-            "<span style='font-family:\"JetBrains Mono\",monospace;"
-            "font-size:var(--t-alt);color:var(--muted);'>dönem " +
+            "<div class='v2ajan-bas'>"
+            "<span class='ad'>" + _rozet(pid) + a["ad"] + "</span>"
+            "<span class='alt'>dönem " +
             str(a["era"] or "—") + " · " + _isabet(a) + " · kasa " +
             "{:,.0f}".format(a["kasa"]).replace(",", ".") + " ₺</span></div>",
             unsafe_allow_html=True)
@@ -3345,7 +3381,7 @@ def page_sepet() -> None:
                          if _basladi_mi(b.get("ko_ham")) else "") +
                         "</div></div>"
                         "<div style='font-family:\"JetBrains Mono\",monospace;"
-                        "font-size:17px;font-weight:500;'>" + _num(b["o"]) +
+                        "font-size:var(--t-okuma);font-weight:500;'>" + _num(b["o"]) +
                         "</div></div>", unsafe_allow_html=True)
                 with c2:
                     if st.button("Sil", key="v2_sil_" + b["id"],
@@ -3838,7 +3874,7 @@ def page_defter() -> None:
         tr = ""
         if r["trend"] is not None and abs(r["trend"]) > 1e-9:
             cls = "dp" if r["trend"] > 0 else "dm"
-            tr = ("<span class='" + cls + "' style='font-size:10px;'>" +
+            tr = ("<span class='" + cls + "' style='font-size:var(--t-kucuk);'>" +
                   ("+" if r["trend"] > 0 else "−") +
                   _num(abs(r["trend"]), 3) + "</span>")
         dg = ("<span class='gr g2'>🔔 " + str(r["degisim"]) + " KEZ DÖNDÜ</span>"
@@ -4086,7 +4122,7 @@ def page_sistem() -> None:
         st.markdown(
             "<div class='" + ("dq" if kirik else "v2mb") + "'>"
             "<b>" + str(sy["status"]) + "</b> — " + str(sy["detail"] or "") +
-            "<br><span style='font-size:10.5px;opacity:.75;'>son teşhis " +
+            "<br><span style='font-size:var(--t-kucuk);opacity:.75;'>son teşhis " +
             str(sy["ts"])[:16] + "</span></div>", unsafe_allow_html=True)
 
     sek = _sekmeler("sistem", ["Teşhis", "Veri", "Risk", "Defter"])
@@ -4231,7 +4267,7 @@ def page_sistem() -> None:
                 "{:,}".format(vo["sonuclanmis"]).replace(",", ".") + "</b></div>"
                 "<div class='ro'><span>Yaklaşan</span><b>" +
                 str(vo["yaklasan"]) + "</b></div>"
-                "<div class='ro'><span>Son tazeleme</span><b style='font-size:14px;'>" +
+                "<div class='ro'><span>Son tazeleme</span><b style='font-size:var(--t-govde);'>" +
                 str(vo["tazelik"] or "—") + "</b></div>"
                 "<table class='v2' style='margin-top:var(--s3);'><thead><tr>"
                 "<th>Tablo</th><th class='r'>Satır</th></tr></thead><tbody>" +
