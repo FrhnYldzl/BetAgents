@@ -4723,23 +4723,26 @@ def page_inceleme() -> None:
 _TOTO_DIZIN = str(THIS_DIR.parent / "09_TOTO")
 
 
-def _toto_sayfa(ad: str):
+def _toto_sayfa(ad: str, modul: str = "toto_panel"):
     def _f():
         try:
             if _TOTO_DIZIN not in sys.path:
                 sys.path.append(_TOTO_DIZIN)      # SONA: ad çakışmasında BetAgents modülü kazanır
-            import toto_panel
-            getattr(toto_panel, ad)(_sayfa_basligi)
+            import importlib
+            getattr(importlib.import_module(modul), ad)(_sayfa_basligi)
         except Exception as _e:
             import html as _h
             st.markdown("<div class='v2bos'>Toto sayfası şu an çizilemedi — BetAgents etkilenmez. "
                         "Ayrıntı: " + _h.escape(f"{type(_e).__name__}: {_e}")[:240] + "</div>",
                         unsafe_allow_html=True)
-    _f.__name__ = "toto_" + ad
+    _f.__name__ = modul.split("_")[0] + "_" + ad
     return _f
 
 
 SAYFA_TANIM = [
+    ("VIBE", [
+        ("Vibe Betting", _toto_sayfa("vibe", "vibe_panel"), ":material/auto_awesome:", "vibe",
+         "Sor — veriye bakıp cevaplasın.")]),
     ("MASA", [
         ("Karar Masası", page_desk, ":material/space_dashboard:", "masa",
          "Kime güvenirim, bugün ne var?"),

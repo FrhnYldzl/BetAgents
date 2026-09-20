@@ -24,3 +24,8 @@ psycopg2-binary==2.9.9
 
 # ── Zamanlayıcı (Railway worker: auto_play + auto_settle) ──
 APScheduler==3.11.2
+
+# ── Vibe Betting sohbet asistanı (09_TOTO/vibe_*) ──
+# Aralık pin: yalnız kararlı yüzey kullanılıyor (Anthropic(), messages.create,
+# istisna sınıfları). Anahtar yoksa paket hiç çağrılmaz, panel bunu söyler.
+anthropic>=0.94,<2

@@ -33,6 +33,32 @@ MASTER   canli.analiz     P (pazar) × q (kalabalık) × havuz → profil × bü
 - KADRO ajanı için Railway'de `API_FOOTBALL_KEY` değişkeni gerekir. Yoksa ajan susar, başka hiçbir şey etkilenmez. Ücretsiz planda API yalnız dün–bugün–yarın penceresini veriyor; Toto listesi haftaya yayıldığı için kapsama kapanış gününde genişler. Kota günde 100 istek, tarih başına 2 sorgu (fikstür + sakatlık), 12/6 saat önbellekli.
 - Panel: `08_AI_TRADER/app_v2.py` › SÜPER TOTO. Sayfalar `toto_panel.py`'de. Hata olursa yalnız Toto sayfası uyarı gösterir.
 
+## Vibe Betting (sohbet asistanı)
+
+Sol panelin en üstündeki sayfa. Claude'a araç kullanımıyla bağlı: soruyu hafızasından
+değil, araçlarla veriye sorar ve nereye baktığını cevabın altında gösterir.
+
+```
+vibe_db.py     oturum · mesaj · geri bildirim · iş isteği tabloları (yalnız vibe_*)
+vibe_arac.py   15 araç: Toto (hafta/maç/pazar/geçmiş test/arşiv), iddaa (BetAgents
+               kâğıt bahisleri), kaynak kod arama/okuma + geri bildirim ve analiz isteği
+vibe_ajan.py   Claude çağrısı ve araç döngüsü (sistem yönergesi burada)
+vibe_panel.py  sohbet arayüzü ve geliştirme paketi
+```
+
+- Railway'de `ANTHROPIC_API_KEY_BET_AGENTS` gerekir (düz `ANTHROPIC_API_KEY` de kabul
+  edilir). Yoksa sayfa bunu söyler, başka hiçbir şey etkilenmez. Model `VIBE_MODEL` ile
+  değişir (varsayılan `claude-opus-5`; ucuzu `claude-haiku-4-5`), efor `VIBE_EFFORT` ile
+  (varsayılan `medium`).
+- Yazma yetkisi yalnız `vibe_*` tablolarına. Toto ve BetAgents tabloları SALT OKUNUR.
+- Kod araçları yalnız `09_TOTO` ve `08_AI_TRADER` altındaki `.py`/`.md` dosyalarını görür;
+  `.env`, veritabanı ve önbellek dosyaları kapalı, çıktıda anahtar görünümlü diziler maskeli.
+- **Geliştirme paketi:** sayfanın altında, biriken geri bildirimleri tek bir markdown
+  dosyasına toplar. Geliştirme oturumu üretim veritabanına bağlanmadığı için doğru teslim
+  yolu budur — paketi indir, geliştiriciye ver.
+- "Analizi tazele" isteği web sürecinde çalışmaz: `vibe_istek` tablosuna yazılır,
+  `toto_worker` saatlik turunda yürütür.
+
 ## Yerel bakım (haftada bir)
 
 ```

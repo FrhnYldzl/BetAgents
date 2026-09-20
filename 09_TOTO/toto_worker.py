@@ -77,12 +77,36 @@ def senkron() -> None:
             # BİR KEZ tazele (dağıtım kendini doğrulasın; saatlik koşu analiz üretmez)
             ilk = _ILK_KOSU
             _ILK_KOSU = False
+            kosuldu = False
             if son is None or (0 < kalan <= 3 and yas > 90) or (ilk and yas > 30):
                 analiz()
+                kosuldu = True
+            _istekleri_isle(kosuldu)
     except Exception as e:
         toto_db.kayit("hata", f"senkron: {type(e).__name__}: {e}")
         print(f"[{_ts()}] TOTO senkron HATA: {e}", flush=True)
         traceback.print_exc()
+
+
+def _istekleri_isle(analiz_kostu: bool = False) -> None:
+    """Vibe panelinden bırakılan işler. Web süreci ağır iş yapmaz; burada yürütülür."""
+    try:
+        import vibe_db
+        bekleyen = vibe_db.bekleyen_istekler()
+    except Exception:
+        return
+    for x in bekleyen[:3]:
+        try:
+            if x["tur"] != "analiz":
+                vibe_db.istek_kapat(x["istek_id"], "atlandi", f"bilinmeyen tür: {x['tur']}")
+            elif analiz_kostu:
+                vibe_db.istek_kapat(x["istek_id"], "bitti", "analiz bu turda zaten tazelendi")
+            else:
+                analiz()
+                analiz_kostu = True
+                vibe_db.istek_kapat(x["istek_id"], "bitti", "analiz tazelendi")
+        except Exception as e:
+            vibe_db.istek_kapat(x["istek_id"], "hata", f"{type(e).__name__}: {e}")
 
 
 # ── analiz ────────────────────────────────────────────────────────
@@ -185,6 +209,11 @@ def main() -> None:
     from apscheduler.schedulers.blocking import BlockingScheduler
     _uretim_korumasi()
     toto_db.kur()
+    try:
+        import vibe_db
+        vibe_db.kur()                 # Vibe paneli tabloları (sohbet · geri bildirim · istek)
+    except Exception as e:
+        print(f"[{_ts()}] vibe tabloları kurulamadı: {e}", flush=True)
     toto_db.kayit("basla", "Toto zamanlayıcı başladı")
     print(f"[{_ts()}] TOTO zamanlayıcı başladı", flush=True)
     time.sleep(20)                    # web ve BetAgents worker'ı önce ayağa kalksın
