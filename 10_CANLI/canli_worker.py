@@ -31,7 +31,9 @@ import canli_kaynak as KAYNAK  # noqa: E402
 import canli_model as MODEL  # noqa: E402
 
 TR = timezone(timedelta(hours=3))
-FIYAT_SN = int(os.environ.get("CANLI_FIYAT_SN", "120"))
+# 45 sn: gole aşırı tepki birkaç dakikada sönüyor; 120 sn ile sıçrama ıskalanır.
+# iddaa çekimi ücretsiz, tek maliyet bant genişliği.
+FIYAT_SN = int(os.environ.get("CANLI_FIYAT_SN", "45"))
 DURUM_SN = int(os.environ.get("CANLI_DURUM_SN", "300"))
 ONMAC_SN = int(os.environ.get("CANLI_ONMAC_SN", "900"))
 BITTI = {"FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"}
@@ -93,7 +95,9 @@ class Toplayici:
         yazilan = 0
         for m in M:
             p_piyasa = MODEL.marjsiz(m.get("oran")) if m.get("oran") else None
-            p_once = MODEL.marjsiz(once.get(m["mac_id"])) if once.get(m["mac_id"]) else None
+            oz = once.get(m["mac_id"]) or {}
+            oz12 = oz.get("1X2") if isinstance(oz, dict) else oz      # eski biçim: düz 1X2 üçlüsü
+            p_once = MODEL.marjsiz(oz12) if oz12 else None
             p_model = None
             if m.get("dakika") is not None:
                 p_model = MODEL.inplay(p_once, m.get("dakika"), m.get("safha"), m.get("ev_skor"),
@@ -106,7 +110,7 @@ class Toplayici:
             canli_db.anlik_yaz(m["mac_id"], {
                 "dakika": m.get("dakika"), "safha": m.get("safha"), "ev_skor": m.get("ev_skor"),
                 "dep_skor": m.get("dep_skor"), "kirmizi_ev": m.get("kirmizi_ev"),
-                "kirmizi_dep": m.get("kirmizi_dep"), "oran": m.get("oran"),
+                "kirmizi_dep": m.get("kirmizi_dep"), "oran": m.get("oran"), "pazar": m.get("pazar"),
                 "p_piyasa": [round(x, 4) for x in p_piyasa] if p_piyasa else None,
                 "p_model": [round(x, 4) for x in p_model] if p_model else None})
             yazilan += 1
@@ -121,7 +125,23 @@ def basla() -> None:
     print(f"[{_ts()}] CANLI toplayıcı başladı · fiyat {FIYAT_SN} sn · durum {DURUM_SN} sn", flush=True)
     t = Toplayici()
     bos = 0
+    kapali_bildirildi = False
     while True:
+        # Panelden açılıp kapanan anahtar: KAPALIYKEN HİÇBİR İSTEK YAPILMAZ.
+        # Varsayılan kapalı — boşuna kaynak ve API kotası harcamasın.
+        try:
+            acik = canli_db.ayar_oku("toplayici", "kapali") == "acik"
+        except Exception:
+            acik = False
+        if not acik:
+            if not kapali_bildirildi:
+                print(f"[{_ts()}] toplayıcı KAPALI (panelden açılır) — bekliyor", flush=True)
+                kapali_bildirildi = True
+            time.sleep(60)
+            continue
+        if kapali_bildirildi:
+            print(f"[{_ts()}] toplayıcı AÇILDI", flush=True)
+            kapali_bildirildi = False
         try:
             r = t.tur()
             if r["canli"]:
@@ -136,7 +156,7 @@ def basla() -> None:
             canli_db.kayit("hata", f"tur: {type(e).__name__}: {e}")
             print(f"[{_ts()}] CANLI HATA: {e}", flush=True)
             traceback.print_exc()
-        time.sleep(FIYAT_SN if bos < 5 else FIYAT_SN * 3)
+        time.sleep(FIYAT_SN if bos < 5 else FIYAT_SN * 4)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ if str(KOK) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
+import canli_ajan as AJAN  # noqa: E402
 import canli_db  # noqa: E402
 import canli_model as MODEL  # noqa: E402
 
@@ -72,6 +73,93 @@ def _kart(baslik: str, govde: str, ipucu: str = "") -> None:
                 f"<span class='v2ip'>{_e(ipucu)}</span></div>{govde}</div>", unsafe_allow_html=True)
 
 
+def _anahtar_kutusu() -> bool:
+    """Toplayıcıyı panelden aç/kapa — maliyet kontrolü. Varsayılan KAPALI."""
+    acik = canli_db.ayar_oku("toplayici", "kapali") == "acik"
+    a, b = st.columns([3, 2])
+    with a:
+        st.markdown(
+            f"<div class='cl-uyari' style='margin:0'><b>Toplayıcı "
+            f"{'AÇIK — veri geliyor' if acik else 'KAPALI'}.</b> "
+            + ("Canlı maçlar 45 saniyede bir, durum 5 dakikada bir çekiliyor. İşin bitince kapat."
+               if acik else
+               "Hiçbir istek yapılmıyor, kaynak harcanmıyor. Maç izlemek ya da veri biriktirmek "
+               "istediğinde aç.") + "</div>", unsafe_allow_html=True)
+    with b:
+        if st.button("Toplayıcıyı kapat" if acik else "Toplayıcıyı aç",
+                     use_container_width=True, key="cl_anahtar"):
+            canli_db.ayar_yaz("toplayici", "kapali" if acik else "acik")
+            st.rerun()
+    return acik
+
+
+def ajan_maclari(baslik) -> None:
+    """BetAgents'ın açık bahisleri — alınan fiyat · kapanış · canlı."""
+    st.markdown(CSS, unsafe_allow_html=True)
+    try:
+        canli_db.kur()
+        S = AJAN.ajan_maclari(80)
+        o = AJAN.ozet(S)
+    except Exception as e:
+        baslik("Ajan Maçları", "Okunamadı.", [])
+        st.markdown(f"<div class='cl-uyari'>{_e(type(e).__name__)}: {_e(e)}</div>", unsafe_allow_html=True)
+        return
+    baslik("Ajan Maçları · Canlı", "BetAgents'ın açık bahisleri: alınan fiyat, kapanış fiyatı ve o anki canlı fiyat.",
+           [{"ad": "Açık bahis", "deger": str(o["bahis"])},
+            {"ad": "Sahada", "deger": str(o["sahada"])},
+            {"ad": "CLV ölçülen", "deger": f"{o['clv_olculen']}/{o['bahis']}"}])
+    _anahtar_kutusu()
+
+    if not S:
+        st.markdown("<div class='v2bos'>BetAgents'ın açık kâğıt bahsi yok.</div>", unsafe_allow_html=True)
+        return
+
+    rows = ""
+    for x in S:
+        dk = (f"{x['dakika']}'" if x.get("dakika") is not None else ("sahada" if x["sahada"] else "—"))
+        sk = (f"{x['ev_skor']}-{x['dep_skor']}" if x.get("ev_skor") is not None else "")
+        clv = (f"<b>{x['clv'] * 100:+.1f}%</b>" if x.get("clv") is not None else
+               ("<span class='cl-zayif'>—</span>"))
+        canli = f"{x['canli_oran']:.2f}" if x.get("canli_oran") else "—"
+        kapanis = f"{x['kapanis_oran']:.2f}" if x.get("kapanis_oran") else "—"
+        pazar_not = "" if x["pazar_var"] else " <span class='cl-zayif'>(toplanmayan pazar)</span>"
+        rows += (f"<tr><td class='cl-dk'>{_e(dk)}</td>"
+                 f"<td><span class='ag'>{_e(x['ev'])} - {_e(x['dep'])}</span>"
+                 f"<span class='sb'>{_e(x['ajan'])} · {_e(x['market'])} → {_e(x['pick'])}{pazar_not}</span></td>"
+                 f"<td class='cl-sk'>{_e(sk)}</td>"
+                 f"<td class='n'>{(x['oran'] or 0):.2f}</td><td class='n'>{_e(kapanis)}</td>"
+                 f"<td class='n'>{_e(canli)}</td><td class='n'>{clv}</td></tr>")
+
+    clv_ort = "—" if o["clv_ort"] is None else f"{o['clv_ort'] * 100:+.2f}%".replace(".", ",")
+    ozet_html = ("<div class='cl-grid'>"
+                 f"<div class='cl-kutu'><div class='et'>Ortalama CLV</div>"
+                 f"<div class='dg'>{clv_ort}</div>"
+                 "<div class='al'>alınan fiyatın kapanışa üstünlüğü</div></div>"
+                 f"<div class='cl-kutu'><div class='et'>Pozitif CLV oranı</div>"
+                 f"<div class='dg'>{(_pct(o['clv_pozitif']) if o['clv_pozitif'] is not None else '—')}</div>"
+                 "<div class='al'>%50'nin üstü iyi fiyat yakalıyor demektir</div></div>"
+                 f"<div class='cl-kutu'><div class='et'>Toplanmayan pazar</div>"
+                 f"<div class='dg'>{o['pazar_disi']}</div>"
+                 "<div class='al'>kombine/skor bahisleri — fiyatı izlenmiyor</div></div></div>")
+
+    _kart("Açık bahisler", ozet_html
+          + "<div class='cl-not'><b>Üç fiyat üç farklı şey söyler.</b> "
+            "<b>Alınan</b>: ajanın bahsi aldığı fiyat. <b>Kapanış</b>: ilk düdükteki fiyat — "
+            "<u>CLV cetveli budur</u>, alınan bundan yüksekse ajan piyasadan iyi fiyat yakalamıştır. "
+            "<b>Canlı</b>: şu anki fiyat, maçın <u>durumunu</u> yansıtır, yargı değildir — 2-0 geride olan "
+            "takımın fiyatı açılır, bu ajanın hatası değildir.</div>"
+            "<table class='v2' style='margin-top:8px'><thead><tr><th>Dk</th><th>Bahis</th><th>Skor</th>"
+            "<th>Alınan</th><th>Kapanış</th><th>Canlı</th><th>CLV</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>",
+          f"{o['clv_olculen']} bahiste CLV ölçülebildi")
+
+    if o["clv_olculen"] == 0:
+        st.markdown("<div class='cl-uyari'>Henüz CLV ölçülemiyor: kapanış fiyatı yalnız toplayıcı "
+                    "açıkken maç <i>başlamadan önce</i> kaydedilebiliyor. Toplayıcıyı açık tutarsan "
+                    "bundan sonra oynanan bahisler için cetvel dolmaya başlar.</div>",
+                    unsafe_allow_html=True)
+
+
 def canli_maclar(baslik) -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     try:
@@ -89,6 +177,7 @@ def canli_maclar(baslik) -> None:
            [{"ad": "Sahada", "deger": str(len(M))},
             {"ad": "Durumu bilinen", "deger": f"{durumlu}/{len(M)}"},
             {"ad": "Arşiv", "deger": f"{say['anlik']:,}".replace(",", ".")}])
+    _anahtar_kutusu()
 
     if not M:
         st.markdown("<div class='v2bos'>Şu an sahada maç yok ya da toplayıcı henüz çalışmadı. "

@@ -28,20 +28,43 @@ SEMA = [
         mac_id TEXT PRIMARY KEY, iddaa_id INTEGER, af_id INTEGER, lig TEXT,
         ev TEXT, dep TEXT, baslangic TEXT, ilk_gorulme TEXT, son_gorulme TEXT,
         toto_hafta INTEGER, toto_sira INTEGER, durum TEXT,
-        sonuc_ev INTEGER, sonuc_dep INTEGER, oran_once TEXT)""",
+        sonuc_ev INTEGER, sonuc_dep INTEGER, oran_once TEXT, oran_kapanis TEXT)""",
     """CREATE TABLE IF NOT EXISTS cl_anlik (
         mac_id TEXT, ts TEXT, dakika INTEGER, safha TEXT, ev_skor INTEGER, dep_skor INTEGER,
         kirmizi_ev INTEGER, kirmizi_dep INTEGER, oran TEXT, p_piyasa TEXT, p_model TEXT,
-        PRIMARY KEY (mac_id, ts))""",
+        pazar TEXT, PRIMARY KEY (mac_id, ts))""",
     """CREATE TABLE IF NOT EXISTS cl_kupon (
         hafta_id INTEGER, profil TEXT, butce INTEGER, ts TEXT, icerik TEXT,
         PRIMARY KEY (hafta_id, profil, butce, ts))""",
     """CREATE TABLE IF NOT EXISTS cl_kayit (ts TEXT, tur TEXT, mesaj TEXT)""",
+    """CREATE TABLE IF NOT EXISTS cl_ayar (anahtar TEXT PRIMARY KEY, deger TEXT, guncelleme TEXT)""",
 ]
+VARSAYILAN_AYAR = {"toplayici": "kapali", "kapsam": "hepsi"}   # maliyet: varsayılan KAPALI
 
 
 def simdi() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# Sonradan eklenen sütunlar: CREATE TABLE IF NOT EXISTS mevcut tabloya sütun
+# eklemez. Her biri KENDİ bağlantısında denenir — PostgreSQL hatalı deyimden
+# sonra işlemi iptal ettiği için aynı bağlantıda zincirlenemez.
+EK_SUTUN = [("cl_mac", "oran_once", "TEXT"), ("cl_mac", "oran_kapanis", "TEXT"),
+            ("cl_anlik", "pazar", "TEXT")]
+
+
+def _sutun_ekle(tablo: str, sutun: str, tip: str) -> None:
+    c = db.connect()
+    try:
+        c.execute(f"ALTER TABLE {tablo} ADD COLUMN {sutun} {tip}")
+        c.commit()
+    except Exception:
+        pass                       # zaten var
+    finally:
+        try:
+            c.close()
+        except Exception:
+            pass
 
 
 def kur() -> None:
@@ -52,6 +75,8 @@ def kur() -> None:
         c.commit()
     finally:
         c.close()
+    for t, s, tip in EK_SUTUN:
+        _sutun_ekle(t, s, tip)
 
 
 def kayit(tur: str, mesaj: str) -> None:
@@ -68,25 +93,33 @@ def kayit(tur: str, mesaj: str) -> None:
 
 # ── maçlar ────────────────────────────────────────────────────────
 def mac_yaz(m: dict) -> None:
-    """Maçı yaz/güncelle. `oran_once` bir kez yazılır (maç öncesi fiyat kaybolmasın)."""
+    """Maçı yaz/güncelle.
+    `oran_once`    ilk görülen maç öncesi fiyat (AÇILIŞ) — bir kez yazılır.
+    `oran_kapanis` maç başlayana kadar her turda güncellenir → ilk düdükteki fiyat.
+                   CLV cetveli budur; ajanın aldığı fiyat buna göre ölçülür."""
     c = db.connect()
     try:
-        var = c.execute("SELECT ilk_gorulme, oran_once FROM cl_mac WHERE mac_id = ?",
+        var = c.execute("SELECT ilk_gorulme, oran_once, oran_kapanis FROM cl_mac WHERE mac_id = ?",
                         (m["mac_id"],)).fetchone()
         ilk = var[0] if var else simdi()
         once = (var[1] if var and var[1] else None)
-        if once is None and m.get("oran_once"):
-            once = json.dumps(m["oran_once"])
+        kapanis = (var[2] if var and var[2] else None)
+        if m.get("oran_once"):
+            yeni = json.dumps(m["oran_once"])
+            if once is None:
+                once = yeni
+            kapanis = yeni                 # maç öncesi her görüldüğünde tazelenir
         c.execute(
             "INSERT INTO cl_mac (mac_id, iddaa_id, af_id, lig, ev, dep, baslangic, ilk_gorulme, son_gorulme, "
-            "toto_hafta, toto_sira, durum, sonuc_ev, sonuc_dep, oran_once) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "toto_hafta, toto_sira, durum, sonuc_ev, sonuc_dep, oran_once, oran_kapanis) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT (mac_id) DO UPDATE SET af_id=excluded.af_id, lig=excluded.lig, "
             "son_gorulme=excluded.son_gorulme, toto_hafta=excluded.toto_hafta, toto_sira=excluded.toto_sira, "
             "durum=excluded.durum, sonuc_ev=excluded.sonuc_ev, sonuc_dep=excluded.sonuc_dep, "
-            "oran_once=excluded.oran_once",
+            "oran_once=excluded.oran_once, oran_kapanis=excluded.oran_kapanis",
             (m["mac_id"], m.get("iddaa_id"), m.get("af_id"), m.get("lig"), m.get("ev"), m.get("dep"),
              m.get("baslangic"), ilk, simdi(), m.get("toto_hafta"), m.get("toto_sira"),
-             m.get("durum"), m.get("sonuc_ev"), m.get("sonuc_dep"), once))
+             m.get("durum"), m.get("sonuc_ev"), m.get("sonuc_dep"), once, kapanis))
         c.commit()
     finally:
         c.close()
@@ -115,13 +148,14 @@ def anlik_yaz(mac_id: str, a: dict) -> None:
     try:
         c.execute(
             "INSERT INTO cl_anlik (mac_id, ts, dakika, safha, ev_skor, dep_skor, kirmizi_ev, kirmizi_dep, "
-            "oran, p_piyasa, p_model) VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+            "oran, p_piyasa, p_model, pazar) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT (mac_id, ts) DO NOTHING",
             (mac_id, a.get("ts") or simdi(), a.get("dakika"), a.get("safha"), a.get("ev_skor"),
              a.get("dep_skor"), a.get("kirmizi_ev"), a.get("kirmizi_dep"),
              json.dumps(a.get("oran"), ensure_ascii=False) if a.get("oran") else None,
              json.dumps(a.get("p_piyasa")) if a.get("p_piyasa") else None,
-             json.dumps(a.get("p_model")) if a.get("p_model") else None))
+             json.dumps(a.get("p_model")) if a.get("p_model") else None,
+             json.dumps(a.get("pazar"), ensure_ascii=False) if a.get("pazar") else None))
         c.commit()
     finally:
         c.close()
@@ -133,7 +167,8 @@ def canli_maclar(n: int = 60) -> list[dict]:
     try:
         r = c.execute(
             "SELECT m.mac_id, m.lig, m.ev, m.dep, m.baslangic, m.toto_hafta, m.toto_sira, m.durum, "
-            "a.ts, a.dakika, a.safha, a.ev_skor, a.dep_skor, a.oran, a.p_piyasa, a.p_model, m.oran_once "
+            "a.ts, a.dakika, a.safha, a.ev_skor, a.dep_skor, a.oran, a.p_piyasa, a.p_model, m.oran_once, "
+            "m.iddaa_id, a.pazar "
             "FROM cl_mac m JOIN cl_anlik a ON a.mac_id = m.mac_id "
             "WHERE a.ts = (SELECT MAX(ts) FROM cl_anlik b WHERE b.mac_id = m.mac_id) "
             "AND m.durum = 'canli' "
@@ -143,11 +178,11 @@ def canli_maclar(n: int = 60) -> list[dict]:
         return []
     c.close()
     ad = ["mac_id", "lig", "ev", "dep", "baslangic", "toto_hafta", "toto_sira", "durum", "ts", "dakika",
-          "safha", "ev_skor", "dep_skor", "oran", "p_piyasa", "p_model", "oran_once"]
+          "safha", "ev_skor", "dep_skor", "oran", "p_piyasa", "p_model", "oran_once", "iddaa_id", "pazar"]
     out = []
     for x in r[:n]:
         d = dict(zip(ad, x))
-        for k in ("oran", "p_piyasa", "p_model", "oran_once"):
+        for k in ("oran", "p_piyasa", "p_model", "oran_once", "pazar"):
             try:
                 d[k] = json.loads(d[k]) if d[k] else None
             except Exception:
@@ -210,6 +245,49 @@ def son_kupon(hafta_id: int | None = None) -> list[dict]:
             continue
         out.append({"hafta_id": x[0], "profil": x[1], "butce": x[2], "ts": x[3], **ic})
     return out
+
+
+def kapanis_haritasi() -> dict:
+    """iddaa olay kimliği → ilk düdükteki pazar fiyatları (CLV cetveli)."""
+    c = db.connect()
+    try:
+        r = c.execute("SELECT iddaa_id, oran_kapanis FROM cl_mac WHERE oran_kapanis IS NOT NULL").fetchall()
+    except Exception:
+        return {}
+    finally:
+        c.close()
+    out = {}
+    for eid, v in r:
+        try:
+            out[str(eid)] = json.loads(v)
+        except Exception:
+            pass
+    return out
+
+
+# ── ayarlar (panelden açılıp kapanır; yeniden dağıtım gerekmez) ───
+def ayar_oku(anahtar: str, varsayilan: str | None = None) -> str:
+    c = db.connect()
+    try:
+        r = c.execute("SELECT deger FROM cl_ayar WHERE anahtar = ?", (anahtar,)).fetchone()
+    except Exception:
+        return varsayilan if varsayilan is not None else VARSAYILAN_AYAR.get(anahtar, "")
+    finally:
+        c.close()
+    if r and r[0] is not None:
+        return str(r[0])
+    return varsayilan if varsayilan is not None else VARSAYILAN_AYAR.get(anahtar, "")
+
+
+def ayar_yaz(anahtar: str, deger: str) -> None:
+    c = db.connect()
+    try:
+        c.execute("INSERT INTO cl_ayar (anahtar, deger, guncelleme) VALUES (?,?,?) "
+                  "ON CONFLICT (anahtar) DO UPDATE SET deger=excluded.deger, "
+                  "guncelleme=excluded.guncelleme", (anahtar, str(deger), simdi()))
+        c.commit()
+    finally:
+        c.close()
 
 
 def sayim() -> dict:

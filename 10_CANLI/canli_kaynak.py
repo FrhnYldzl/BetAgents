@@ -75,24 +75,55 @@ def benzer(a: str, b: str) -> float:
 
 
 # ── iddaa canlı fiyat ─────────────────────────────────────────────
+# iddaa pazar kodları — ÖN MAÇ ve CANLI FARKLI (ölçüldü 20.09.2026):
+#   1X2      ön maç (t=1, st=1)    · canlı (t=4, st=4)
+#   KG       ön maç (t=2, st=89)   · canlı (t=4, st=131)
+#   Alt/Üst  ön maç (t=2, st=101)  · canlı (t=4, st=14)   — ikisinde de sov = hat
+# Bu ayrım kaçırılırsa maç öncesi fiyat hiç kaydedilmez (yaşandı).
+KOD_1X2 = {(1, 1), (4, 4)}
+KOD_KG = {(2, 89), (4, 131)}
+KOD_AU = {(2, 101), (4, 14)}
+AU_HATLAR = ("1.5", "2.5", "3.5")
+
+
+def _oranlar(m: dict, adlar: tuple) -> tuple | None:
+    d = {}
+    for o in m.get("o") or []:
+        n = str(o.get("n") or "").strip().upper()
+        d[n] = o.get("odd")
+    try:
+        v = tuple(float(d[a]) for a in adlar)
+    except (TypeError, ValueError, KeyError):
+        return None
+    return v if min(v) > 1.0 else None
+
+
 def _ms_oran(ev: dict):
-    """Maç sonucu 1/0/2 — canlı akışta pazar tipi t=4 (ön maçta t=1)."""
+    """Yalnız maç sonucu 1/0/2 (geriye dönük uyumluluk)."""
+    return (pazarlar(ev) or {}).get("1X2")
+
+
+def pazarlar(ev: dict) -> dict:
+    """Olaydaki ilgilendiğimiz pazarlar: {"1X2": (1,0,2), "KG": (var,yok), "AU25": (alt,üst), ...}"""
+    out: dict = {}
     for m in ev.get("m") or []:
-        if m.get("t") not in (1, 4):
-            continue
-        d = {}
-        for o in m.get("o") or []:
-            n = str(o.get("n") or "").strip().upper()
-            if n in ("1", "0", "2", "X"):
-                d["0" if n == "X" else n] = o.get("odd")
-        if all(d.get(k) for k in ("1", "0", "2")):
-            try:
-                v = (float(d["1"]), float(d["0"]), float(d["2"]))
-            except (TypeError, ValueError):
-                continue
-            if min(v) > 1.0:
-                return v
-    return None
+        kod = (m.get("t"), m.get("st"))
+        sov = str(m.get("sov") or "")
+        if kod in KOD_1X2 and "1X2" not in out:
+            v = _oranlar(m, ("1", "X", "2")) or _oranlar(m, ("1", "0", "2"))
+            if v:
+                out["1X2"] = v
+        elif kod in KOD_KG and "KG" not in out:
+            v = _oranlar(m, ("VAR", "YOK"))
+            if v:
+                out["KG"] = v
+        elif kod in KOD_AU and sov in AU_HATLAR:
+            anahtar = "AU" + sov.replace(".", "")
+            if anahtar not in out:
+                v = _oranlar(m, ("ALT", "ÜST")) or _oranlar(m, ("ALT", "UST"))
+                if v:
+                    out[anahtar] = v
+    return out
 
 
 def iddaa_onmac() -> list[dict]:
@@ -106,15 +137,15 @@ def iddaa_onmac() -> list[dict]:
     for e in ol:
         if e.get("s"):
             continue
-        oran = _ms_oran(e)
-        if not oran:
+        pz = pazarlar(e)
+        if not pz:
             continue
         try:
             bas = datetime.fromtimestamp(int(e.get("d") or 0), TR).isoformat(timespec="seconds")
         except Exception:
             bas = None
         out.append({"mac_id": f"i{e.get('i')}", "iddaa_id": e.get("i"), "ev": (e.get("hn") or "").strip(),
-                    "dep": (e.get("an") or "").strip(), "baslangic": bas, "oran_once": oran})
+                    "dep": (e.get("an") or "").strip(), "baslangic": bas, "oran_once": pz})
     return out
 
 
@@ -128,13 +159,14 @@ def iddaa_canli() -> list[dict]:
     for e in ol:
         if not e.get("s"):                      # s=1 → sahada
             continue
-        oran = _ms_oran(e)
+        pz = pazarlar(e)
         try:
             bas = datetime.fromtimestamp(int(e.get("d") or 0), TR).isoformat(timespec="seconds")
         except Exception:
             bas = None
         out.append({"iddaa_id": e.get("i"), "ev": (e.get("hn") or "").strip(),
-                    "dep": (e.get("an") or "").strip(), "baslangic": bas, "oran": oran})
+                    "dep": (e.get("an") or "").strip(), "baslangic": bas,
+                    "oran": pz.get("1X2"), "pazar": pz})
     return out
 
 

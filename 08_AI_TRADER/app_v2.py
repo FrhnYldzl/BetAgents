@@ -4785,7 +4785,9 @@ SAYFA_TANIM = [
     # CANLI — üçüncü ürün, kendi tabloları (cl_*) ve kendi toplayıcısı. Toto ve
     # BetAgents'ı yalnız OKUR; hata olursa yalnız bu sayfa uyarı gösterir.
     ("CANLI", [
-        ("Canlı Maçlar", _toto_sayfa("canli_maclar", "canli_panel", _CANLI_DIZIN),
+        ("Canlı · Ajan Maçları", _toto_sayfa("ajan_maclari", "canli_panel", _CANLI_DIZIN),
+         ":material/monitoring:", "canli-ajan", "Ajanların bahisleri hangi fiyattan alındı, şimdi ne?"),
+        ("Canlı · Maçlar", _toto_sayfa("canli_maclar", "canli_panel", _CANLI_DIZIN),
          ":material/sensors:", "canli", "Sahada ne oluyor, fiyat ne diyor, model ne diyor?")]),
     ("SİSTEM", [
         ("Ölçüm Defteri", page_defter, ":material/menu_book:", "defter",
