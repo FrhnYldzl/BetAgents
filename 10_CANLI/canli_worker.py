@@ -127,20 +127,20 @@ def basla() -> None:
     bos = 0
     kapali_bildirildi = False
     while True:
-        # Panelden açılıp kapanan anahtar: KAPALIYKEN HİÇBİR İSTEK YAPILMAZ.
-        # Varsayılan kapalı — boşuna kaynak ve API kotası harcamasın.
+        # Panelden yönetilen anahtar: kapalı · otomatik (saat penceresi) · açık.
+        # Toplamadığı anda HİÇBİR İSTEK yapılmaz — kaynak ve API kotası harcanmaz.
         try:
-            acik = canli_db.ayar_oku("toplayici", "kapali") == "acik"
+            acik, neden = canli_db.toplasin_mi()
         except Exception:
-            acik = False
+            acik, neden = False, "ayar okunamadı"
         if not acik:
             if not kapali_bildirildi:
-                print(f"[{_ts()}] toplayıcı KAPALI (panelden açılır) — bekliyor", flush=True)
+                print(f"[{_ts()}] toplama duraklatıldı — {neden}", flush=True)
                 kapali_bildirildi = True
             time.sleep(60)
             continue
         if kapali_bildirildi:
-            print(f"[{_ts()}] toplayıcı AÇILDI", flush=True)
+            print(f"[{_ts()}] toplama başladı — {neden}", flush=True)
             kapali_bildirildi = False
         try:
             r = t.tur()

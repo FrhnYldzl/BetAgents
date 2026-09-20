@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _V = Path(__file__).resolve().parent.parent / "02_VERI"
@@ -39,7 +39,10 @@ SEMA = [
     """CREATE TABLE IF NOT EXISTS cl_kayit (ts TEXT, tur TEXT, mesaj TEXT)""",
     """CREATE TABLE IF NOT EXISTS cl_ayar (anahtar TEXT PRIMARY KEY, deger TEXT, guncelleme TEXT)""",
 ]
-VARSAYILAN_AYAR = {"toplayici": "kapali", "kapsam": "hepsi"}   # maliyet: varsayılan KAPALI
+# mod: kapali · otomatik (saat penceresinde) · acik (elle, sürekli)
+# Pencereler TR saatiyle; bitiş başlangıçtan küçükse gece yarısını aşar (21:00-02:00).
+VARSAYILAN_AYAR = {"toplayici": "otomatik", "kapsam": "hepsi",
+                   "pencere_hafta_ici": "19:00-24:00", "pencere_hafta_sonu": "13:00-24:00"}
 
 
 def simdi() -> str:
@@ -289,6 +292,48 @@ def ayar_yaz(anahtar: str, deger: str) -> None:
         c.commit()
     finally:
         c.close()
+
+
+# ── toplama penceresi ─────────────────────────────────────────────
+_TR = timezone(timedelta(hours=3))
+
+
+def _saat_coz(s: str):
+    """'19:00-24:00' → (1140, 1440) dakika. Bozuksa None."""
+    try:
+        bas, bit = str(s).split("-")
+        bh, bd = (int(x) for x in bas.strip().split(":"))
+        sh, sd = (int(x) for x in bit.strip().split(":"))
+        return bh * 60 + bd, sh * 60 + sd
+    except Exception:
+        return None
+
+
+def pencere_icinde(an: datetime | None = None) -> tuple[bool, str]:
+    """Şu an toplama penceresinde miyiz? (evet/hayır, açıklama)"""
+    an = an or datetime.now(_TR)
+    hafta_sonu = an.weekday() >= 5
+    ad = "pencere_hafta_sonu" if hafta_sonu else "pencere_hafta_ici"
+    ham = ayar_oku(ad)
+    a = _saat_coz(ham)
+    if not a:
+        return True, f"pencere okunamadı ({ham}) — açık sayıldı"
+    bas, bit = a
+    d = an.hour * 60 + an.minute
+    ic = (bas <= d < bit) if bas < bit else (d >= bas or d < bit)   # gece yarısını aşabilir
+    etiket = "hafta sonu" if hafta_sonu else "hafta içi"
+    return ic, f"{etiket} penceresi {ham} · şu an {an.strftime('%H:%M')} TR"
+
+
+def toplasin_mi(an: datetime | None = None) -> tuple[bool, str]:
+    """Toplayıcı bu anda çalışmalı mı? Mod + pencere kararı."""
+    mod = ayar_oku("toplayici")
+    if mod == "acik":
+        return True, "elle AÇIK (sürekli)"
+    if mod == "kapali":
+        return False, "KAPALI"
+    ic, neden = pencere_icinde(an)
+    return ic, ("otomatik · " + neden)
 
 
 def sayim() -> dict:

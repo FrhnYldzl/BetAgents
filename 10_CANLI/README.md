@@ -53,4 +53,26 @@ python 10_CANLI/canli_model.py               # modelin kendi sınaması
 kapanır. Yerelden üretim veritabanına yazma engellidir (`CANLI_URETIM_ONAY=1`
 olmadıkça) — yerel deneme için `BETAGENTS_DB=sqlite` kullan.
 
-Ayarlar: `CANLI_FIYAT_SN` (120), `CANLI_DURUM_SN` (300), `CANLI_ONMAC_SN` (900).
+Ayarlar: `CANLI_FIYAT_SN` (45), `CANLI_DURUM_SN` (300), `CANLI_ONMAC_SN` (900).
+
+## Toplama penceresi (maliyet kontrolü)
+
+Toplayıcı panelden yönetilir (`cl_ayar`, yeniden dağıtım gerekmez):
+
+| mod | davranış |
+|---|---|
+| `kapali` | hiç toplamaz, hiçbir istek yapmaz |
+| `otomatik` | **varsayılan** — yalnız saat penceresinde toplar |
+| `acik` | sürekli toplar (elle; iş bitince kapatılmalı) |
+
+Varsayılan pencereler TR saatiyle: hafta içi `19:00-24:00`, hafta sonu
+`13:00-24:00`. Bitiş başlangıçtan küçükse gece yarısını aşar (`21:00-02:00`).
+Pencere dışında ne kaynak ne API kotası harcanır; ayar değişikliği en geç bir
+dakikada toplayıcıya geçer.
+
+## Pazar askıya alma — ölçümün temeli
+
+iddaa canlıda pazarı askıya alıyor (`m.s = -2`; ölçüldü: 116 pazarın 16'sı).
+**Askıdaki pazar oran göstermeye devam ediyor** — yani o fiyat görünür ama
+alınamaz. `cl_anlik.askida` o anda askıda olan pazarları tutar; aşırı tepki
+ölçümünde bu satırlar dışlanmalıdır. Kaydedilmezse sonradan geri getirilemez.

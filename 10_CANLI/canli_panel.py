@@ -73,24 +73,40 @@ def _kart(baslik: str, govde: str, ipucu: str = "") -> None:
                 f"<span class='v2ip'>{_e(ipucu)}</span></div>{govde}</div>", unsafe_allow_html=True)
 
 
+MOD_AD = {"kapali": "Kapalı", "otomatik": "Otomatik (saat penceresi)", "acik": "Açık (sürekli)"}
+
+
 def _anahtar_kutusu() -> bool:
-    """Toplayıcıyı panelden aç/kapa — maliyet kontrolü. Varsayılan KAPALI."""
-    acik = canli_db.ayar_oku("toplayici", "kapali") == "acik"
-    a, b = st.columns([3, 2])
-    with a:
-        st.markdown(
-            f"<div class='cl-uyari' style='margin:0'><b>Toplayıcı "
-            f"{'AÇIK — veri geliyor' if acik else 'KAPALI'}.</b> "
-            + ("Canlı maçlar 45 saniyede bir, durum 5 dakikada bir çekiliyor. İşin bitince kapat."
-               if acik else
-               "Hiçbir istek yapılmıyor, kaynak harcanmıyor. Maç izlemek ya da veri biriktirmek "
-               "istediğinde aç.") + "</div>", unsafe_allow_html=True)
-    with b:
-        if st.button("Toplayıcıyı kapat" if acik else "Toplayıcıyı aç",
-                     use_container_width=True, key="cl_anahtar"):
-            canli_db.ayar_yaz("toplayici", "kapali" if acik else "acik")
+    """Toplayıcı yönetimi: kapalı · otomatik · açık. Maliyet buradan kontrol edilir."""
+    mod = canli_db.ayar_oku("toplayici")
+    if mod not in MOD_AD:
+        mod = "otomatik"
+    topluyor, neden = canli_db.toplasin_mi()
+    with st.expander(f"Toplayıcı · {MOD_AD[mod]} — şu an "
+                     f"{'TOPLUYOR' if topluyor else 'beklemede'}", expanded=False):
+        st.markdown("<div class='cl-not'>Toplamadığı anda hiçbir istek yapılmaz. "
+                    "<b>Otomatik</b> modda yalnız aşağıdaki saat penceresinde çalışır — maçların "
+                    "yoğun olduğu saatler. Pencere dışında kaynak da API kotası da harcanmaz.</div>",
+                    unsafe_allow_html=True)
+        yeni = st.radio("Mod", list(MOD_AD), index=list(MOD_AD).index(mod),
+                        format_func=lambda x: MOD_AD[x], horizontal=True, key="cl_mod")
+        a, b = st.columns(2)
+        with a:
+            hi = st.text_input("Hafta içi penceresi (TR)", canli_db.ayar_oku("pencere_hafta_ici"),
+                               key="cl_p_hi")
+        with b:
+            hs = st.text_input("Hafta sonu penceresi (TR)", canli_db.ayar_oku("pencere_hafta_sonu"),
+                               key="cl_p_hs")
+        if st.button("Kaydet", key="cl_ayar_kaydet"):
+            canli_db.ayar_yaz("toplayici", yeni)
+            canli_db.ayar_yaz("pencere_hafta_ici", hi.strip())
+            canli_db.ayar_yaz("pencere_hafta_sonu", hs.strip())
             st.rerun()
-    return acik
+        st.markdown(f"<div class='cl-not' style='margin-top:6px'><b>Şu anki karar:</b> "
+                    f"{'topluyor' if topluyor else 'beklemede'} — {_e(neden)}. "
+                    "Değişiklik en geç bir dakika içinde toplayıcıya geçer.</div>",
+                    unsafe_allow_html=True)
+    return topluyor
 
 
 def ajan_maclari(baslik) -> None:
