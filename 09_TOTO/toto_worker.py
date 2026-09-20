@@ -35,6 +35,7 @@ import numpy as np  # noqa: E402
 import toto_db  # noqa: E402
 
 TR = timezone(timedelta(hours=3))
+_ILK_KOSU = True                  # her başlatmadan (yayın) sonra bir kez taze analiz
 
 
 def _ts() -> str:
@@ -47,6 +48,7 @@ def _tr_simdi() -> str:
 
 # ── senkron ───────────────────────────────────────────────────────
 def senkron() -> None:
+    global _ILK_KOSU
     from sportoto import ham_guncelle, haftalar
     print(f"[{_ts()}] TOTO senkron", flush=True)
     try:
@@ -71,7 +73,11 @@ def senkron() -> None:
             yas = 1e9
             if son:
                 yas = (datetime.now(TR) - datetime.fromisoformat(son["olusturma"])).total_seconds() / 60
-            if (0 < kalan <= 3 and yas > 90) or son is None:
+            # kapanışa 3 saat kala taze analiz; ayrıca yayın/yeniden başlatmadan sonra
+            # BİR KEZ tazele (dağıtım kendini doğrulasın; saatlik koşu analiz üretmez)
+            ilk = _ILK_KOSU
+            _ILK_KOSU = False
+            if son is None or (0 < kalan <= 3 and yas > 90) or (ilk and yas > 30):
                 analiz()
     except Exception as e:
         toto_db.kayit("hata", f"senkron: {type(e).__name__}: {e}")

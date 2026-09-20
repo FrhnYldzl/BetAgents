@@ -132,6 +132,20 @@ def _ilk_gorulme(hid) -> str:
     return ""
 
 
+def _kadro_kutu(A: dict) -> str:
+    """Eksik oyuncu verisinin durumu — anahtar var mı, kaç maçta veri var."""
+    k = A.get("kadro") or {}
+    if not k:
+        return ""
+    durum = k.get("durum") or "—"
+    kapsam, pencere = k.get("kapsam", 0), k.get("pencere", 0)
+    alt = (f"{kapsam}/15 maçta eksik listesi var" if kapsam else
+           ("veri penceresi henüz açılmadı (ücretsiz plan: dün–bugün–yarın)" if not pencere
+            else "penceredeki maçlarda liste bulunamadı"))
+    return (f"<div class='tt-kutu'><div class='et'>Kadro verisi</div><div class='dg'>{_e(durum)}</div>"
+            f"<div class='al'>{_e(alt)}</div></div>")
+
+
 def ics(A: dict) -> str:
     """Takvim dosyası: kapanıştan 24 ve 3 saat önce hatırlatır."""
     h = A["hafta"]
@@ -206,7 +220,8 @@ def bu_hafta(baslik) -> None:
              f"<div class='al'>Önceki program kapanınca açılır (oyun planı m.9/1){_ilk_gorulme(h['id'])}</div></div>"
              f"<div class='tt-kutu'><div class='et'>Analiz</div><div class='dg'>{_e(A['olusturma'][11:16])}</div>"
              f"<div class='al'>{_e(A['olusturma'][:10])} · günde 3 kez + kapanışa 3 saat kala son kez</div></div>"
-             "</div>"
+             + _kadro_kutu(A)
+             + "</div>"
              f"<div class='tt-uyari'>{devir_metni}</div>"
              "<div class='tt-not'><b>Nasıl oynanır.</b> 15 maçın her birine 1 (ev), 0 (beraberlik) ya da 2 (deplasman) "
              "işaretlenir. Bir maça birden çok işaret koymak <b>sistem</b> oynamaktır: kolon sayısı çarpılır "
