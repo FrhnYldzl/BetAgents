@@ -48,6 +48,15 @@ table.v2 td.tt-off{color:var(--line-2);}
   font-size:var(--t-alt);color:var(--ink);line-height:1.5;margin:8px 0;}
 table.v2 td.tt-ger{font-size:var(--t-alt);color:var(--ink-2);line-height:1.45;}
 table.v2 td.tt-ger b{color:var(--ink);font-weight:600;}
+.tt-kapi{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:var(--r);
+  padding:14px 16px;background:var(--panel-2);margin-bottom:var(--s3);}
+.tt-kapi.degerlendir{border-left-color:var(--brand);background:var(--brand-fill);}
+.tt-kapi.bekle{border-left-color:var(--line-2);}
+.tt-kapi .karar{font-family:'JetBrains Mono',monospace;font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
+  text-transform:uppercase;font-weight:var(--w-etiket);color:var(--muted);}
+.tt-kapi .cumle{font-size:var(--t-kart);color:var(--ink);margin-top:4px;line-height:1.45;}
+.tt-kapi .kosul{font-size:var(--t-alt);color:var(--ink-2);margin-top:8px;line-height:1.6;}
+.tt-kapi .kosul b{font-family:'JetBrains Mono',monospace;font-size:var(--t-kucuk);}
 .tt-kod{font-family:'JetBrains Mono',monospace;font-size:var(--t-alt);background:var(--panel-2);
   border:1px solid var(--line);padding:8px 10px;border-radius:var(--r);white-space:pre-wrap;word-break:break-word;}
 </style>"""
@@ -160,6 +169,25 @@ def bu_hafta(baslik) -> None:
            {"ad": "Kolon", "deger": _tl(A["fiyat"])}]
     baslik(f"{h['sezon']} · {h['ad']}", "Olasılığı ajan pazarı, kalabalığın ne oynadığını kalabalık modeli "
            "söyler; kupon ikisinin farkından kurulur. Her işaretin gerekçesi aşağıda.", kpi)
+
+    # oynama kapısı — sistemin bu hafta için kararı
+    kp = A.get("kapi")
+    if kp:
+        ks = ""
+        for ad, v in kp["kosul"].items():
+            im = "✓" if v["saglandi"] else "—"
+            ks += f"<div class='kosul'><b>{im}</b> {_e(v['aciklama'])}</div>"
+        on = kp.get("onerilen") or {}
+        oner = ""
+        if kp["karar"] == "DEĞERLENDİR" and on:
+            oner = (f"<div class='kosul' style='margin-top:10px'><b>ÖNERİ</b> {_e(on['profil_ad'])} "
+                    f"{on['kolon']} kolon · {_tl(on['maliyet'])} · TL başına {on['ev_tl']:.2f}</div>")
+        st.markdown(f"<div class='tt-kapi {kp['renk']}'><div class='karar'>bu hafta · {_e(kp['karar'])}</div>"
+                    f"<div class='cumle'>{_e(kp['ozet'])}</div>{ks}{oner}"
+                    "<div class='kosul' style='margin-top:10px;color:var(--muted)'>Kural: fiyat kapsamı ≥ 12/15, "
+                    "devir ≥ dağıtılan tutarın %15'i, üst sınırdaki en iyi kuponun TL başına beklentisi ≥ 1,20. "
+                    "Geçmiş test hiçbir profilin kârlılığını kanıtlamadı; varsayılan duruş kâğıt üzerinde izlemek.</div>"
+                    "</div>", unsafe_allow_html=True)
 
     # takvim + nasıl oynanır
     ilk = A["maclar"][0]

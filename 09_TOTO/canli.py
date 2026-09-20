@@ -268,6 +268,55 @@ def kupon_gerekcesi(S, P, Q, gerekce_mac) -> list[str]:
     return out
 
 
+# ── oynama kapısı ─────────────────────────────────────────────────
+# Geçmiş test (159 hafta) hiçbir profilin kârlılığını KANITLAMADI: Favori TL
+# başına 0,47; kontrarian kuponların kârı iki haftaya dayanıyor. Bu yüzden
+# varsayılan duruş KÂĞIT. Kapı yalnız üç koşul birden sağlanınca "değerlendir"
+# der — ve o zaman bile küçük, sabit bir üst sınırla.
+KAPI_EV_ESIK = 1.20          # en iyi kuponun TL başına beklediği
+KAPI_DEVIR_ORAN = 0.15       # devir / dağıtılan tutar
+KAPI_KAPSAM = 12             # 15 maçın en az kaçında piyasa fiyatı var
+HAFTALIK_TAVAN_TL = 500.0    # önerilen üst sınır (eğlence bütçesi, yatırım değil)
+
+
+def oynama_kapisi(A: dict) -> dict:
+    """Bu hafta oynanır mı? Kurallar açık, karar kullanıcının."""
+    kapsam = A["iddaa_kapsam"]
+    D = A["D_tahmin"] or 1.0
+    devir = (A["devir"] or {}).get(15, 0.0) or (A["devir"] or {}).get("15", 0.0) or 0.0
+    devir_belirsiz = not A["devir_kesin"]
+    senaryo = ((A.get("devir_senaryo") or {}).get(15) or (A.get("devir_senaryo") or {}).get("15") or 0.0)
+    uygun = [k for k in A["kuponlar"] if k["maliyet"] <= HAFTALIK_TAVAN_TL * 1.05]
+    en_iyi = max(uygun or A["kuponlar"], key=lambda k: k["ev_tl"])
+    kosul = {
+        "fiyat_kapsami": (kapsam >= KAPI_KAPSAM, f"{kapsam}/15 maçta piyasa fiyatı var (eşik {KAPI_KAPSAM})"),
+        "devir": (devir >= KAPI_DEVIR_ORAN * D,
+                  (f"devir {devir / 1e6:.1f} M TL · dağıtılanın %{100 * devir / D:.0f}'i" if not devir_belirsiz
+                   else f"devir belirsiz — önceki hafta sonuçlanmadı (senaryo {senaryo / 1e6:.1f} M TL)")),
+        "beklenen_deger": (en_iyi["ev_tl"] >= KAPI_EV_ESIK,
+                           f"{HAFTALIK_TAVAN_TL:.0f} TL sınırındaki en iyi kupon: {en_iyi['profil_ad']} "
+                           f"{en_iyi['kolon']} kolon · TL başına {en_iyi['ev_tl']:.2f} (eşik {KAPI_EV_ESIK:.2f})"),
+    }
+    if not kosul["fiyat_kapsami"][0]:
+        karar, renk = "BEKLE", "bekle"
+        ozet = "Fiyatların çoğu henüz açılmadı; analiz kapanışa kadar kendiliğinden yenileniyor."
+    elif devir_belirsiz:
+        karar, renk = "BEKLE", "bekle"
+        ozet = "Devir belirsiz. Önceki hafta sonuçlanınca kapı yeniden değerlendirilecek."
+    elif all(v[0] for v in kosul.values()):
+        karar, renk = "DEĞERLENDİR", "degerlendir"
+        ozet = (f"Üç koşul da sağlandı. Oynanacaksa üst sınır {HAFTALIK_TAVAN_TL:.0f} TL; "
+                f"önerilen kupon {en_iyi['profil_ad']} {en_iyi['kolon']} kolon. Çoğu hafta sıfır döner.")
+    else:
+        karar, renk = "KÂĞIT", "kagit"
+        eksik = [a for a, v in kosul.items() if not v[0]]
+        ozet = "Koşul sağlanmadı (" + ", ".join(eksik) + "). Bu hafta yalnız kâğıt üzerinde izlenir."
+    return {"karar": karar, "renk": renk, "ozet": ozet, "tavan": HAFTALIK_TAVAN_TL,
+            "kosul": {a: {"saglandi": bool(v[0]), "aciklama": v[1]} for a, v in kosul.items()},
+            "onerilen": {"profil": en_iyi["profil"], "profil_ad": en_iyi["profil_ad"], "kolon": en_iyi["kolon"],
+                         "maliyet": en_iyi["maliyet"], "ev_tl": en_iyi["ev_tl"], "isaret": en_iyi["isaret"]}}
+
+
 def sans_metni(p: float) -> str:
     if p <= 0:
         return "—"
@@ -393,7 +442,7 @@ def analiz(butceler=(32, 256, 2048), profiller=("FAVORİ", "15_AVCISI", "DENGEL�
                 k["odul15_devirli"] = r2["odul15"]
             kuponlar.append(k)
     kap_dt = datetime.fromisoformat(kap[:19]).replace(tzinfo=TR)
-    return {"hafta": {k: prog[k] for k in ("id", "sezon", "ad", "kapanis", "liste_gorseli")},
+    cikti = {"hafta": {k: prog[k] for k in ("id", "sezon", "ad", "kapanis", "liste_gorseli")},
             "olusturma": datetime.now(TR).isoformat(timespec="minutes"),
             "kalan_saat": round((kap_dt - datetime.now(TR)).total_seconds() / 3600, 1),
             "fiyat": fiyat, "D_tahmin": D, "devir": devir, "devir_kesin": devir_kesin,
@@ -410,6 +459,8 @@ def analiz(butceler=(32, 256, 2048), profiller=("FAVORİ", "15_AVCISI", "DENGEL�
                       "sezon_olcek": th.get("log_s"), "param_tarihi": param.get("guncelleme"),
                       "durum_tarihi": AJ.d.get("olusturma")},
             "sure_sn": round(time.time() - t0, 1)}
+    cikti["kapi"] = oynama_kapisi(cikti)
+    return cikti
 
 
 def _json(o):
