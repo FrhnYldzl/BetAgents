@@ -23,8 +23,10 @@ import math
 
 import numpy as np
 
-AJANLAR = ("PİYASA", "ELO", "FORM", "H2H")
-ONSEL_SERVET = {"PİYASA": 0.55, "ELO": 0.20, "FORM": 0.15, "H2H": 0.10}
+AJANLAR = ("PİYASA", "ELO", "FORM", "H2H", "KADRO")
+# KADRO sonradan katıldı (20.09.2026): geçmişte sakatlık verisi yok, bu yüzden
+# geçmiş testte cüzdanı YOK. Küçük bir payla girer, değerini canlıda kanıtlar.
+ONSEL_SERVET = {"PİYASA": 0.55, "ELO": 0.18, "FORM": 0.14, "H2H": 0.10, "KADRO": 0.03}
 # Kulüp ve milli maçlar AYRI pazarlarda yarışır: geçmiş testte milli maçlarda en isabetli ajan H2H
 # (log-kayıp 0,813) iken ortak cüzdan onun sesini kulüp maçlarındaki başarısına göre kısıyordu.
 # Ayrı milli cüzdan (kesir 0,3) milli log-kaybı 0,835 → 0,826 indirdi.
@@ -36,8 +38,13 @@ def aile_pazari(aile: str | None) -> str:
 
 
 class Pazar:
-    def __init__(self, servet: dict | None = None, kesir: float = 0.3, taban: float = 0.01):
-        self.W = dict(servet or ONSEL_SERVET)
+    def __init__(self, servet: dict | None = None, kesir: float = 0.3, taban: float = 0.01,
+                 yeni_pay: float = 0.03):
+        W = dict(servet or ONSEL_SERVET)
+        for a in AJANLAR:                      # sonradan eklenen ajan küçük payla katılır
+            W.setdefault(a, yeni_pay)
+        t = sum(W.values()) or 1.0
+        self.W = {a: w / t for a, w in W.items()}
         self.f = kesir
         self.taban = taban                # hiçbir ajan tamamen sıfırlanmasın (yeniden öğrenebilsin)
         self.gecmis = []                  # (hafta_id, {ajan: servet})

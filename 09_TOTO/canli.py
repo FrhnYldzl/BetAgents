@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 import durum as DURUM
+import kadro as KADRO
 from ajanlar import form_p, sirali_lojit_p
 from deger import Degerlendirici, boyut, kur
 from esle import benzer
@@ -329,6 +330,14 @@ def analiz(butceler=(32, 256, 2048), profiller=("FAVORİ", "15_AVCISI", "DENGEL�
         gor = {"PİYASA": idd[i]["p"] if idd[i] else None, "ELO": g["ELO"], "FORM": g["FORM"], "H2H": g["H2H"]}
         t = turnuva(m["turnuva"])
         aile = "MILLI" if m["milli"] else t.get("aile")
+        try:                                   # KADRO: eksik oyuncular (veri penceresi dışında susar)
+            kp, kn = KADRO.kadro_gorusu(m, gor["PİYASA"] or g["ELO"], m["milli"] or aile == "MILLI")
+            gor["KADRO"] = kp
+            if kn:
+                g["not"]["kadro"] = kn
+        except Exception as _e:
+            gor["KADRO"] = None
+            g["not"]["kadro_hata"] = f"{type(_e).__name__}"
         pazar = PZ[aile_pazari(aile)]
         pi, pay = pazar.fiyat(gor)
         ptr, peu = populer(m["ev"]); dtr, deu = populer(m["dep"])

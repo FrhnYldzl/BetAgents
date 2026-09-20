@@ -567,6 +567,21 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
 [data-baseweb="popover"] [role="option"],[data-baseweb="popover"] [role="option"] *{
   font-family:Archivo,"Segoe UI",system-ui,sans-serif!important;}
 [data-baseweb="popover"] [role="option"]{font-size:var(--t-govde)!important;}
+/* ⚠️ SİMGELER bu kuralın DIŞINDA. Yukarıdaki "… summary *" gibi yıldızlı
+   seçiciler Archivo'yu simgelere de dayatıyordu; Streamlit simgeleri ligatür
+   olduğu için açılır başlığındaki ok "_arrow_right_" diye METİN basılıyordu
+   (20.09.2026, Toto sayfasında görüldü — Çakışma ve Arşiv'deki açılır da
+   aynı hatayı taşıyordu, orada emekli ajan olmadığı için görünmüyordu).
+   Kenar çubuğunda zaten istisna vardı; aynısı öbür yıldızlı kurallar için. */
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"],
+[data-testid="stSelectbox"] [data-testid="stIconMaterial"],
+[data-testid="stMultiSelect"] [data-testid="stIconMaterial"],
+[data-baseweb="popover"] [data-testid="stIconMaterial"]{
+  font-family:"Material Symbols Rounded"!important;}
+/* Simge rengi temadan geliyordu: koyu tema tercihi olan tarayıcıda beyaz
+   zeminde beyaz kalıyordu. Panel tek temalı (açık) — rengi biz veriyoruz. */
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"]{
+  color:var(--muted)!important;}
 /* TEK istisna: sayılar. Hizalanmaları için tabular monospace. */
 .mono,.v2kpi b,.v2kpi span,.ro b,.ro span,table.v2 td.n,table.v2 th,
 .gr,.dp,.dm,.cc,.v2suz,.v2gez-orta,table.v2 .sb,.v2grup,.v2head .hint,

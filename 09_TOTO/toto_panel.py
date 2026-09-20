@@ -264,6 +264,18 @@ def bu_hafta(baslik) -> None:
     idd = m.get("iddaa") or {}
     if idd.get("oran"):
         ek.append("iddaa " + " / ".join(f"{x:.2f}" for x in idd["oran"]))
+    kd = notlar.get("kadro")
+    kadro_html = ""
+    if kd:
+        kadro_html = ("<table class='v2' style='margin-top:10px'><thead><tr><th>Eksik oyuncular</th>"
+                      f"<th>{_e(m['ev'])}</th><th>{_e(m['dep'])}</th></tr></thead><tbody>"
+                      f"<tr><td>Kaç oyuncu</td><td class='n'>{kd['ev_eksik']}</td><td class='n'>{kd['dep_eksik']}</td></tr>"
+                      f"<tr><td>Ağırlık (kesin yok = 1)</td><td class='n'>{_e(kd['ev_agirlik'])}</td>"
+                      f"<td class='n'>{_e(kd['dep_agirlik'])}</td></tr>"
+                      f"<tr><td>İsimler</td><td class='tt-ger'>{_e(', '.join(kd['ev_liste']) or '—')}</td>"
+                      f"<td class='tt-ger'>{_e(', '.join(kd['dep_liste']) or '—')}</td></tr></tbody></table>")
+    elif notlar.get("kadro_hata"):
+        kadro_html = "<div class='sb' style='margin-top:8px'>Kadro verisi alınamadı.</div>"
     kr = m.get("karne") or {}
     kev, kdp = kr.get("ev", {}), kr.get("dep", {})
     def _k(d, a, b=None):
@@ -282,7 +294,7 @@ def bu_hafta(baslik) -> None:
              "</tbody></table>")
     _kart(f"{i + 1}. {_e(m['ev'])} - {_e(m['dep'])}", sat + "<table class='v2' style='margin-top:8px'><thead><tr>"
           "<th>Ajan</th><th>Pazar payı</th><th>Görüş 1/0/2</th><th>Fiyata göre aldığı</th></tr></thead>"
-          f"<tbody>{aj}</tbody></table>{karne}<div class='sb' style='margin-top:6px'>{_e(' · '.join(ek))}</div>",
+          f"<tbody>{aj}</tbody></table>{karne}{kadro_html}<div class='sb' style='margin-top:6px'>{_e(' · '.join(ek))}</div>",
           _tarih(m["tarih"]))
 
 
