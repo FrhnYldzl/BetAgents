@@ -13,6 +13,7 @@ Toto sayfası hata gösterir — BetAgents sayfaları etkilenmez (app_v2 sarmala
 from __future__ import annotations
 
 import html
+import itertools
 import json
 import math
 import sys
@@ -23,6 +24,7 @@ KOK = Path(__file__).resolve().parent
 if str(KOK) not in sys.path:
     sys.path.insert(0, str(KOK))
 
+import numpy as np  # noqa: E402
 import streamlit as st  # noqa: E402
 
 import toto_db  # noqa: E402
@@ -243,6 +245,131 @@ def _ceyrek_svg(V: list) -> str:
     return "".join(s)
 
 
+# ── portföy: kuponun A·B·C·D blokları ─────────────────────────────
+BLOK_AD = ("A", "B", "C", "D")
+BLOK_VARSAYILAN = ("DENGELİ", "15_AVCISI", "YOK", "YOK")
+PORTFOY_M = 40_000            # birleşik olasılık için örnekleme (12+/13+/14+); 15 TAM hesaplanır
+
+
+def _pb_dagilim(x) -> np.ndarray:
+    """Poisson-binom: bir KUTUNUN en iyi kolonunun doğru sayısı dağılımı (kesin)."""
+    f = np.zeros(len(x) + 1)
+    f[0] = 1.0
+    for v in x:
+        f[1:] = f[1:] * (1 - v) + f[:-1] * v
+        f[0] *= (1 - v)
+    return f
+
+
+def _blok_olcum(P, Q, S) -> dict:
+    """Bir bloğun (kutunun) kapsama olasılığı ve kalabalık benzerliği."""
+    px = np.array([sum(P[i][j] for j in S[i]) for i in range(15)])
+    qx = np.array([sum(Q[i][j] for j in S[i]) for i in range(15)])
+    f = _pb_dagilim(px)
+    return {"p15": float(f[15]), "p13p": float(f[13:].sum()), "p12p": float(f[12:].sum()),
+            "q_benzer": float(np.prod(qx / np.maximum(px, 1e-12))), "px": px}
+
+
+def _birlesik(P, bloklar: list) -> dict:
+    """Birden çok bloğun birleşimi: 15 TAM (içerme-dışarma), 12+/13+/14+ örneklemeyle."""
+    tam15 = 0.0
+    for r in range(1, len(bloklar) + 1):
+        for comb in itertools.combinations(range(len(bloklar)), r):
+            p = 1.0
+            for i in range(15):
+                ort = set(bloklar[comb[0]][i])
+                for b in comb[1:]:
+                    ort &= set(bloklar[b][i])
+                p *= sum(P[i][j] for j in ort)
+                if p == 0.0:
+                    break
+            tam15 += ((-1) ** (r + 1)) * p
+    rng = np.random.default_rng(7)
+    O = np.stack([rng.choice(3, size=PORTFOY_M, p=P[i]) for i in range(15)], axis=1)
+    en_iyi = np.zeros(PORTFOY_M, dtype=np.int16)
+    for S in bloklar:
+        cov = np.zeros((15, 3), dtype=bool)
+        for i in range(15):
+            for j in S[i]:
+                cov[i, j] = True
+        d = cov[np.arange(15)[None, :], O].sum(1).astype(np.int16)
+        en_iyi = np.maximum(en_iyi, d)
+    return {"p15": float(tam15), "p13p": float((en_iyi >= 13).mean()), "p12p": float((en_iyi >= 12).mean())}
+
+
+def _portfoy_kart(A: dict, butce: int) -> None:
+    kupon = {k["profil"]: k for k in A["kuponlar"] if k["butce"] == butce}
+    if not kupon:
+        return
+    secenek = ["YOK"] + [p for p in ("FAVORİ", "DENGELİ", "15_AVCISI") if p in kupon]
+    ad = {"YOK": "— boş —", "FAVORİ": "Favori", "DENGELİ": "Dengeli", "15_AVCISI": "15 Avcısı"}
+    st.markdown("<div class='tt-not' style='margin-top:6px'><b>Portföy.</b> Kupon A, B, C ve D olmak üzere dört "
+                "ayrı kolondan oluşur ve her biri bağımsız işaretlenir. Aynı işaretleri dört kez yazmak dört şans "
+                "değil, pahalı tek şanstır — ölçtük: 32 kolonu bloklara dağıtmanın kapsama kazancı en fazla ×1,07. "
+                "Dört bloğun asıl değeri <b>zıt profilleri aynı bilete koyabilmek</b>.<br>"
+                "<b>Dikkat:</b> en sık tutan blok en iyi blok değildir. Favori sık tutar ama kalabalık tam o "
+                "kutuda oturur, bu yüzden TL başına dönüşü en düşük olandır. Aşağıdaki son iki sütunu birlikte "
+                "oku: isabet sıklığı ile TL başına dönüş çoğu hafta ters yönde çalışır.</div>",
+                unsafe_allow_html=True)
+    sutun = st.columns(4)
+    secim = []
+    for i, (s, blok) in enumerate(zip(sutun, BLOK_AD)):
+        with s:
+            v = BLOK_VARSAYILAN[i] if BLOK_VARSAYILAN[i] in secenek else "YOK"
+            secim.append(st.selectbox(f"{blok} kolonu", secenek, index=secenek.index(v),
+                                      format_func=lambda x: ad[x], key=f"tt_blok_{blok}"))
+    P, Q = A["P"], A["Q"]
+    satir, bloklar, maliyet, kolon, ev_top = "", [], 0.0, 0, 0.0
+    for blok, prof in zip(BLOK_AD, secim):
+        if prof == "YOK":
+            satir += (f"<tr><td class='rk'>{blok}</td><td class='sb'>boş</td><td class='n'>—</td>"
+                      "<td class='n'>—</td><td class='n'>—</td><td class='n'>—</td><td class='n'>—</td></tr>")
+            continue
+        k = kupon[prof]
+        S = [list(x) for x in k["S"]]
+        o = _blok_olcum(P, Q, S)
+        bloklar.append(S)
+        maliyet += k["maliyet"]
+        kolon += k["kolon"]
+        ev_top += (k.get("ev_tl") or 0.0) * k["maliyet"]        # beklenen değer kolonda DOĞRUSAL
+        satir += (f"<tr><td class='rk'>{blok}</td><td><span class='ag'>{_e(ad[prof])}</span>"
+                  f"<span class='sb'>{k['kolon']} kolon · {_tl(k['maliyet'])}</span></td>"
+                  f"<td class='n'>{_pct(o['p15'], 3)}</td><td class='n'>{_pct(o['p13p'], 2)}</td>"
+                  f"<td class='n'>{_pct(o['p12p'], 1)}</td><td class='n'>{o['q_benzer']:.2f}</td>"
+                  f"<td class='n'>{k['ev_tl']:.2f}</td></tr>")
+    if not bloklar:
+        return
+    B = _birlesik(P, bloklar)
+    ayrisma = ""
+    if len(bloklar) >= 2:
+        far = [sum(1 for i in range(15) if set(bloklar[a][i]) != set(bloklar[b][i]))
+               for a in range(len(bloklar)) for b in range(a + 1, len(bloklar))]
+        ayrisma = (f"<div class='tt-not' style='margin-top:10px'>Bloklar birbirinden ortalama "
+                   f"<b>{np.mean(far):.1f}/15 maçta</b> ayrışıyor (en az {min(far)}, en çok {max(far)}). "
+                   "Ayrışma ne kadar yüksekse şanslar o kadar bağımsızdır.</div>")
+    ozet = ("<div class='tt-grid' style='margin-bottom:12px'>"
+            f"<div class='tt-kutu'><div class='et'>Toplam</div><div class='dg'>{kolon} kolon</div>"
+            f"<div class='al'>{_tl(maliyet)} · {len(bloklar)} blok dolu</div></div>"
+            f"<div class='tt-kutu'><div class='et'>Birleşik 12+</div><div class='dg'>{_pct(B['p12p'], 1)}</div>"
+            "<div class='al'>en az bir blok 12 ya da üstünü bilir</div></div>"
+            f"<div class='tt-kutu'><div class='et'>Birleşik 15</div><div class='dg'>{_pct(B['p15'], 4)}</div>"
+            "<div class='al'>tam hesap · 13+ için " + _pct(B["p13p"], 2) + "</div></div>"
+            f"<div class='tt-kutu'><div class='et'>Portföy dönüşü</div>"
+            f"<div class='dg'>{(ev_top / maliyet if maliyet else 0):.2f} / TL</div>"
+            "<div class='al'>blokların maliyet ağırlıklı ortalaması</div></div></div>")
+    _kart("Portföy · A · B · C · D", ozet
+          + "<table class='v2'><thead><tr><th></th><th>Blok</th><th>15</th><th>13+</th><th>12+</th>"
+            "<th>Kalabalık benzerliği</th><th>Beklenen dönüş/TL</th></tr></thead>"
+            f"<tbody>{satir}</tbody></table>" + ayrisma
+          + "<div class='tt-not' style='margin-top:10px'><b>Kalabalık benzerliği</b> 1'in üstündeyse kalabalık o "
+            "kutuyu olasılığından fazla oynuyor demektir — tutarsan ikramiyeyi daha çok kişiyle bölüşürsün. "
+            "1'in altı tersi: seyrek tutar ama tuttuğunda paylaşan azdır.</div>"
+            "<div class='tt-uyari'><b>Misli bu tabloyu değiştirmez.</b> Misli olasılığı hiç artırmaz, yalnız "
+            "bahsi katlar. Üstelik parimutuelde 15'i bilen tek kolon sizseniz misli 2 havuzun 2/2'sini verir — "
+            "yani aynı para, iki katı bedel. Şansı artırmanın yolu kolon, misli değil.</div>",
+          f"{kolon} kolon · {_tl(maliyet)}")
+
+
 def _ceyrek_kart(A: dict, k: dict) -> None:
     V = _ceyrek_veri(A, k["S"])
     kutular = ""
@@ -387,6 +514,7 @@ def bu_hafta(baslik) -> None:
                 "karar ve bütçe sınırı sizindir.</div>", unsafe_allow_html=True)
 
     _ceyrek_kart(A, k)
+    _portfoy_kart(A, B)
 
     # maç analizi
     rows = ""
