@@ -67,6 +67,17 @@ table.v2 td.tt-ger b{color:var(--ink);font-weight:600;}
 .tt-cey .cad{font-size:11px;letter-spacing:.12em;fill:var(--muted);text-transform:uppercase;}
 .tt-cey .eks{font-size:11px;fill:var(--muted);}
 .tt-cey .num{font-size:12px;font-weight:700;}
+table.v2.tt-izgara td.tt-i, table.v2.tt-izgara th.tt-i{width:26px;padding-left:2px;padding-right:2px;}
+table.v2.tt-izgara .tt-grup{border-left:2px solid var(--line-2);}
+table.v2.tt-izgara th.tt-blok{text-align:center;color:var(--brand);letter-spacing:.1em;}
+table.v2.tt-izgara tr.tt-ayri td.rk{box-shadow:inset 3px 0 0 var(--brand);}
+table.v2.tt-izgara td.tt-fark{font-family:'JetBrains Mono',monospace;font-size:var(--t-kucuk);
+  color:var(--brand);text-align:center;}
+table.v2.tt-izgara tfoot td{border-top:2px solid var(--line-2);padding-top:8px;}
+table.v2.tt-izgara td.tt-ayak{font-family:'JetBrains Mono',monospace;font-size:var(--t-kucuk);
+  color:var(--ink-2);text-align:center;line-height:1.5;}
+table.v2.tt-izgara td.tt-ayak b{font-size:var(--t-alt);color:var(--ink);}
+table.v2.tt-izgara td.tt-ayak .dv{color:var(--brand);}
 </style>"""
 
 
@@ -320,6 +331,7 @@ def _portfoy_kart(A: dict, butce: int) -> None:
                                       format_func=lambda x: ad[x], key=f"tt_blok_{blok}"))
     P, Q = A["P"], A["Q"]
     satir, bloklar, maliyet, kolon, ev_top = "", [], 0.0, 0, 0.0
+    dolu: list[tuple[str, str, list]] = []
     for blok, prof in zip(BLOK_AD, secim):
         if prof == "YOK":
             satir += (f"<tr><td class='rk'>{blok}</td><td class='sb'>boş</td><td class='n'>—</td>"
@@ -329,6 +341,7 @@ def _portfoy_kart(A: dict, butce: int) -> None:
         S = [list(x) for x in k["S"]]
         o = _blok_olcum(P, Q, S)
         bloklar.append(S)
+        dolu.append((blok, ad[prof], S, k))
         maliyet += k["maliyet"]
         kolon += k["kolon"]
         ev_top += (k.get("ev_tl") or 0.0) * k["maliyet"]        # beklenen değer kolonda DOĞRUSAL
@@ -357,10 +370,57 @@ def _portfoy_kart(A: dict, butce: int) -> None:
             f"<div class='tt-kutu'><div class='et'>Portföy dönüşü</div>"
             f"<div class='dg'>{(ev_top / maliyet if maliyet else 0):.2f} / TL</div>"
             "<div class='al'>blokların maliyet ağırlıklı ortalaması</div></div></div>")
+    # maç × blok ızgarası — fişe geçirilecek biçim
+    ust = "".join(f"<th colspan='3' class='tt-blok tt-grup'>{b} · {_e(p)}</th>" for b, p, _, _k in dolu)
+    alt = "".join("".join(f"<th class='tt-i{' tt-grup' if j == 0 else ''}'>{SEC[j]}</th>" for j in range(3))
+                  for _ in dolu)
+    izgara = ""
+    for i, m in enumerate(A["maclar"]):
+        hucre, setler = "", []
+        for _b, _p, S, _k in dolu:
+            setler.append(tuple(sorted(S[i])))
+            for j in range(3):
+                sinif = "tt-i " + ("tt-on" if j in S[i] else "tt-off") + (" tt-grup" if j == 0 else "")
+                hucre += f"<td class='{sinif}'>{SEC[j]}</td>"
+        ayri = len(set(setler)) > 1
+        tr = "<tr class='tt-ayri'>" if ayri else "<tr>"
+        izgara += (tr
+                   + f"<td class='rk'>{i + 1}</td>"
+                   f"<td><span class='ag'>{_e(m['ev'])} - {_e(m['dep'])}</span>"
+                   f"<span class='sb'>{_tarih(m['tarih'])} · {_e(m['turnuva'])}</span></td>"
+                   f"{hucre}<td class='tt-fark'>{'ayrı' if ayri else ''}</td></tr>")
+    # blok ekonomisi: ızgaranın altında, her bloğun kendi sütununda
+    ayak = "".join(
+        f"<td colspan='3' class='tt-grup tt-ayak'>{_tl(k['maliyet'])}<br>"
+        f"<b>{(k.get('ev_tl') or 0):.2f}</b> / TL"
+        + (f"<br><span class='dv'>devirle {(k['ev_tl_devirli']):.2f}</span>" if k.get("ev_tl_devirli") else "")
+        + "</td>" for _b, _p, _S, k in dolu)
+    kopya = "".join(
+        f"<div class='et' style='margin-top:10px'>{b} kolonu · {_e(p)}</div><div class='tt-kod'>"
+        + _e(" · ".join(f"{i + 1}:" + "/".join(SEC[j] for j in S[i]) for i in range(15))) + "</div>"
+        for b, p, S, _k in dolu)
+    n_ayri = sum(1 for i in range(15)
+                 if len({tuple(sorted(S[i])) for _b, _p, S, _k in dolu}) > 1)
+    kapsam = A.get("iddaa_kapsam")
     _kart("Portföy · A · B · C · D", ozet
           + "<table class='v2'><thead><tr><th></th><th>Blok</th><th>15</th><th>13+</th><th>12+</th>"
             "<th>Kalabalık benzerliği</th><th>Beklenen dönüş/TL</th></tr></thead>"
             f"<tbody>{satir}</tbody></table>" + ayrisma
+          + "<div class='et' style='margin-top:16px'>Maç maç işaretler</div>"
+            "<div class='tt-not'>Fişteki düzenin aynısı: her blok kendi 1 · 0 · 2 sütunlarıyla. Soldaki "
+            f"kalın çizgi ve sağdaki <b>ayrı</b> etiketi, blokların farklı işaret koyduğu maçları gösterir — "
+            f"portföyün çeşitlenmesi <b>{n_ayri} maçta</b> gerçekleşiyor, diğerlerinde bütün bloklar aynı "
+            "kaderi paylaşır.</div>"
+            "<table class='v2 tt-izgara' style='margin-top:8px'><thead>"
+            f"<tr><th></th><th>Maç</th>{ust}<th></th></tr>"
+            f"<tr><th></th><th></th>{alt}<th></th></tr></thead><tbody>{izgara}</tbody>"
+            f"<tfoot><tr><td></td><td class='sb'>Bloğun maliyeti ve TL başına beklenen dönüşü</td>"
+            f"{ayak}<td></td></tr></tfoot></table>"
+            f"<div class='tt-not' style='margin-top:8px'>Bu hafta <b>{kapsam}/15</b> maçta iddaa fiyatı var; "
+            "fiyatı olmayan maçlarda olasılık ajanlardan geliyor. Kalan fiyatlar açıldıkça bu getiriler "
+            "güncellenir. <b>Devirle</b> satırı, önceki haftadan devir gelirse oluşacak değeri gösterir — "
+            "bu haftanın devri henüz kesin değil.</div>"
+          + kopya
           + "<div class='tt-not' style='margin-top:10px'><b>Kalabalık benzerliği</b> 1'in üstündeyse kalabalık o "
             "kutuyu olasılığından fazla oynuyor demektir — tutarsan ikramiyeyi daha çok kişiyle bölüşürsün. "
             "1'in altı tersi: seyrek tutar ama tuttuğunda paylaşan azdır.</div>"
