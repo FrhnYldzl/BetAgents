@@ -77,6 +77,15 @@ else:
             print("[start.py] Toto zamanlayıcı başlatıldı (ayrı süreç)", flush=True)
         except Exception as e:
             print(f"[start.py] Toto zamanlayıcı başlatılamadı: {e}", flush=True)
+    # CANLI — üçüncü ürün, yine AYRI süreç, yalnız cl_* tablolarına yazar.
+    # CANLI_WORKER=0 ile kapanır; çökerse yalnız canlı toplama durur.
+    _canli = THIS / "10_CANLI" / "canli_worker.py"
+    if (os.environ.get("CANLI_WORKER", "1").strip() != "0") and _canli.exists():
+        try:
+            subprocess.Popen([sys.executable, str(_canli)])
+            print("[start.py] CANLI toplayıcı başlatıldı (ayrı süreç)", flush=True)
+        except Exception as e:
+            print(f"[start.py] CANLI toplayıcı başlatılamadı: {e}", flush=True)
     _cmd = [sys.executable, "-m", "streamlit", "run", str(app_file),
             "--server.port", port,
             "--server.address", "0.0.0.0",

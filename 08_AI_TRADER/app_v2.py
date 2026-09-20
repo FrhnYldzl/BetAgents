@@ -4723,11 +4723,15 @@ def page_inceleme() -> None:
 _TOTO_DIZIN = str(THIS_DIR.parent / "09_TOTO")
 
 
-def _toto_sayfa(ad: str, modul: str = "toto_panel"):
+_CANLI_DIZIN = str(THIS_DIR.parent / "10_CANLI")
+
+
+def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None):
     def _f():
         try:
-            if _TOTO_DIZIN not in sys.path:
-                sys.path.append(_TOTO_DIZIN)      # SONA: ad çakışmasında BetAgents modülü kazanır
+            for _d in (dizin or _TOTO_DIZIN,):
+                if _d not in sys.path:
+                    sys.path.append(_d)           # SONA: ad çakışmasında BetAgents modülü kazanır
             import importlib
             getattr(importlib.import_module(modul), ad)(_sayfa_basligi)
         except Exception as _e:
@@ -4778,6 +4782,11 @@ SAYFA_TANIM = [
          "Bu sistemle geçmişte oynasaydık ne olurdu?"),
         ("Toto · Arşiv", _toto_sayfa("arsiv"), ":material/inventory_2:", "toto-arsiv",
          "Ne oynadık, ne oldu, ne öğrendik?")]),
+    # CANLI — üçüncü ürün, kendi tabloları (cl_*) ve kendi toplayıcısı. Toto ve
+    # BetAgents'ı yalnız OKUR; hata olursa yalnız bu sayfa uyarı gösterir.
+    ("CANLI", [
+        ("Canlı Maçlar", _toto_sayfa("canli_maclar", "canli_panel", _CANLI_DIZIN),
+         ":material/sensors:", "canli", "Sahada ne oluyor, fiyat ne diyor, model ne diyor?")]),
     ("SİSTEM", [
         ("Ölçüm Defteri", page_defter, ":material/menu_book:", "defter",
          "Hangi bulgu hâlâ ayakta?"),
