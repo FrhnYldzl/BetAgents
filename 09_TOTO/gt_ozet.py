@@ -72,6 +72,83 @@ def olasilik_blogu(df: pd.DataFrame) -> tuple[str, dict]:
     return acik + _tablo(["Küme", "Kaynak", "Maç", "Log-kayıp", "Favori isabeti"], satir), ozet
 
 
+# iddaa'nın ÖLÇÜLEN 1X2 marjı (02_VERI önizleme anlık görüntüsü, 7.929 maç kapanış fiyatı):
+# üst ligler %13,1 · geri kalan %17,2. Bu haftanın Toto maçlarında da %13,1 çıktı.
+MARJ_UST, MARJ_DIGER = 0.131, 0.172
+UST_AILE = {"TR-UST", "EU-BIG", "MILLI", "KUPA"}
+GUVEN_KADEME = ((0.0, 0.40), (0.40, 0.50), (0.50, 0.60), (0.60, 0.70), (0.70, 0.80), (0.80, 1.01))
+KOMBINE_N = (3, 4, 5, 6, 7, 8, 10, 12, 15)
+
+
+def _kombine_veri(df: pd.DataFrame) -> pd.DataFrame:
+    """Her maç: modelin favorisi · güveni · o favoriye iddaa'nın vereceği oran · tuttu mu.
+    Teklif oranı açılış fiyatından türetilir (Toto kapanışında oynanabilecek fiyat)."""
+    d = df[df["pi"].notna() & df["p_piyasa"].notna() & df["sonuc"].notna() & ~df["noter"]]
+    sat = []
+    for r in d.to_dict("records"):
+        p = np.asarray(r["pi"], float)
+        j = int(np.argmax(p))
+        marj = MARJ_UST if r["aile"] in UST_AILE else MARJ_DIGER
+        ref = float(np.asarray(r["p_piyasa"], float)[j])
+        sat.append({"hafta_id": r["hafta_id"], "guc": float(p[j]), "oran": 1.0 / max(ref * (1 + marj), 1e-9),
+                    "tuttu": int(r["sonuc"]) == j})
+    return pd.DataFrame(sat)
+
+
+def kombine_blogu(df: pd.DataFrame) -> str:
+    """Aynı maçlar Toto yerine iddaa'da kombine oynansa ne olurdu?"""
+    S = _kombine_veri(df)
+    if len(S) < 200:
+        return "<div class='tt-not'>Yeterli veri yok.</div>"
+    kal = []
+    for lo, hi in GUVEN_KADEME:
+        g = S[(S["guc"] >= lo) & (S["guc"] < hi)]
+        if len(g) < 20:
+            continue
+        kal.append([f"%{lo * 100:.0f}–%{min(hi, 1) * 100:.0f}", f"{len(g):,}".replace(",", "."),
+                    "%" + _v(g["tuttu"].mean() * 100, 1), _v(g["oran"].mean()),
+                    _v((g["tuttu"] * g["oran"]).mean())])
+    rng = np.random.default_rng(17)
+    lad = []
+    for N in KOMBINE_N:
+        kaz, ode = [], []
+        for _hid, g in S.groupby("hafta_id"):
+            if len(g) < N:
+                continue
+            t = g.nlargest(N, "guc")
+            kaz.append(bool(t["tuttu"].all()))
+            ode.append(float(t["oran"].prod()))
+        if len(kaz) < 30:
+            continue
+        kaz, ode = np.array(kaz), np.array(ode)
+        getiri = np.where(kaz, ode, 0.0)
+        bs = np.array([getiri[rng.integers(0, len(getiri), len(getiri))].mean() for _ in range(3000)])
+        lad.append([f"{N} ayak", f"{kaz.sum()} / {len(kaz)}", "%" + _v(kaz.mean() * 100, 1),
+                    ("%.0f×" % ode.mean()) if ode.mean() >= 10 else _v(ode.mean()) + "×",
+                    "<b>" + _v(getiri.mean()) + "</b>",
+                    f"{_v(np.quantile(bs, .025))} – {_v(np.quantile(bs, .975))}"])
+    cn = [[f"{N} ayak", _v((1 / (1 + MARJ_UST)) ** N), _v((1 / (1 + MARJ_DIGER)) ** N)] for N in (1, 3, 5, 8, 12, 15)]
+    return (
+        "<div class='tt-not'><b>Soru:</b> Toto'nun 15 maçını bilme gücümüz varsa, aynı maçları iddaa'da kombine "
+        "oynasak ne olurdu? Her hafta modelin en güvendiği N maç seçildi, gerçek sonuçla ödendi. Teklif oranı "
+        f"açılış fiyatından, iddaa'nın <b>ölçülen</b> marjıyla türetildi (üst lig %{_v(MARJ_UST * 100, 1)}, "
+        f"diğer %{_v(MARJ_DIGER * 100, 1)} — kendi fiyat arşivimizden 7.929 maç).</div>"
+        "<div class='tt-not' style='margin-top:10px'><b>Önce model kendini kanıtlıyor:</b> güven kademesi ile "
+        "gerçekleşen isabet neredeyse birebir. Ama son sütun her kademede 1,00'ın altında — tek maçta bile "
+        "marjı ödüyoruz.</div>"
+        + _tablo(["Model diyor", "Maç", "Gerçekleşen isabet", "Ortalama oran", "1 maçlık dönüş/TL"], kal)
+        + "<div class='tt-not' style='margin-top:14px'><b>Kademeli kombine:</b> ayak arttıkça isabet düşüyor, "
+          "ödeme büyüyor — ama dönüş hiçbir basamakta 1,00'a ulaşmıyor.</div>"
+        + _tablo(["Kupon", "Tuttu", "İsabet", "Tutunca ödeme", "Dönüş/TL", "%95 aralık"], lad)
+        + "<div class='tt-not' style='margin-top:14px'><b>Neden:</b> marj <i>her ayakta yeniden</i> alınıyor. "
+          "Maçın 'güçlü' olması bunu değiştirmez — güçlü maçta oran zaten düşüktür, fiyat o gücü içerir. "
+          f"Başa baş için her ayakta piyasadan %{_v(MARJ_UST * 100, 1)}–%{_v(MARJ_DIGER * 100, 1)} daha iyi "
+          "olmak gerekir; ölçülen üstünlüğümüz %0,06 (bkz. <i>Olasılık isabeti</i> bloğu). Toto'da kesinti "
+          "<b>bir kez</b> alınır ve devir eden para kimsenin o hafta ödemediği paradır — bu yüzden 15 maçı "
+          "birlikte oynamanın doğru adresi Toto'dur.</div>"
+        + _tablo(["Kupon", "Üst lig · kalan", "Diğer · kalan"], cn))
+
+
 def kalabalik_blogu(df: pd.DataFrame) -> tuple[str, dict]:
     """Önbellekli sarmalayıcı (veri seti değişmediyse yeniden hesaplamaz)."""
     onb = CACHE / "gt_kalabalik.pkl"
@@ -265,6 +342,8 @@ def calis() -> dict:
             {"baslik": "Beklenen ↔ gerçekleşen · derece derece", "html": derece_blogu(K)[0], "ipucu": "TL başına"},
             {"baslik": "Beklenen değer nereden geliyor", "html": dagilim_blogu(K), "ipucu": "TL başına"},
             {"baslik": "Olasılık isabeti · ajanlar ve pazar", "html": ob, "ipucu": "log-kayıp"},
+            {"baslik": "Aynı maçlar iddaa'da kombine oynansa", "html": kombine_blogu(df),
+             "ipucu": "ölçülen marj · gerçek sonuç"},
             {"baslik": "Kalabalık modeli · kazanan sayısı öngörüsü", "html": kb,
              "ipucu": f"{kz['n']} hafta · ileriye yürüyen"},
             {"baslik": "En büyük ödemeli haftalar", "html": hafta_blogu(K), "ipucu": "tüm profiller"},
