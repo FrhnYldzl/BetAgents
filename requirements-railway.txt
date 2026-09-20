@@ -11,3 +11,7 @@ requests==2.34.2
 sqlalchemy==2.0.49
 psycopg2-binary==2.9.9
 APScheduler==3.11.2
+
+# Vibe Betting sohbet asistanı (09_TOTO/vibe_*) — web sürecinde çalışır, RUNTIME.
+# Anahtar (ANTHROPIC_API_KEY_BET_AGENTS) yoksa hiç çağrılmaz; sayfa bunu söyler.
+anthropic>=0.94,<2

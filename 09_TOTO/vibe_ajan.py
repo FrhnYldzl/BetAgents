@@ -153,7 +153,9 @@ def durum() -> str:
     try:
         import anthropic  # noqa: F401
     except ImportError:
-        return "anthropic paketi kurulu değil"
+        return "anthropic paketi kurulu değil"          # requirements-railway.txt (Dockerfile bunu kurar)
+    except Exception as e:
+        return f"anthropic yüklenemedi: {type(e).__name__}"
     return "hazır"
 
 
