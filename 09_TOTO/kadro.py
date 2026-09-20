@@ -108,18 +108,62 @@ def gun_eksikleri(gun: str) -> dict | None:
     return out
 
 
-def _takim_bul(eksikler: dict, ad: str, milli: bool) -> list | None:
+def gun_fiksturleri(gun: str) -> list | None:
+    """O günün maçları: (fikstür id, ev adı, dep adı) — API'nin KENDİ adlarıyla.
+    Sakatlıkları takım adına göre eşlerken bu adlar kullanılır: API milli takımları
+    yerel adla tutuyor (Türkiye, Czechia) ve bulanık eşleme kulüplere takılabiliyor
+    ("Türkiyemspor"). Fikstürden geçmek bu riski kapatır."""
+    if not pencere_ici(gun):
+        return None
+    d = _cagir(f"fixtures?date={gun[:10]}", f"fikstur_{gun[:10]}", 12 * 3600)
+    if not d or d.get("errors"):
+        return None
+    out = []
+    for x in d.get("response") or []:
+        t = x.get("teams") or {}
+        out.append({"id": (x.get("fixture") or {}).get("id"),
+                    "ev": ((t.get("home") or {}).get("name") or "").strip(),
+                    "dep": ((t.get("away") or {}).get("name") or "").strip(),
+                    "lig": ((x.get("league") or {}).get("name") or "")})
+    return out
+
+
+def _adlar(mac: dict, milli: bool) -> tuple[list[str], list[str]]:
+    """Aranacak adlar: Toto'nun Türkçe adı + (milli ise) İngilizce karşılığı."""
+    ev = [mac["ev"]]
+    dep = [mac["dep"]]
     if milli:
-        en = MILLI_EN.get(ad.strip())
-        if en and en in eksikler:
-            return eksikler[en]
-        ad = en or ad
+        for liste, ad in ((ev, mac["ev"]), (dep, mac["dep"])):
+            en = MILLI_EN.get(ad.strip())
+            if en:
+                liste.append(en)
+    return ev, dep
+
+
+def _fikstur_bul(mac: dict, milli: bool):
+    """Toto maçını API fikstürüne bağla → (ev_api_adi, dep_api_adi, fikstur_id)."""
+    fk = gun_fiksturleri(mac["tarih"])
+    if not fk:
+        return None
+    ev_adlar, dep_adlar = _adlar(mac, milli)
+    en, skor = None, 0.0
+    for f in fk:
+        s = max(benzer(a, f["ev"]) for a in ev_adlar) + max(benzer(b, f["dep"]) for b in dep_adlar)
+        if s > skor:
+            en, skor = f, s
+    return (en["ev"], en["dep"], en["id"]) if en is not None and skor >= 1.6 else None
+
+
+def _takim_bul(eksikler: dict, ad: str) -> list | None:
+    """Sakatlık listesinde takımı TAM adla bul (fikstürden gelen ad)."""
+    if ad in eksikler:
+        return eksikler[ad]
     en_iyi, skor = None, 0.0
     for t, v in eksikler.items():
         s = benzer(ad, t)
         if s > skor:
             en_iyi, skor = v, s
-    return en_iyi if skor >= 0.8 else None
+    return en_iyi if skor >= 0.95 else None
 
 
 def kadro_gorusu(mac: dict, onsel, milli: bool) -> tuple[list | None, dict]:
@@ -127,8 +171,11 @@ def kadro_gorusu(mac: dict, onsel, milli: bool) -> tuple[list | None, dict]:
     eksikler = gun_eksikleri(mac["tarih"])
     if not eksikler or onsel is None:
         return None, {}
-    ev = _takim_bul(eksikler, mac["ev"], milli)
-    dep = _takim_bul(eksikler, mac["dep"], milli)
+    f = _fikstur_bul(mac, milli)
+    if f is None:                                   # maçı API fikstüründe bulamadıysak SUS
+        return None, {}
+    ev = _takim_bul(eksikler, f[0])
+    dep = _takim_bul(eksikler, f[1])
     if ev is None and dep is None:
         return None, {}
     ag_ev = sum(x["agirlik"] for x in (ev or []))
@@ -144,7 +191,7 @@ def kadro_gorusu(mac: dict, onsel, milli: bool) -> tuple[list | None, dict]:
             "ev_agirlik": round(ag_ev, 1), "dep_agirlik": round(ag_dep, 1),
             "ev_liste": [x["oyuncu"] for x in (ev or [])][:6],
             "dep_liste": [x["oyuncu"] for x in (dep or [])][:6],
-            "kayma": round(s, 3)}
+            "kayma": round(s, 3), "api_ev": f[0], "api_dep": f[1], "fikstur": f[2]}
     return p.tolist(), not_
 
 
