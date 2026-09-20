@@ -30,6 +30,7 @@ MASTER   canli.analiz     P (pazar) × q (kalabalık) × havuz → profil × bü
   - kapanışa 3 saat kala son analiz,
   - sonuç açıklanınca kâğıt kuponları kapatma, cüzdanları güncelleme ve dersi yazma.
 - Ağır geçmiş veri üretimde işlenmez. Ajanların hafızası `model_durum.json`, kalabalık modeli `model_parametre.json` dosyasından okunur.
+- KADRO ajanı için Railway'de `API_FOOTBALL_KEY` değişkeni gerekir. Yoksa ajan susar, başka hiçbir şey etkilenmez. Ücretsiz planda API yalnız dün–bugün–yarın penceresini veriyor; Toto listesi haftaya yayıldığı için kapsama kapanış gününde genişler. Kota günde 100 istek, tarih başına 2 sorgu (fikstür + sakatlık), 12/6 saat önbellekli.
 - Panel: `08_AI_TRADER/app_v2.py` › SÜPER TOTO. Sayfalar `toto_panel.py`'de. Hata olursa yalnız Toto sayfası uyarı gösterir.
 
 ## Yerel bakım (haftada bir)
