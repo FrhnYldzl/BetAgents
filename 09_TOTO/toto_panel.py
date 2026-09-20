@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -59,6 +60,11 @@ table.v2 td.tt-ger b{color:var(--ink);font-weight:600;}
 .tt-kapi .kosul b{font-family:'JetBrains Mono',monospace;font-size:var(--t-kucuk);}
 .tt-kod{font-family:'JetBrains Mono',monospace;font-size:var(--t-alt);background:var(--panel-2);
   border:1px solid var(--line);padding:8px 10px;border-radius:var(--r);white-space:pre-wrap;word-break:break-word;}
+.tt-cey{width:100%;height:auto;display:block;margin:4px 0 10px;}
+.tt-cey text{font-family:'JetBrains Mono',monospace;}
+.tt-cey .cad{font-size:11px;letter-spacing:.12em;fill:var(--muted);text-transform:uppercase;}
+.tt-cey .eks{font-size:11px;fill:var(--muted);}
+.tt-cey .num{font-size:12px;font-weight:700;}
 </style>"""
 
 
@@ -144,6 +150,115 @@ def _kadro_kutu(A: dict) -> str:
             else "penceredeki maçlarda liste bulunamadı"))
     return (f"<div class='tt-kutu'><div class='et'>Kadro verisi</div><div class='dg'>{_e(durum)}</div>"
             f"<div class='al'>{_e(alt)}</div></div>")
+
+
+# ── güç × kaldıraç çeyreği ────────────────────────────────────────
+CEYREK = {
+    "BANKO": "Hem biliyoruz hem kalabalık favorimizi az oynuyor. Tek işaret — kuponun omurgası.",
+    "KALABALIK FAVORİ": "Biliyoruz ama herkes aynı yere yığılmış. Tek işaret, kupona değer katmaz.",
+    "FIRSAT": "Belirsiz maç, ama kalabalık yanlış yerde. Riski buradan satın al — ikili işaret.",
+    "KARANLIK": "Ne güçlü bilgimiz var ne kalabalık yanılıyor. Sigorta (ikili/üçlü) ya da geç.",
+}
+X0, X1, Y0, Y1 = 0.34, 0.92, 0.55, 1.85          # eksen sınırları (güç · kaldıraç)
+GX, GY = 0.55, 1.00                               # çeyrek ayırıcıları
+CL, CR, CT, CB = 76, 726, 32, 340                 # çizim alanı
+
+
+def _cx(g: float) -> float:
+    g = min(max(g, X0), X1)
+    return CL + (CR - CL) * (g - X0) / (X1 - X0)
+
+
+def _cy(v: float) -> float:
+    v = min(max(v, Y0), Y1)
+    return CB - (CB - CT) * (math.log(v) - math.log(Y0)) / (math.log(Y1) - math.log(Y0))
+
+
+def _ceyrek_veri(A: dict, S: list) -> list[dict]:
+    """Her maç: güç (favorimizin olasılığı) · kaldıraç (favorimizin olasılığı ÷ kalabalığın ona verdiği pay).
+    Kaldıraç 1'in ALTI, kalabalığın aynı sonuca bizden çok yığıldığı demektir — bilmek para kazandırmaz."""
+    out = []
+    for i, m in enumerate(A["maclar"]):
+        P, Q = A["P"][i], A["Q"][i]
+        f = max(range(3), key=lambda x: P[x])
+        guc, kal = float(P[f]), float(P[f] / max(Q[f], 1e-9))
+        j = max(range(3), key=lambda x: P[x] / max(Q[x], 1e-9))
+        ad = ("BANKO" if kal >= GY else "KALABALIK FAVORİ") if guc >= GX else ("FIRSAT" if kal >= GY else "KARANLIK")
+        out.append({"i": i, "mac": f"{m['ev']} - {m['dep']}", "guc": guc, "kal": kal,
+                    "fav": SEC[f], "sec": SEC[j], "sec_kal": float(P[j] / max(Q[j], 1e-9)),
+                    "n": len(S[i]), "ceyrek": ad, "bilgi": m.get("bilgi", "yok"),
+                    "x": _cx(guc), "y": _cy(kal)})
+    for _ in range(60):                            # üst üste binen noktaları hafifçe ayır
+        for a in out:
+            for b in out:
+                if a is b:
+                    continue
+                dx, dy = a["x"] - b["x"], a["y"] - b["y"]
+                d = math.hypot(dx, dy)
+                if 1e-6 < d < 30:
+                    it = (30 - d) / d * 0.25
+                    a["x"] += dx * it; a["y"] += dy * it
+                elif d <= 1e-6:
+                    a["x"] += 0.7; a["y"] -= 0.7
+        for a in out:
+            a["x"] = min(max(a["x"], CL + 14), CR - 14)
+            a["y"] = min(max(a["y"], CT + 14), CB - 14)
+    return out
+
+
+def _ceyrek_svg(V: list) -> str:
+    gx, gy = _cx(GX), _cy(GY)
+    s = [f"<svg class='tt-cey' viewBox='0 0 760 418' preserveAspectRatio='xMidYMid meet' role='img'>"]
+    s.append(f"<rect x='{gx}' y='{CT}' width='{CR - gx}' height='{gy - CT}' fill='var(--brand-fill)' opacity='.55'/>")
+    s.append(f"<rect x='{CL}' y='{CT}' width='{gx - CL}' height='{gy - CT}' fill='var(--panel-2)'/>")
+    s.append(f"<rect x='{CL}' y='{CT}' width='{CR - CL}' height='{CB - CT}' fill='none' stroke='var(--line)'/>")
+    s.append(f"<line x1='{gx}' y1='{CT}' x2='{gx}' y2='{CB}' stroke='var(--line-2)' stroke-dasharray='3 3'/>")
+    s.append(f"<line x1='{CL}' y1='{gy}' x2='{CR}' y2='{gy}' stroke='var(--line-2)' stroke-dasharray='3 3'/>")
+    for ad, ax, ay, an in (("FIRSAT", CL + 10, CT + 20, "start"), ("BANKO", CR - 10, CT + 20, "end"),
+                           ("KARANLIK", CL + 10, CB - 10, "start"), ("KALABALIK FAVORİ", CR - 10, CB - 10, "end")):
+        s.append(f"<text class='cad' x='{ax}' y='{ay}' text-anchor='{an}'>{ad}</text>")
+    for g in (0.40, 0.55, 0.70, 0.85):             # x ekseni
+        s.append(f"<text class='eks' x='{_cx(g)}' y='{CB + 16}' text-anchor='middle'>%{g * 100:.0f}</text>")
+    for v in (0.6, 0.8, 1.0, 1.3, 1.7):            # y ekseni
+        s.append(f"<text class='eks' x='{CL - 8}' y='{_cy(v) + 4}' text-anchor='end'>{v:.1f}×</text>")
+    s.append(f"<text class='cad' x='{(CL + CR) / 2}' y='{CB + 36}' text-anchor='middle'>"
+             "GÜÇ · favorimizin olasılığı →</text>")
+    s.append(f"<text class='cad' x='-{(CT + CB) / 2}' y='16' text-anchor='middle' transform='rotate(-90)'>"
+             "KALDIRAÇ · kalabalık favorimizi ne kadar AZ oynuyor →</text>")
+    dolgu = {1: ("var(--brand)", "var(--brand)", "#ffffff"), 2: ("var(--brand-fill)", "var(--brand)", "var(--brand)"),
+             3: ("var(--panel-3)", "var(--line-2)", "var(--muted)")}
+    for p in V:
+        f, c, t = dolgu.get(p["n"], dolgu[3])
+        kes = " stroke-dasharray='2 2'" if p["bilgi"] == "yok" else ""
+        s.append(f"<circle cx='{p['x']:.1f}' cy='{p['y']:.1f}' r='13' fill='{f}' stroke='{c}'{kes}/>"
+                 f"<text class='num' x='{p['x']:.1f}' y='{p['y'] + 4:.1f}' text-anchor='middle' fill='{t}'>"
+                 f"{p['i'] + 1}</text>")
+    ly = CB + 66
+    for dx, (n, ad) in zip((CL, CL + 150, CL + 290), ((1, "tek işaret"), (2, "ikili"), (3, "üçlü"))):
+        f, c, _t = dolgu[n]
+        s.append(f"<circle cx='{dx + 8}' cy='{ly - 4}' r='7' fill='{f}' stroke='{c}'/>"
+                 f"<text class='eks' x='{dx + 22}' y='{ly}'>{ad}</text>")
+    s.append(f"<text class='eks' x='{CL + 420}' y='{ly}'>kesik çizgi: fiyatı/bilgisi olmayan maç</text>")
+    s.append("</svg>")
+    return "".join(s)
+
+
+def _ceyrek_kart(A: dict, k: dict) -> None:
+    V = _ceyrek_veri(A, k["S"])
+    kutular = ""
+    for ad, aciklama in CEYREK.items():
+        uy = [p for p in V if p["ceyrek"] == ad]
+        no = " · ".join(f"{p['i'] + 1}" for p in uy) or "—"
+        kutular += (f"<div class='tt-kutu'><div class='et'>{_e(ad)} · {len(uy)} maç</div>"
+                    f"<div class='dg'>{_e(no)}</div><div class='al'>{_e(aciklama)}</div></div>")
+    _kart("Güç × Kaldıraç · kupon neden böyle kuruldu",
+          "<div class='tt-not'><b>Yatay eksen — güç:</b> modelin favorisine verdiği olasılık. "
+          "<b>Dikey eksen — kaldıraç:</b> o favorinin olasılığı ÷ kalabalığın ona verdiği işaret payı. "
+          "1,0'ın <b>üstü</b> kalabalığın onu az oynadığı, <b>altı</b> herkesin aynı yere yığıldığı demektir. "
+          "Toto parimutuel olduğu için ikramiyeyi bölüşürüz: bir maçı bilmek değil, <b>kalabalıktan farklı "
+          "bilmek</b> kazandırır. Kuponun parası sağ üstten, riski sol taraftan gelir; sağ alt bölge doğru "
+          "olsa bile ödemeyi kalabalıkla paylaştırır.</div>" + _ceyrek_svg(V)
+          + f"<div class='tt-grid'>{kutular}</div>", "P / q · işaret sayısı")
 
 
 def ics(A: dict) -> str:
@@ -270,6 +385,8 @@ def bu_hafta(baslik) -> None:
                 "Bunlar tek haftada çok seyrektir; kâr ancak uzun sürede ve seyrek büyük vuruşlarla gerçekleşir. "
                 "Geçmiş Test sayfası bunun geçmişte nasıl sonuçlandığını gösterir. Bu bir yatırım tavsiyesi değildir; "
                 "karar ve bütçe sınırı sizindir.</div>", unsafe_allow_html=True)
+
+    _ceyrek_kart(A, k)
 
     # maç analizi
     rows = ""
