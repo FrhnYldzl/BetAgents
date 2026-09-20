@@ -103,6 +103,27 @@ def _ms_oran(ev: dict):
     return (pazarlar(ev) or {}).get("1X2")
 
 
+ACIK = 1          # m.s = 1 açık · -2 askıda (ölçüldü: 116 pazarın 16'sı askıda)
+
+
+def askidakiler(ev: dict) -> list[str]:
+    """Askıya alınmış pazarlar. Gol anında iddaa pazarı kapatıyor; askıdayken
+    görünen oran ALINAMAZ. Aşırı tepki ölçümünde bu satırlar dışlanmalı —
+    kaydedilmezse sonradan geri getirilemez."""
+    out = []
+    for m in ev.get("m") or []:
+        if m.get("s") == ACIK:
+            continue
+        kod, sov = (m.get("t"), m.get("st")), str(m.get("sov") or "")
+        if kod in KOD_1X2:
+            out.append("1X2")
+        elif kod in KOD_KG:
+            out.append("KG")
+        elif kod in KOD_AU and sov in AU_HATLAR:
+            out.append("AU" + sov.replace(".", ""))
+    return sorted(set(out))
+
+
 def pazarlar(ev: dict) -> dict:
     """Olaydaki ilgilendiğimiz pazarlar: {"1X2": (1,0,2), "KG": (var,yok), "AU25": (alt,üst), ...}"""
     out: dict = {}
@@ -166,7 +187,8 @@ def iddaa_canli() -> list[dict]:
             bas = None
         out.append({"iddaa_id": e.get("i"), "ev": (e.get("hn") or "").strip(),
                     "dep": (e.get("an") or "").strip(), "baslangic": bas,
-                    "oran": pz.get("1X2"), "pazar": pz})
+                    "oran": pz.get("1X2"), "pazar": pz,
+                    "askida": askidakiler(e), "pazar_sayisi": len(e.get("m") or [])})
     return out
 
 

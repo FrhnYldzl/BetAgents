@@ -32,7 +32,7 @@ SEMA = [
     """CREATE TABLE IF NOT EXISTS cl_anlik (
         mac_id TEXT, ts TEXT, dakika INTEGER, safha TEXT, ev_skor INTEGER, dep_skor INTEGER,
         kirmizi_ev INTEGER, kirmizi_dep INTEGER, oran TEXT, p_piyasa TEXT, p_model TEXT,
-        pazar TEXT, PRIMARY KEY (mac_id, ts))""",
+        pazar TEXT, askida TEXT, PRIMARY KEY (mac_id, ts))""",
     """CREATE TABLE IF NOT EXISTS cl_kupon (
         hafta_id INTEGER, profil TEXT, butce INTEGER, ts TEXT, icerik TEXT,
         PRIMARY KEY (hafta_id, profil, butce, ts))""",
@@ -50,7 +50,7 @@ def simdi() -> str:
 # eklemez. Her biri KENDİ bağlantısında denenir — PostgreSQL hatalı deyimden
 # sonra işlemi iptal ettiği için aynı bağlantıda zincirlenemez.
 EK_SUTUN = [("cl_mac", "oran_once", "TEXT"), ("cl_mac", "oran_kapanis", "TEXT"),
-            ("cl_anlik", "pazar", "TEXT")]
+            ("cl_anlik", "pazar", "TEXT"), ("cl_anlik", "askida", "TEXT")]
 
 
 def _sutun_ekle(tablo: str, sutun: str, tip: str) -> None:
@@ -148,14 +148,15 @@ def anlik_yaz(mac_id: str, a: dict) -> None:
     try:
         c.execute(
             "INSERT INTO cl_anlik (mac_id, ts, dakika, safha, ev_skor, dep_skor, kirmizi_ev, kirmizi_dep, "
-            "oran, p_piyasa, p_model, pazar) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+            "oran, p_piyasa, p_model, pazar, askida) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT (mac_id, ts) DO NOTHING",
             (mac_id, a.get("ts") or simdi(), a.get("dakika"), a.get("safha"), a.get("ev_skor"),
              a.get("dep_skor"), a.get("kirmizi_ev"), a.get("kirmizi_dep"),
              json.dumps(a.get("oran"), ensure_ascii=False) if a.get("oran") else None,
              json.dumps(a.get("p_piyasa")) if a.get("p_piyasa") else None,
              json.dumps(a.get("p_model")) if a.get("p_model") else None,
-             json.dumps(a.get("pazar"), ensure_ascii=False) if a.get("pazar") else None))
+             json.dumps(a.get("pazar"), ensure_ascii=False) if a.get("pazar") else None,
+             json.dumps(a.get("askida"), ensure_ascii=False) if a.get("askida") else None))
         c.commit()
     finally:
         c.close()
@@ -168,7 +169,7 @@ def canli_maclar(n: int = 60) -> list[dict]:
         r = c.execute(
             "SELECT m.mac_id, m.lig, m.ev, m.dep, m.baslangic, m.toto_hafta, m.toto_sira, m.durum, "
             "a.ts, a.dakika, a.safha, a.ev_skor, a.dep_skor, a.oran, a.p_piyasa, a.p_model, m.oran_once, "
-            "m.iddaa_id, a.pazar "
+            "m.iddaa_id, a.pazar, a.askida "
             "FROM cl_mac m JOIN cl_anlik a ON a.mac_id = m.mac_id "
             "WHERE a.ts = (SELECT MAX(ts) FROM cl_anlik b WHERE b.mac_id = m.mac_id) "
             "AND m.durum = 'canli' "
@@ -178,11 +179,11 @@ def canli_maclar(n: int = 60) -> list[dict]:
         return []
     c.close()
     ad = ["mac_id", "lig", "ev", "dep", "baslangic", "toto_hafta", "toto_sira", "durum", "ts", "dakika",
-          "safha", "ev_skor", "dep_skor", "oran", "p_piyasa", "p_model", "oran_once", "iddaa_id", "pazar"]
+          "safha", "ev_skor", "dep_skor", "oran", "p_piyasa", "p_model", "oran_once", "iddaa_id", "pazar", "askida"]
     out = []
     for x in r[:n]:
         d = dict(zip(ad, x))
-        for k in ("oran", "p_piyasa", "p_model", "oran_once", "pazar"):
+        for k in ("oran", "p_piyasa", "p_model", "oran_once", "pazar", "askida"):
             try:
                 d[k] = json.loads(d[k]) if d[k] else None
             except Exception:

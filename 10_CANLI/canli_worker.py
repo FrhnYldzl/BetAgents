@@ -110,7 +110,7 @@ class Toplayici:
             canli_db.anlik_yaz(m["mac_id"], {
                 "dakika": m.get("dakika"), "safha": m.get("safha"), "ev_skor": m.get("ev_skor"),
                 "dep_skor": m.get("dep_skor"), "kirmizi_ev": m.get("kirmizi_ev"),
-                "kirmizi_dep": m.get("kirmizi_dep"), "oran": m.get("oran"), "pazar": m.get("pazar"),
+                "kirmizi_dep": m.get("kirmizi_dep"), "oran": m.get("oran"), "pazar": m.get("pazar"), "askida": m.get("askida"),
                 "p_piyasa": [round(x, 4) for x in p_piyasa] if p_piyasa else None,
                 "p_model": [round(x, 4) for x in p_model] if p_model else None})
             yazilan += 1
