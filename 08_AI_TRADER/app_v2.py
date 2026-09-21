@@ -4724,6 +4724,7 @@ _TOTO_DIZIN = str(THIS_DIR.parent / "09_TOTO")
 
 
 _CANLI_DIZIN = str(THIS_DIR.parent / "10_CANLI")
+_BAKIM_DIZIN = str(THIS_DIR.parent / "11_BAKIM")
 
 
 def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None):
@@ -4793,7 +4794,10 @@ SAYFA_TANIM = [
         ("Ölçüm Defteri", page_defter, ":material/menu_book:", "defter",
          "Hangi bulgu hâlâ ayakta?"),
         ("Sağlık", page_sistem, ":material/monitor_heart:", "saglik",
-         "Sistem ayakta mı, veri sağlam mı?")]),
+         "Sistem ayakta mı, veri sağlam mı?"),
+        # Haftalık Bakım — 11_BAKIM, BetAgents tablolarını YALNIZ OKUR (bk_* kendi kaydı).
+        ("Haftalık Bakım", _toto_sayfa("haftalik_bakim", "bakim_panel", _BAKIM_DIZIN),
+         ":material/build:", "bakim", "Bahisler, sonuçlar ve filtreler tutarlı mı?")]),
 ]
 # sayfa adı -> {bölüm, soru}; PAGES okuma sırasını taşır (alt gezinme)
 SORU: dict = {}
