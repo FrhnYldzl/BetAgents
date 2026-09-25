@@ -100,6 +100,11 @@ def haftalik_bakim(baslik) -> None:
 
     son = gecmis[0] if gecmis else None
     eski = (not son) or (datetime.now(timezone.utc) - datetime.fromisoformat(son["ts"]) > ARALIK)
+    # Kontrol seti değiştiyse (yeni kontrol eklendiyse) saklanan sonuç eksik
+    # kalır ve yeni kontroller sayfada hiç görünmez — bu yüzden yeniden koşulur.
+    if son and not eski:
+        var = set(son.get("kontrol_idler") or [x["id"] for x in son.get("kontroller", [])])
+        eski = not var.issuperset(K.BEKLENEN_IDLER)
     zorla = st.session_state.pop("bk_zorla", False)
     if eski or zorla:
         with st.spinner("Denetim çalışıyor…"):
@@ -164,7 +169,40 @@ def haftalik_bakim(baslik) -> None:
                 st.markdown("".join(f"<div class='bk-ornek'>{_e(o)}</div>" for o in x["ornek"]),
                             unsafe_allow_html=True)
 
-    # bilgi: ajan karnesi
+    # bilgi: ajan karnesi — isabet, fiyatın beklediği isabet, hüküm
+    karne = next((x for x in kontroller if x["id"] == "karne"), None)
+    if karne and karne.get("tablo"):
+        renk = {"işaret var": "ps", "zararlı": "ng", "gürültü": "", "ölçülemez": ""}
+        rows = ""
+        for t in karne["tablo"]:
+            fark = t["fark"] * 100
+            clv = "—" if t["clv"] is None else f"{t['clv'] * 100:+.1f}".replace(".", ",")
+            yeter = "✓" if t["n"] >= t["gereken_n"] else f"{t['n']}/{t['gereken_n']}"
+            rows += (f"<tr><td><span class='ag'>{_e(t['ajan'][:30])}</span>"
+                     f"<span class='sb'>ort. oran {t['ort_oran']:.2f}</span></td>"
+                     f"<td class='n'>{t['n']}</td>"
+                     f"<td class='n'><b>{t['isabet'] * 100:.1f}%</b></td>"
+                     f"<td class='n'>{t['beklenen'] * 100:.1f}%</td>"
+                     f"<td class='n v2{renk.get(t['hukum'], '')}'>{'+' if fark >= 0 else ''}"
+                     f"{fark:.1f} p</td>"
+                     f"<td class='n'>{t['getiri']:+.3f}</td>"
+                     f"<td class='n'>[{t['alt']:+.2f}, {t['ust']:+.2f}]</td>"
+                     f"<td class='n'>{clv}</td>"
+                     f"<td class='n'>{_e(t['hukum'])}</td>"
+                     f"<td class='n'>{_e(yeter)}</td></tr>")
+        _kart("Ajan karnesi · isabet, fiyatın beklediği isabet ve hüküm",
+              f"<div class='bk-not'>{_e(karne['aciklama'])}</div>"
+              "<table class='v2' style='margin-top:8px'><thead><tr><th>Ajan</th><th>n</th>"
+              "<th>İsabet</th><th>Fiyat bekliyordu</th><th>Fark</th><th>Birim getiri</th>"
+              "<th>%95 aralık</th><th>CLV</th><th>Hüküm</th><th>Yeterli n</th></tr></thead>"
+              f"<tbody>{rows}</tbody></table>"
+              "<div class='bk-not' style='margin-top:8px'><b>Nasıl okunur.</b> <b>Fark</b> sütunu "
+              "isabetin fiyatın beklediğinden ne kadar iyi olduğudur — asıl beceri göstergesi budur, "
+              "çıplak isabet değil. <b>%95 aralık</b> sıfırı içeriyorsa o ajan hakkında henüz bir şey "
+              "söylenemez. <b>Yeterli n</b>, o ajanın oran bandında +%5'lik kenarı gürültüden ayırmak "
+              "için gereken bahis sayısı; ✓ görene kadar sıralama şans eseridir.</div>",
+              f"{karne['deger']} ajanda işaret")
+
     filtre = next((x for x in kontroller if x["id"] == "filtre"), None)
     sisme = next((x for x in kontroller if x["id"] == "sisme"), None)
     if filtre and filtre.get("tablo"):

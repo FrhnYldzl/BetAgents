@@ -24,6 +24,10 @@ _V = Path(__file__).resolve().parent.parent / "02_VERI"
 if str(_V) not in sys.path:
     sys.path.insert(0, str(_V))
 
+# Kontrol seti — panel, saklanan sonuçta bunlar eksikse denetimi yeniden koşar
+# (yeni kontrol eklendiğinde sayfada görünmeden kalmasın).
+BEKLENEN_IDLER = {"sonuclandirma", "cift", "oran", "bagimlilik_eksik", "bagimlilik_olu",
+                  "bayat", "sahipsiz", "lig", "clv", "karne", "filtre", "sisme"}
 KIRLI_LIG = {"", "ALL", "UNK", "?", "NONE"}
 BAYAT_SAAT = 48
 LIG_ESIK = 0.50            # 'ALL' payı bunun üstündeyse SARI
@@ -31,14 +35,25 @@ CLV_ESIK = 0.50            # CLV'si ölçülebilen pay bunun altındaysa SARI
 
 
 # ── yardımcılar ───────────────────────────────────────────────────
+def _portfoy() -> dict:
+    import db
+    c = db.connect()
+    try:
+        return {r[0]: r[1] for r in c.execute("SELECT portfolio_id, name FROM paper_portfolio")}
+    except Exception:
+        return {}
+    finally:
+        c.close()
+
+
 def _veri() -> tuple[list[dict], list[dict]]:
     import db
     c = db.connect()
     try:
         b = c.execute(
             "SELECT bet_id, coupon_id, signal_name, league, home_team, away_team, kickoff_utc, market, pick, "
-            "odds, implied_prob, model_prob, edge, status, home_score, away_score, clv, closing_odds "
-            "FROM paper_bets").fetchall()
+            "odds, implied_prob, model_prob, edge, status, home_score, away_score, clv, closing_odds, "
+            "portfolio_id FROM paper_bets").fetchall()
         try:
             k = c.execute("SELECT coupon_id, coupon_type, num_legs, combined_odds, status FROM paper_coupons").fetchall()
         except Exception:
@@ -46,7 +61,7 @@ def _veri() -> tuple[list[dict], list[dict]]:
     finally:
         c.close()
     ab = ["bet_id", "coupon_id", "ajan", "lig", "ev", "dep", "kickoff", "market", "pick", "oran", "ip", "mp",
-          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis"]
+          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis", "portfoy"]
     ak = ["coupon_id", "tip", "ayak", "oran", "durum"]
     return [dict(zip(ab, x)) for x in b], [dict(zip(ak, x)) for x in k]
 
@@ -242,13 +257,169 @@ def k_sisme(B: list[dict]) -> dict:
     return r
 
 
+ASGARI_N = 30          # bunun altında hiçbir şey söylenemez
+HEDEF_FARK = 0.05      # "kaç bahis gerekir" hesabında aranan kenar (birim getiri)
+
+
+def k_karne(B: list[dict]) -> dict:
+    """Ajan karnesi: isabet · fiyatın beklediği isabet · birim getiri (güven aralığıyla) · CLV.
+
+    İsabet oranı tek başına yanıltır — oran 1,25'te %75 isabet KÖTÜ, oran 1,85'te
+    %62 İYİdir. Bu yüzden her zaman fiyatın beklediği isabetle birlikte okunur:
+    fark = gerçekleşen − fiyatın ima ettiği. Asıl hüküm ise güven aralığından çıkar.
+    """
+    import numpy as np
+    pad = _portfoy()
+    g = defaultdict(list)
+    for b in B:
+        if b["durum"] in ("won", "lost") and b["oran"] and float(b["oran"]) > 1:
+            ad = pad.get(b.get("portfoy")) or str(b["ajan"] or "(boş)")
+            g[ad].append(b)
+    rng = np.random.default_rng(11)
+    satir = []
+    for ad, v in sorted(g.items(), key=lambda z: -len(z[1])):
+        o = np.array([float(x["oran"]) for x in v])
+        w = np.array([x["durum"] == "won" for x in v])
+        getiri = np.where(w, o - 1.0, -1.0)
+        bs = np.array([getiri[rng.integers(0, len(getiri), len(getiri))].mean() for _ in range(1500)])
+        lo, hi = (float(np.quantile(bs, 0.025)), float(np.quantile(bs, 0.975)))
+        beklenen = float(np.mean(1.0 / o))          # fiyatın ima ettiği isabet
+        clv = [x["clv"] for x in v if x["clv"] not in (None, 0)]
+        ort_oran = float(o.mean())
+        p = 1.0 / ort_oran
+        sd = (p * (1 - p)) ** 0.5 * ort_oran
+        gereken = int(round((1.96 * sd / HEDEF_FARK) ** 2))
+        if len(v) < ASGARI_N:
+            hukum = "ölçülemez"
+        elif lo > 0:
+            hukum = "işaret var"
+        elif hi < 0:
+            hukum = "zararlı"
+        else:
+            hukum = "gürültü"
+        satir.append({"ajan": ad, "n": len(v), "isabet": round(float(w.mean()), 4),
+                      "beklenen": round(beklenen, 4), "fark": round(float(w.mean()) - beklenen, 4),
+                      "ort_oran": round(ort_oran, 2), "getiri": round(float(getiri.mean()), 4),
+                      "alt": round(lo, 4), "ust": round(hi, 4),
+                      "clv": (round(sum(clv) / len(clv), 4) if clv else None),
+                      "hukum": hukum, "gereken_n": gereken})
+    isaretli = sum(1 for x in satir if x["hukum"] == "işaret var")
+    r = _sonuc("karne", "Ajan karnesi", "bilgi", isaretli, None, False,
+               "İsabet oranı tek başına yanıltır: oran 1,25'te %75 isabet kötü, oran 1,85'te %62 iyidir. "
+               "Bu yüzden isabetin yanında FİYATIN BEKLEDİĞİ isabet ve aradaki fark duruyor. Hüküm ise "
+               f"birim getirinin %95 güven aralığından çıkar. {ASGARI_N} bahisin altında hiçbir şey "
+               "söylenemez; 'gereken n' sütunu, o ajanın oranlarında +%5'lik bir kenarı gürültüden "
+               "ayırmak için kaç bahis lazım olduğunu gösterir. JOKER rastgele kontroldür — onu "
+               "geçemeyen ajan bilgi taşımıyor demektir.")
+    r["tablo"] = satir
+    return r
+
+
+# ── bağımlılık kapanışı ───────────────────────────────────────────
+KOD_KOK = Path(__file__).resolve().parent.parent
+GIRIS = ["start.py", "worker.py", "08_AI_TRADER/app_v2.py", "09_TOTO/toto_worker.py",
+         "09_TOTO/toto_panel.py", "09_TOTO/vibe_panel.py", "10_CANLI/canli_worker.py",
+         "10_CANLI/canli_panel.py", "11_BAKIM/bakim_panel.py"]
+DAGITIM_AD = {"psycopg2-binary": "psycopg2", "scikit-learn": "sklearn", "APScheduler": "apscheduler"}
+# Modül başında DEĞİL, fonksiyon içinde import edilenler üretime girmez.
+# 09_TOTO/kalabalik.py scipy'yi böyle kullanır (yalnız yerel kalibrasyon).
+GECIKMELI = {"scipy"}
+
+
+def _kapanis() -> tuple[dict, set]:
+    """start.py'den ulaşılan yerel modüller ve onların dış paketleri."""
+    import ast
+    from collections import deque
+    harita: dict[str, list[Path]] = defaultdict(list)
+    for p in KOD_KOK.rglob("*.py"):
+        if any(x in p.parts for x in ("node_modules", ".venv", "venv", "__pycache__")):
+            continue
+        harita[p.stem].append(p)
+        # İçinde .py olan her dizin yerel paket sayılır (02_VERI/scrapers gibi
+        # __init__.py'siz dizinler de sys.path üzerinden import edilebiliyor).
+        harita.setdefault(p.parent.name, [])
+    kuyruk = deque(KOD_KOK / g for g in GIRIS if (KOD_KOK / g).exists())
+    gorulen: set[Path] = set()
+    dis: dict[str, set] = defaultdict(set)
+    std = set(sys.stdlib_module_names)
+    while kuyruk:
+        f = kuyruk.popleft()
+        if f in gorulen:
+            continue
+        gorulen.add(f)
+        try:
+            t = ast.parse(f.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            continue
+        for n in ast.walk(t):
+            adlar = []
+            if isinstance(n, ast.Import):
+                adlar = [a.name.split(".")[0] for a in n.names]
+            elif isinstance(n, ast.ImportFrom) and n.module and n.level == 0:
+                adlar = [n.module.split(".")[0]]
+            for m in adlar:
+                if m in std:
+                    continue
+                if m in harita:
+                    kuyruk.extend(y for y in harita[m] if y not in gorulen)
+                else:
+                    dis[m].add(f)
+    return dis, gorulen
+
+
+def _runtime_liste() -> dict:
+    p = KOD_KOK / "requirements-railway.txt"
+    out = {}
+    if not p.exists():
+        return out
+    for s in p.read_text(encoding="utf-8").splitlines():
+        s = s.strip()
+        if s and not s.startswith("#"):
+            out[re.split(r"[=<>!~\[]", s)[0].strip().lower()] = s
+    return out
+
+
+def k_bagimlilik() -> list[dict]:
+    """Canlı kapanış ile runtime paket listesini karşılaştır."""
+    try:
+        dis, moduller = _kapanis()
+        req = _runtime_liste()
+    except Exception as e:
+        return [_sonuc("bagimlilik", "Bağımlılık kapanışı", "izle", -1, 0, True,
+                       f"Hesaplanamadı: {type(e).__name__}: {e}")]
+    kok = {DAGITIM_AD.get(k, k).lower() for k in req} | set(req)
+    eksik, olu = [], []
+    for m, yerler in dis.items():
+        if m.lower() in kok or m in GECIKMELI:
+            continue
+        eksik.append(f"{m} — {len(yerler)} modülde, ör. " +
+                     ", ".join(str(y.relative_to(KOD_KOK)) for y in sorted(yerler)[:2]))
+    kapanis_kok = {m.lower() for m in dis}
+    for k, satir in req.items():
+        if DAGITIM_AD.get(k, k).lower() not in kapanis_kok and k not in kapanis_kok:
+            olu.append(satir)
+    return [
+        _sonuc("bagimlilik_eksik", "Canlı yolda kullanılıp runtime listesinde olmayan paket", "alarm",
+               len(eksik), 0, bool(eksik),
+               f"start.py'den ulaşılan {len(moduller)} modülün import kapanışı tarandı. Buradaki her paket "
+               "dağıtımda kurulmazsa ilgili sayfa ya da işçi çöker. (Fonksiyon içinde import edilenler "
+               f"hariç tutulur: {', '.join(sorted(GECIKMELI))} — üretime girmiyorlar.)", eksik, "paket"),
+        _sonuc("bagimlilik_olu", "Runtime listesinde olup canlı yolda kullanılmayan paket", "izle",
+               len(olu), 0, bool(olu),
+               "Her dağıtımda boşuna kurulan paket. Yerel geliştirme listesinde (requirements.txt) "
+               "kalabilir; runtime listesini şişirmesi gerekmez.", olu, "paket"),
+    ]
+
+
 def kos(simdi: datetime | None = None) -> dict:
     """Bütün kontrolleri çalıştır. Hiçbir şey yazmaz; sonucu döndürür."""
     simdi = simdi or datetime.now(timezone.utc)
     B, _K = _veri()
-    sonuclar = [k_sonuclandirma(B), k_cift(B), k_oran(B), k_bayat(B, simdi), k_sahipsiz(B), k_lig(B), k_clv(B),
-                k_filtre(B), k_sisme(B)]
+    sonuclar = ([k_sonuclandirma(B), k_cift(B), k_oran(B)] + k_bagimlilik()
+                + [k_bayat(B, simdi), k_sahipsiz(B), k_lig(B), k_clv(B),
+                   k_karne(B), k_filtre(B), k_sisme(B)])
     return {"ts": simdi.isoformat(timespec="seconds"), "bahis": len(B),
+            "kontrol_idler": [x["id"] for x in sonuclar],
             "kirmizi": sum(1 for x in sonuclar if x["durum"] == "kirmizi"),
             "sari": sum(1 for x in sonuclar if x["durum"] == "sari"),
             "yesil": sum(1 for x in sonuclar if x["durum"] == "yesil"),

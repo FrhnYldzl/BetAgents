@@ -3,12 +3,20 @@
 # bunları import eder. lightgbm/scipy/scikit-learn/playwright RUNTIME'da
 # kullanılmaz (yalnız yerel model eğitimi/backtest/scrape için → requirements.txt).
 
+# Liste, start.py'den başlayan GERÇEK import kapanışına göre tutulur
+# (25.09.2026'da ölçüldü: 63 yerel modül, 8 dış paket). Haftalık Bakım
+# sayfası bu listeyi kapanışla her hafta karşılaştırır.
+#
+# 25.09.2026 çıkarıldı — canlı yolda hiç import edilmiyordu:
+#   plotly      app_v2 grafik için kütüphane kullanmıyor (kodda gerekçesi yazılı);
+#               yalnız eski app.py/app_pro/app_trader'da vardı
+#   requests    yalnız 02_VERI/scrapers/football_data_downloader.py (yerel betik)
+#   sqlalchemy  projede HİÇBİR yerde import edilmiyor (create_engine de yok)
+# Üçü de requirements.txt'te (yerel/geliştirme) duruyor.
+
 streamlit==1.57.0
 pandas==2.2.3
 numpy==2.2.1
-plotly==6.7.0
-requests==2.34.2
-sqlalchemy==2.0.49
 psycopg2-binary==2.9.9
 APScheduler==3.11.2
 
