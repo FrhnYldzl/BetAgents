@@ -46,22 +46,38 @@ Paketler
 GÜÇLÜ  32 kolon  — az kolon, yalnız en sağlam yapı
 ORTA  256 kolon  — geniş; 12+ kademesini yakalamak için
 
-Ölçülen taban çizgileri (166 hafta, 25.09.2026 · haftalar üzerinden önyükleme)
-------------------------------------------------------------------------------
-    profil        bütçe  dönüş/TL   %95 aralık    ödeyen hafta
-    FAVORİ          256     0,83   [0,29-1,67]        73/166
-    KALABALIK        32     0,54   [0,21-1,03]        37
-    FAVORİ           32     0,43   [0,21-0,73]        39
-    DENGELİ         256     0,08   [0,00-0,20]        10
-    TOTO JOKER       32     0,00   [0,00-0,00]         0
+Ölçüldü — 166 hafta (25.09.2026, haftalar üzerinden önyükleme)
+--------------------------------------------------------------
+                       dönüş/TL   %95 aralık   EN İYİ HAFTA HARİÇ   ödeyen
+    FIRSATÇI  ORTA        0,94   [0,10-2,08]     0,22  (−%76)       22/166
+    FAVORİ *  ORTA        0,83   [0,30-1,71]     0,46  (−%44)       73
+    KALABALIK*ORTA        0,56   [0,26-0,96]     0,41  (−%27)       61
+    POLLY     ORTA        0,52   [0,11-1,17]     0,25  (−%52)       37
+    FIRSATÇI  GÜÇLÜ       0,48   [0,09-1,04]     0,24  (−%50)       21
+    FAVORİ *  GÜÇLÜ       0,43   [0,21-0,73]     0,32  (−%27)       39
+    OMURGA    GÜÇLÜ       0,30   [0,08-0,60]     0,21  (−%30)       20
+    POLLY     GÜÇLÜ       0,26   [0,07-0,54]     0,14  (−%44)       19
+    OMURGA    ORTA        0,21   [0,08-0,39]     0,15  (−%27)       36
+    TOTO JOKER GÜÇLÜ      0,18   [0,00-0,59]     0,00  (−%100)       1
+    DENGELİ * ORTA        0,08   [0,00-0,20]     0,03  (−%62)       10
+    TOTO JOKER ORTA       0,00   [0,00-0,00]     0,00                1
+    (* klasik profiller ayrı koşudan; aynı 159 haftada FAVORİ 0,47 ve 0,49)
 
-Okuma: JOKER 166 haftanın hiçbirinde ödeme almadı — model BİLGİ TAŞIYOR
-(iddaa tarafında JOKER çoğu ajanı geçiyordu, burada tersi). Ama kimse
-başabaşı (1,00) geçmiyor; en iyisi lira başına 17 kuruş kayıp. Üstelik
-FAVORİ@256'nın getirisinin %53'ü 166 haftanın 2'sinden geliyor.
+İYİ HABER: rastgele kontrol 166 haftanın yalnız birinde ödeme aldı, gerçek
+profiller ve ajanlar onu açık farkla geçiyor — MODEL BİLGİ TAŞIYOR. (iddaa
+tarafında tersiydi: orada JOKER ajanların çoğunu geçiyordu.)
 
-⚠️ Bu yüzden hiçbir ajan "kârlı" diye ilan EDİLEMEZ. Ajanların işi şu an
-kâr üretmek değil, hipotezlerini ölçülebilir kılmak.
+KÖTÜ HABER: hiçbir sayı sağlam değil. "En iyi hafta hariç" sütunu her satırı
+çökertiyor. FAVORİ@ORTA'nın 0,83'ünü neredeyse tek başına BİR HAFTA taşıyor —
+2025/26 49. Hafta, 13 doğru, 80.080 TL; diğer 159 haftanın TOPLAM ödemesi
+98.002 TL. O hafta çıkınca 0,46.
+
+KARAR: eşleştirilmiş sınamada (159 ortak hafta, haftalar birlikte yeniden
+örneklenerek) HİÇBİR AJAN FAVORİ'DEN AYIRT EDİLEMİYOR. Belirgin olan tek fark,
+FAVORİ'nin rastgele kontrolü ORTA pakette geçmesi ([-0,74 … -0,26]).
+
+⚠️ Bu yüzden hiçbir ajan "kârlı" ya da "en iyi" diye ilan EDİLEMEZ. Geri test
+bir ÖNSELDİR, sınav değil; sınav canlı defterde (karne()) birikecek.
 """
 from __future__ import annotations
 

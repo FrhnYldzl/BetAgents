@@ -765,13 +765,31 @@ def arsiv(baslik) -> None:
 CEYREK_AD = {"BANKO": "Banko", "KALABALIK FAVORİ": "Kalabalık favori",
              "FIRSAT": "Fırsat", "KARANLIK": "Karanlık"}
 
+# 166 hafta · haftalar üzerinden önyükleme (10.000 tekrar).
+# (ad, paket, dönüş/TL, %95 aralık, EN İYİ HAFTA HARİÇ dönüş, ödeyen hafta)
+#
+# ⚠️ "EN İYİ HAFTA HARİÇ" SÜTUNU OLMADAN BU TABLO YANILTIYOR.
+# Panele önce yalnız dönüş/TL yazmıştım ve FAVORİ@256 için 0,83 diyordu.
+# Ölçünce çıktı: o 0,83'ün tamamına yakınını TEK BİR HAFTA taşıyor —
+# 2025/26 49. Hafta, 13 doğru, 80.080 TL ödeme. Diğer 159 haftanın toplam
+# ödemesi 98.002 TL. O hafta çıkarılınca FAVORİ@256 0,46'ya iniyor.
+# Aynı şey herkeste var: en düşük düşüş bile −%27.
 TAKIM_TABAN = [
-    ("Favori", 256, 0.83, "0,29 – 1,67", 73, "%53"),
-    ("Kalabalık (ort. oyuncu)", 32, 0.54, "0,21 – 1,03", 37, "%51"),
-    ("Favori", 32, 0.43, "0,21 – 0,73", 39, "%36"),
-    ("Dengeli", 256, 0.08, "0,00 – 0,20", 10, "%88"),
-    ("TOTO JOKER (rastgele)", 32, 0.00, "0,00 – 0,00", 0, "—"),
+    ("FIRSATÇI", "ORTA", 0.94, "0,10 – 2,08", 0.22, 22),
+    ("Favori", "ORTA", 0.83, "0,30 – 1,71", 0.46, 73),
+    ("Kalabalık (ort. oyuncu)", "ORTA", 0.56, "0,26 – 0,96", 0.41, 61),
+    ("Kalabalık (ort. oyuncu)", "GÜÇLÜ", 0.54, "0,21 – 1,02", 0.34, 37),
+    ("POLLY", "ORTA", 0.52, "0,11 – 1,17", 0.25, 37),
+    ("FIRSATÇI", "GÜÇLÜ", 0.48, "0,09 – 1,04", 0.24, 21),
+    ("Favori", "GÜÇLÜ", 0.43, "0,21 – 0,73", 0.32, 39),
+    ("OMURGA", "GÜÇLÜ", 0.30, "0,08 – 0,60", 0.21, 20),
+    ("POLLY", "GÜÇLÜ", 0.26, "0,07 – 0,54", 0.14, 19),
+    ("OMURGA", "ORTA", 0.21, "0,08 – 0,39", 0.15, 36),
+    ("TOTO JOKER", "GÜÇLÜ", 0.18, "0,00 – 0,59", 0.00, 1),
+    ("Dengeli", "ORTA", 0.08, "0,00 – 0,20", 0.03, 10),
+    ("TOTO JOKER", "ORTA", 0.00, "0,00 – 0,00", 0.00, 1),
 ]
+TAKIM_ADLARI = {"FIRSATÇI", "POLLY", "OMURGA", "TOTO JOKER"}
 
 
 @st.cache_data(ttl=900, show_spinner="Toto Takım kuponları kuruluyor…")
@@ -855,21 +873,35 @@ def takim(baslik) -> None:
     _kart("Hipotezler ve emeklilik kuralları", hip,
           "önce yazıldı, sonra ölçülüyor")
 
-    tb = "".join(
-        f"<tr><td class='ag'>{_e(ad)}</td><td class='n'>{b}</td>"
-        f"<td class='n'><b>{('%.2f' % d).replace('.', ',')}</b></td><td class='n'>{_e(ar)}</td>"
-        f"<td class='n'>{oh}/166</td><td class='n'>{_e(pay)}</td></tr>"
-        for ad, b, d, ar, oh, pay in TAKIM_TABAN)
+    tb = ""
+    for ad, pk, d, ar, haric, oh in TAKIM_TABAN:
+        dus = (d - haric) / d * 100 if d else 0.0
+        # Takım ajanı mı klasik profil mi — satır okunurken ayırt edilebilsin.
+        rozet = " <span class='al'>· takım</span>" if ad in TAKIM_ADLARI else ""
+        tb += (f"<tr><td class='ag'>{_e(ad)}{rozet}</td><td>{_e(pk)}</td>"
+               f"<td class='n'><b>{('%.2f' % d).replace('.', ',')}</b></td>"
+               f"<td class='n'>{_e(ar)}</td>"
+               f"<td class='n'>{('%.2f' % haric).replace('.', ',')}"
+               + (f" <span class='al'>(−%{dus:.0f})</span>" if d else "") + "</td>"
+               f"<td class='n'>{oh}/166</td></tr>")
     _kart("Ölçülen taban çizgileri",
-          "<table class='v2'><thead><tr><th>Profil</th><th>Bütçe</th><th>Dönüş/TL</th>"
-          "<th>%95 aralık</th><th>Ödeyen hafta</th><th>En iyi 2 haftanın payı</th></tr></thead>"
+          "<table class='v2'><thead><tr><th>Profil / ajan</th><th>Paket</th><th>Dönüş/TL</th>"
+          "<th>%95 aralık</th><th>En iyi hafta hariç</th><th>Ödeyen hafta</th></tr></thead>"
           f"<tbody>{tb}</tbody></table>"
-          "<div class='tt-not' style='margin-top:10px'><b>İki okuma.</b> Birincisi: JOKER 166 haftanın "
-          "hiçbirinde ödeme almadı, gerçek profiller 0,43–0,83 getirdi — <b>model bilgi taşıyor</b>. "
-          "(iddaa tarafında tersiydi: orada rastgele kontrol ajanların çoğunu geçiyordu.) İkincisi: "
-          "<b>kimse başabaşı geçmiyor</b>; en iyisi lira başına 17 kuruş kayıp ve o sayının %53'ü "
-          "166 haftanın 2'sinden geliyor. Bu yüzden hiçbir ajan &ldquo;kârlı&rdquo; diye ilan edilemez — "
-          "ajanların işi şu an kâr üretmek değil, hipotezlerini ölçülebilir kılmak.</div>",
+          "<div class='tt-not' style='margin-top:10px'><b>Önce iyi haber.</b> Rastgele kontrol "
+          "(TOTO JOKER / JOKER) 166 haftanın yalnız birinde ödeme aldı; gerçek profiller ve ajanlar "
+          "onu açık farkla geçiyor. <b>Model bilgi taşıyor</b> — iddaa tarafında tersiydi, orada "
+          "rastgele kontrol ajanların çoğunu geçiyordu.</div>"
+          "<div class='tt-not' style='margin-top:8px'><b>Sonra kötü haber: hiçbir sayı sağlam "
+          "değil.</b> &ldquo;En iyi hafta hariç&rdquo; sütunu her satırı çökertiyor. FAVORİ@ORTA'nın "
+          "0,83'ünün neredeyse tamamını <b>tek bir hafta</b> taşıyor — 2025/26 49. Hafta, 13 doğru, "
+          "80.080 TL; diğer 159 haftanın TOPLAM ödemesi 98.002 TL. O hafta çıkınca 0,46. FIRSATÇI'nın "
+          "0,94'ü 0,22'ye iniyor (−%76). En dayanıklı satır bile −%27 düşüyor.</div>"
+          "<div class='tt-not' style='margin-top:8px'><b>Karar.</b> Eşleştirilmiş sınamada (159 ortak "
+          "hafta, haftalar birlikte yeniden örneklenerek) <b>hiçbir ajan FAVORİ'den ayırt edilemiyor</b>; "
+          "belirgin olan tek fark FAVORİ'nin rastgele kontrolü ORTA pakette geçmesi. Bu yüzden hiçbir ajan "
+          "&ldquo;kârlı&rdquo; ya da &ldquo;en iyi&rdquo; diye ilan edilemez — ajanların işi şu an kâr "
+          "üretmek değil, hipotezlerini ölçülebilir kılmak ve canlı defterde sicil biriktirmek.</div>",
           "166 hafta · haftalar üzerinden önyükleme, 10.000 tekrar")
 
 
