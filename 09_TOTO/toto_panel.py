@@ -816,6 +816,9 @@ def takim(baslik) -> None:
            "sonradan açıklamak yasak.",
            [{"ad": CEYREK_AD.get(k, k), "deger": str(v)} for k, v in sorted(say.items())])
 
+    # Takım sayfasının manşeti "kim önde" olmalı — sicil önce, hafta sonra.
+    _takim_sicil_karti()
+
     P = sorted(_takim_paketleri(A), key=lambda x: (x["ajan"], x["paket"] != "GÜÇLÜ"))
     sat = ""
     for p in P:
@@ -868,3 +871,76 @@ def takim(baslik) -> None:
           "166 haftanın 2'sinden geliyor. Bu yüzden hiçbir ajan &ldquo;kârlı&rdquo; diye ilan edilemez — "
           "ajanların işi şu an kâr üretmek değil, hipotezlerini ölçülebilir kılmak.</div>",
           "166 hafta · haftalar üzerinden önyükleme, 10.000 tekrar")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _takim_karne():
+    """(canlı sicil, geçmiş test sicili) — ikisi de yoksa (None, None)."""
+    try:
+        import toto_takim as TT
+        try:
+            canli_ = TT.karne()
+        except Exception:
+            canli_ = []
+        return canli_, TT.gecmis_karne()
+    except Exception:
+        return None, None
+
+
+def _takim_sicil_karti() -> None:
+    """Ajanların birikmiş karnesi — takımı 'takım' yapan şey bu.
+
+    İKİ sicil ayrı gösterilir ve KARIŞTIRILMAZ:
+      canlı    her hafta defterine yazdığı kuponların gerçekleşen sonucu
+      geçmiş   166 haftalık geri test (aynı sızıntısız protokol)
+    Canlı sicil haftada bir satır büyür; ilk anlamlı karşılaştırma aylar
+    sonra olur. O boşlukta geçmiş test referans verir ama onun yerine geçmez.
+    """
+    canli_, gecmis = _takim_karne()
+    if canli_ is None and gecmis is None:
+        return
+
+    if canli_:
+        sat = "".join(
+            f"<tr><td class='ag'>{_e(k['ajan'])}</td><td>{_e(k['paket'])}</td>"
+            f"<td class='n'>{k['hafta']}</td><td class='n'>{_tl(k['maliyet'])}</td>"
+            f"<td class='n'>{_tl(k['odeme'])}</td>"
+            f"<td class='n'><b>{('%.2f' % k['donus']).replace('.', ',')}</b></td>"
+            f"<td class='n'>{k['odeyen']}</td><td class='n'>{k['en_iyi']}</td></tr>"
+            for k in canli_)
+        _kart("Ajanların sicili · canlı defter",
+              "<table class='v2'><thead><tr><th>Ajan</th><th>Paket</th><th>Hafta</th>"
+              "<th>Maliyet</th><th>Ödeme</th><th>Dönüş/TL</th><th>Ödeyen</th>"
+              "<th>En iyi</th></tr></thead>"
+              f"<tbody>{sat}</tbody></table>",
+              "her hafta bir satır büyür")
+    else:
+        _kart("Ajanların sicili · canlı defter",
+              "<div class='tt-not'>Henüz kapanmış hafta yok. Ajanlar her hafta "
+              "kuponlarını deftere yazar (<code>toto_kupon</code>); sonuçlar "
+              "açıklanınca haftalık kapanış onları da derecelendirir ve bu tablo "
+              "dolar. İlk anlamlı karşılaştırma için birkaç ay gerekir — o yüzden "
+              "aşağıda geçmiş testin sicili duruyor.</div>",
+              "defter yeni açıldı")
+
+    if gecmis:
+        sat = "".join(
+            f"<tr><td class='ag'>{_e(k['ajan'])}</td><td>{_e(k['paket'])}</td>"
+            f"<td class='n'>{k['hafta']}</td>"
+            f"<td class='n'><b>{('%.2f' % k['donus']).replace('.', ',')}</b></td>"
+            f"<td class='n'>{('%.2f' % k['alt']).replace('.', ',')} – "
+            f"{('%.2f' % k['ust']).replace('.', ',')}</td>"
+            f"<td class='n'>{k['odeyen']}/{k['hafta']}</td>"
+            f"<td class='n'>{_pct(k['tek_hafta_pay'])}</td></tr>"
+            for k in gecmis)
+        _kart("Ajanların sicili · geçmiş test",
+              "<table class='v2'><thead><tr><th>Ajan</th><th>Paket</th><th>Hafta</th>"
+              "<th>Dönüş/TL</th><th>%95 aralık</th><th>Ödeyen</th>"
+              "<th>En iyi 2 haftanın payı</th></tr></thead>"
+              f"<tbody>{sat}</tbody></table>"
+              "<div class='tt-not' style='margin-top:10px'>Klasik profillerle "
+              "<b>aynı</b> sızıntısız protokolde koşturuldu: kalabalık modeli yalnız "
+              "o haftadan önceki haftalarla kalibre, PİYASA ajanı açılış fiyatını "
+              "görür, havuz geçen haftanın dağıtımından. <b>En iyi 2 haftanın payı</b> "
+              "yüksekse sayı bir haftanın şansıdır, sicil değil.</div>",
+              "166 hafta · haftalar üzerinden önyükleme")

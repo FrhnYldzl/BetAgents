@@ -12,8 +12,21 @@ Toto'da bir profil, aynı P üzerinde farklı bir AMAÇ FONKSİYONUDUR:
   FAVORİ      en yüksek P'yi al, bütçeyi sırayla genişlet
   15_AVCISI   P(15) × havuz payını maksimize et
   DENGELİ     kademeler arası beklenen değeri maksimize et
-TOTO TAKIM ajanları buna bir KISIT ekler: bütçeyi hangi maçlarda
-harcayacağını çeyrek konumuna göre belirler.
+TOTO TAKIM ajanları buna bir AĞIRLIK ekler: bütçeyi hangi maçlarda
+harcayacağını çeyrek konumuna göre fiyatlar (yasaklamaz, tercih eder).
+
+Ama bir ajanı ajan yapan asıl şey KUPON KURMASI DEĞİL, SİCİL TUTMASIDIR.
+Mavi/Kırmızı/Turuncu takımlarda her ajanın kasası ve karnesi var; burada da
+öyle: ajanlar her hafta kuponlarını `toto_kupon` defterine yazar, haftalık
+kapanış onları derecelendirir, `karne()` birikmiş sicili verir. İlk hâlinde
+bu yoktu — her hafta sıfırdan hesaplanan dört tarifti, hafızası yoktu ve
+"hangi ajan iyi" sorusu sorulamıyordu.
+
+Sicil iki yerden okunur ve KARIŞTIRILMAZ:
+  karne()         canlı defter — haftada bir satır büyür, gerçek sicil
+  gecmis_karne()  166 haftalık geri test (geri_test.calis ile AYNI sızıntısız
+                  protokol, cikti='geri_test_takim') — canlı defter dolana
+                  dek referans verir, onun yerine GEÇMEZ
 
 Çeyrek (toto_panel ile aynı eşikler)
 -------------------------------------
@@ -364,3 +377,117 @@ if __name__ == "__main__":
     print("kendi testi:", "TEMİZ" if not h else f"{len(h)} sorun")
     for x in h:
         print("  ", x)
+
+
+# ----------------------------------------------------------------------
+# DEFTER — ajanlar gerçekten OYNAR ve sicil tutar
+# ----------------------------------------------------------------------
+# Bu olmadan TOTO TAKIM bir takım değil, her hafta sıfırdan hesaplanan dört
+# kupon kurma tarifiydi: hafızası yok, karnesi yok, kimin iyi olduğu
+# sorulamıyordu. Diğer takımlarda (Mavi/Kırmızı/Turuncu) her ajanın kasası ve
+# karnesi var; Toto ajanlarının da olmalı.
+#
+# Ayrı bir defter AÇMIYORUZ: toto_kupon zaten (hafta, profil, bütçe) anahtarlı
+# ve haftalık kapanış `durum='kagit'` olan HER kuponu derecelendiriyor. Ajanlar
+# oraya yazılınca mevcut akış onları da kapatır — ve aynı tabloda FAVORİ,
+# 15_AVCISI, DENGELİ ile aynı ölçekte yarışırlar.
+#
+# GÜÇLÜ/ORTA ayrımı bütçeden okunur (32 / 256), ayrı sütuna gerek yok.
+PAKET_BUTCE = {GUCLU: "GÜÇLÜ", ORTA: "ORTA"}
+
+
+def defter_satirlari(paketler_: list[dict]) -> list[dict]:
+    """paketler() çıktısını toto_db.kupon_yaz biçimine çevir."""
+    out = []
+    for p in paketler_:
+        out.append({
+            "profil": p["ajan"], "butce": p["butce"], "kolon": p["kolon"],
+            "maliyet": p["maliyet"], "S": p["S"],
+            # toto_kupon 'ev' sütunu MUTLAK beklenen değer tutuyor (TL);
+            # paketler() lira başına veriyor. Maliyetle çarpıp hizala.
+            "ev": p["ev_tl"] * p["maliyet"],
+            "p15": p["p15"], "p12p": p["p12p"],
+        })
+    return out
+
+
+def karne(kuponlar: list[dict] | None = None) -> list[dict]:
+    """Ajanların birikmiş sicili — kapanmış kuponlardan.
+
+    `kuponlar` verilmezse toto_db'den okunur. Yalnız TAKIM ajanlarının
+    satırları sayılır; FAVORİ/DENGELİ vb. ayrı profillerdir.
+    """
+    if kuponlar is None:
+        import toto_db
+        kuponlar = toto_db.kuponlar()
+    from collections import defaultdict
+    g = defaultdict(list)
+    for k in kuponlar:
+        if k["profil"] in TAKIM and k.get("dogru") is not None:
+            g[(k["profil"], k["butce"])].append(k)
+
+    out = []
+    for (ajan, butce), K in g.items():
+        maliyet = sum(float(k["maliyet"] or 0) for k in K)
+        odeme = sum(float(k["odeme"] or 0) for k in K)
+        dagilim = {15: 0, 14: 0, 13: 0, 12: 0}
+        for k in K:
+            d = int(k["dogru"] or 0)
+            if d >= 12:
+                dagilim[min(d, 15)] += 1
+        odeyen = sum(1 for k in K if float(k["odeme"] or 0) > 0)
+        out.append({
+            "ajan": ajan, "paket": PAKET_BUTCE.get(butce, str(butce)), "butce": butce,
+            "hafta": len(K), "maliyet": maliyet, "odeme": odeme,
+            "donus": (odeme / maliyet) if maliyet else 0.0,
+            "odeyen": odeyen,
+            "en_iyi": max((int(k["dogru"] or 0) for k in K), default=0),
+            "dagilim": dagilim,
+            # Tek haftaya bağımlılık: en büyük ödemenin toplam içindeki payı.
+            # Yüksekse sayı bir haftanın şansıdır, sicil değil.
+            "tek_hafta_pay": (max((float(k["odeme"] or 0) for k in K), default=0.0) / odeme)
+                             if odeme > 0 else 0.0,
+        })
+    return sorted(out, key=lambda x: (-x["donus"], x["ajan"]))
+
+
+def gecmis_karne() -> list[dict] | None:
+    """166 haftalık geri testten ajan sicili — canlı defter dolana dek referans.
+
+    Canlı sicil (karne()) haftada bir satır büyür; ilk anlamlı karşılaştırma
+    aylar sonra olur. Geri test aynı SIZINTISIZ protokolde koşturulduğu için
+    (geri_test.calis, cikti='geri_test_takim') o boşluğu dürüstçe doldurur.
+    Dosya yoksa None döner — uydurma sayı üretilmez.
+    """
+    import numpy as np
+    import pandas as pd
+    from toto_ortak import CACHE
+    yol = CACHE / "geri_test_takim.pkl"
+    if not yol.exists():
+        return None
+    try:
+        K = pd.read_pickle(yol)
+    except Exception:
+        return None
+    if not len(K):
+        return None
+    rng = np.random.default_rng(20260925)
+    out = []
+    for (prof, B), g in K.groupby(["profil", "butce"]):
+        od = g.groupby("hafta_id")["odeme"].sum().values
+        ma = g.groupby("hafta_id")["maliyet"].sum().values
+        n = len(od)
+        if not n or ma.sum() <= 0:
+            continue
+        # Haftalar üzerinden önyükleme: ödeme birkaç haftada yoğunlaştığı için
+        # klasik standart hata yanıltır.
+        idx = rng.integers(0, n, size=(4000, n))
+        bs = od[idx].sum(1) / ma[idx].sum(1)
+        out.append({
+            "ajan": prof, "paket": PAKET_BUTCE.get(B, str(B)), "butce": int(B),
+            "hafta": int(n), "donus": float(od.sum() / ma.sum()),
+            "alt": float(np.percentile(bs, 2.5)), "ust": float(np.percentile(bs, 97.5)),
+            "odeyen": int((od > 0).sum()),
+            "tek_hafta_pay": float(np.sort(od)[-2:].sum() / od.sum()) if od.sum() > 0 else 0.0,
+        })
+    return sorted(out, key=lambda x: -x["donus"])

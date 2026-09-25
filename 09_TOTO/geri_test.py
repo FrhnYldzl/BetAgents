@@ -59,7 +59,32 @@ def hazirla_veri():
     return df, pazar
 
 
-def calis(profiller=PROFILLER, butceler=BUTCELER, bas: str | None = None, son: str | None = None, M: int = 12000):
+def _kupon(prof: str, P, Q, N, havuz, B: int, deg, tohum: int):
+    """Kuponu kuran kimse ona yönlendir.
+
+    Klasik profiller (FAVORİ/15_AVCISI/DENGELİ) deger.kur()'a gider.
+    TOTO TAKIM ajanları kendi ağırlıklı kurucularını kullanır — böylece
+    ajanlar bu modülün SIZINTISIZ yürüyen protokolünde sınanır: kalabalık
+    modeli yalnız önceki haftalarla kalibre, PİYASA açılış fiyatını görür,
+    havuz geçen haftanın D'si. Ajan için ayrı bir geri test yazmak, bu
+    korumaların ikinci kez ve yanlış kurulması riskini doğururdu.
+    """
+    try:
+        import toto_takim as TT
+        if prof in TT.TAKIM:
+            return TT.kupon(prof, P, Q, N, havuz, B, deg, tohum + B)
+    except ImportError:
+        pass
+    S, _ = kur(P, Q, N, havuz, B, prof, deg)
+    return S
+
+
+def calis(profiller=PROFILLER, butceler=BUTCELER, bas: str | None = None, son: str | None = None,
+          M: int = 12000, cikti: str = "geri_test"):
+    """`cikti` çıktı dosyasının adı. Varsayılan geri_test.pkl — Geçmiş Test
+    sayfasının okuduğu dosya. TOTO TAKIM gibi ayrı bir profil kümesini
+    koştururken BAŞKA bir ad verilmeli, yoksa klasik profillerin sonucu
+    sessizce ezilir ve sayfa yanlış veriyi gösterir."""
     t0 = time.time()
     df, pazar = hazirla_veri()
     H = [h for h in haftalar() if h["ikramiye"] and h["D"]]
@@ -103,7 +128,7 @@ def calis(profiller=PROFILLER, butceler=BUTCELER, bas: str | None = None, son: s
             deg = Degerlendirici(P, Q, N, havuz, M=M, tohum=h["id"])
             for prof in profiller:
                 for B in butceler:
-                    S, _ = kur(P, Q, N, havuz, B, prof, deg)
+                    S = _kupon(prof, P, Q, N, havuz, B, deg, h["id"])
                     r_ex = deg.degerle(S)
                     r_ger = gerceklesen(S, sonuc, n_g, havuz_g)
                     kolon = boyut(S)
@@ -126,9 +151,9 @@ def calis(profiller=PROFILLER, butceler=BUTCELER, bas: str | None = None, son: s
             gecmis_veri.append((oz, np.array([h["n"][k] or 0 for k in (15, 14, 13, 12)], float), h["D"], h["kapanis"]))
         D_once = h["D"]
     K = pd.DataFrame(kayit)
-    K.to_pickle(CACHE / "geri_test.pkl")
+    K.to_pickle(CACHE / f"{cikti}.pkl")
     pd.to_pickle({"atlanan": atlanan, "th_son": th, "cuzdan": {a: P.gecmis for a, P in pazar.items()}},
-                 CACHE / "geri_test_meta.pkl")
+                 CACHE / f"{cikti}_meta.pkl")
     print(f"bitti: {K['hafta_id'].nunique() if len(K) else 0} hafta · atlanan {len(atlanan)} · {time.time() - t0:.0f} sn")
     return K
 
