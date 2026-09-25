@@ -49,6 +49,16 @@ def job_auto_play():
         agents.run_all(place=True)
     except Exception as e:
         print(f"[{_ts()}] AGENTS HATA: {e}")
+    # 📝 İDDİA DEFTERİ — ajanın KOTASIZ görüşünü kaydet (bahis YERLEŞTİRMEZ).
+    # auto_play'den SONRA koşar: yazar taraması ve fiyatlar zaten taze, ikinci
+    # kez çekilmesin. Kupon defteri oynadığını tutar, bu defter söylediğini —
+    # ajanlar görüş bildirdikleri maçların çoğunu kota yüzünden oynamıyor ve
+    # o görüşler ölçülmeden kayboluyordu.
+    try:
+        import iddia_defteri
+        iddia_defteri.kaydet()
+    except Exception as e:
+        print(f"[{_ts()}] IDDIA_DEFTERI HATA: {e}")
 
 
 def job_olcum_defteri(tam: bool = False):
@@ -164,6 +174,13 @@ def job_auto_settle():
         auto_settle.run()
     except Exception as e:
         print(f"[{_ts()}] AUTO_SETTLE HATA: {e}")
+    # 📝 İddia defterini derecelendir — sonucu gelen iddialar kapanır.
+    # Settle ile aynı ritimde: skor buraya düştüğü an iddia da puanlanabilir.
+    try:
+        import iddia_defteri
+        iddia_defteri.derecelendir()
+    except Exception as e:
+        print(f"[{_ts()}] IDDIA_DERECE HATA: {e}")
     # CLV backfill — settle sonrası kapanış kesinleşir (Faz 0 truth meter).
     # Hata olsa bile settle akışını bozmaz.
     try:
