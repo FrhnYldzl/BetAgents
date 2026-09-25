@@ -34,7 +34,14 @@ TR = timezone(timedelta(hours=3))
 # 45 sn: gole aşırı tepki birkaç dakikada sönüyor; 120 sn ile sıçrama ıskalanır.
 # iddaa çekimi ücretsiz, tek maliyet bant genişliği.
 FIYAT_SN = int(os.environ.get("CANLI_FIYAT_SN", "45"))
-DURUM_SN = int(os.environ.get("CANLI_DURUM_SN", "300"))
+# 600 sn: hafta sonu penceresi (13:00-24:00) 300 sn ile günde 132 istek ederdi —
+# ücretsiz planın 100'lük limitini tek başına aşıyor. 600 sn ile 66'ya iner ve
+# KADRO'ya yer kalır. Olay tespitini fiyat serisinden yaptığımız için durumun
+# 10 dakikalık çözünürlükte olması yeterli.
+DURUM_SN = int(os.environ.get("CANLI_DURUM_SN", "600"))
+# API'nin kendi sayacında bu kadar istek kalınca durum çekmeyi bırak — kalanı
+# KADRO ajanına ve lig çözümüne ayrılır. Fiyat toplama etkilenmez (iddaa ücretsiz).
+KOTA_REZERV = int(os.environ.get("CANLI_KOTA_REZERV", "20"))
 ONMAC_SN = int(os.environ.get("CANLI_ONMAC_SN", "900"))
 BITTI = {"FT", "AET", "PEN", "PST", "CANC", "ABD", "AWD", "WO"}
 
@@ -80,16 +87,20 @@ class Toplayici:
         idd = KAYNAK.iddaa_canli()
         if not idd:
             return {"canli": 0, "yazilan": 0}
-        # durum yalnız seyrek tazelenir (kota)
-        if self.durum is None or simdi - self.son_durum >= DURUM_SN:
+        # Durum yalnız seyrek tazelenir ve KOTA REZERVİ korunur. Kalan istek
+        # sayısını API'nin kendi başlığından okuyoruz; tahmin etmiyoruz.
+        kota_var = KAYNAK.AF_KALAN is None or KAYNAK.AF_KALAN > KOTA_REZERV
+        if kota_var and (self.durum is None or simdi - self.son_durum >= DURUM_SN):
             try:
                 d = KAYNAK.af_canli()
                 if d is not None:
                     self.durum, self.son_durum, self.af_hata = d, simdi, 0
                 else:
                     self.af_hata += 1
+                    self.son_durum = simdi          # hata varsa da bekle, döngüye girme
             except Exception:
                 self.af_hata += 1
+                self.son_durum = simdi
         M = KAYNAK.esle(idd, self.durum)
         once = canli_db.oran_once_harita()
         yazilan = 0

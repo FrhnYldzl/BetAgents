@@ -191,9 +191,14 @@ def canli_maclar(baslik) -> None:
     capali = sum(1 for m in M if m.get("oran_once"))
     try:
         import canli_kaynak as KAYNAK
-        af_hata = KAYNAK.AF_SON_HATA
+        af_hata, af_kalan, af_limit = KAYNAK.AF_SON_HATA, KAYNAK.AF_KALAN, KAYNAK.AF_LIMIT
     except Exception:
-        af_hata = ""
+        af_hata, af_kalan, af_limit = "", None, None
+    if af_kalan is not None:
+        st.markdown(f"<div class='cl-not'>API-Football günlük kota: <b>{af_kalan}"
+                    f"{'/' + str(af_limit) if af_limit else ''}</b> istek kaldı. Durum çekimi, "
+                    "kalan 20'nin altına inince kendiliğinden durur — KADRO ajanına yer kalsın diye. "
+                    "Fiyat toplama etkilenmez (iddaa çekimi ücretsiz).</div>", unsafe_allow_html=True)
     if af_hata:
         st.markdown(f"<div class='cl-uyari'><b>Durum akışı kesik.</b> Skor ve dakika API-Football'dan "
                     f"geliyor ve şu an gelmiyor: <code>{_e(af_hata)}</code>. Fiyat toplama sürüyor, ama "

@@ -207,11 +207,16 @@ def _anahtar() -> tuple[str, str]:
 
 
 AF_SON_HATA: str = ""        # durum akışı neden gelmiyor — panelde gösterilir
+AF_KALAN: int | None = None  # API'nin KENDİ günlük sayacı (x-ratelimit-requests-remaining)
+AF_LIMIT: int | None = None
 
 
 def af_canli() -> list[dict] | None:
-    """Tek istekte bütün canlı maçlar: skor, dakika, kırmızı kart."""
-    global AF_SON_HATA
+    """Tek istekte bütün canlı maçlar: skor, dakika, kırmızı kart.
+
+    Kalan günlük kotayı API'nin kendi başlığından okur — tahmin etmeyiz.
+    Toplayıcı bu sayıya bakarak durum çekmeyi kendiliğinden keser."""
+    global AF_SON_HATA, AF_KALAN, AF_LIMIT
     k, h = _anahtar()
     if not k:
         AF_SON_HATA = "API-Football anahtarı yok"
@@ -221,6 +226,11 @@ def af_canli() -> list[dict] | None:
     try:
         with urllib.request.urlopen(r, timeout=30) as x:
             d = json.loads(x.read())
+            try:
+                AF_KALAN = int(x.headers.get("x-ratelimit-requests-remaining"))
+                AF_LIMIT = int(x.headers.get("x-ratelimit-requests-limit"))
+            except (TypeError, ValueError):
+                pass
     except Exception as e:
         AF_SON_HATA = type(e).__name__
         return None
