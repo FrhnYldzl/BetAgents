@@ -61,6 +61,21 @@ def calc_true_prob(odds_list: list[float]) -> list[float]:
     return [r / overround for r in raw]
 
 
+# iddaa'da oynanabilir bir fiyat 1,05'in altina inmez. Besleme 1,00 yazdiginda
+# bu "pazar kapali / bu mac icin verilmiyor" demektir — fiyat degil, yer tutucu.
+# Olculdu (25.09.2026): Haftalik Bakim'in yakaladigi 5 gecersiz bahsin HEPSI
+# 1,00 oranli UST_25'ti (Sportfreunde Baumberg - B. Leverkusen gibi).
+#
+# Tehlike yalnizca o bahis degil: calc_true_prob([1.00, o_alt]) yer tutucuyu
+# %100 olasilik okuyup butun marji diger ayaga yikiyor — ayni macin ALT'i da
+# yanlis fiyatlaniyordu. Bu yuzden koruma sinyal dallarina degil, fiyatin
+# OKUNDUGU yere konuldu: gecersiz fiyat None doner, pazarin tamami atlanir.
+GECERLI_MIN_ORAN = 1.05
+
+# Elenen fiyatlar burada birikir — Haftalik Bakim "sifir kalmali" diye okur.
+ELENEN_ORAN: list[tuple[str, float]] = []
+
+
 def _safe_float(val) -> float | None:
     """None veya gecersiz degerleri None dondur."""
     try:
@@ -68,6 +83,17 @@ def _safe_float(val) -> float | None:
         return f if f > 0 else None
     except (TypeError, ValueError):
         return None
+
+
+def _oran(alan: str, val) -> float | None:
+    """Oran alanini oku — oynanabilir bir fiyat degilse None (pazar atlanir)."""
+    f = _safe_float(val)
+    if f is None:
+        return None
+    if f < GECERLI_MIN_ORAN:
+        ELENEN_ORAN.append((alan, f))
+        return None
+    return f
 
 
 # ============================================================
@@ -140,9 +166,9 @@ class PaperEngine:
         is_bt = lg in self.BACKTESTED_LEAGUES
 
         # --- 1X2 ---
-        o1 = _safe_float(match_row.get("closing_1"))
-        oX = _safe_float(match_row.get("closing_X"))
-        o2 = _safe_float(match_row.get("closing_2"))
+        o1 = _oran("closing_1", match_row.get("closing_1"))
+        oX = _oran("closing_X", match_row.get("closing_X"))
+        o2 = _oran("closing_2", match_row.get("closing_2"))
 
         if all(v is not None for v in [o1, oX, o2]):
             true_probs = calc_true_prob([o1, oX, o2])
@@ -199,8 +225,8 @@ class PaperEngine:
                 })
 
         # --- KG VAR (BTTS Yes) ---
-        o_btts_y = _safe_float(match_row.get("closing_btts_yes"))
-        o_btts_n = _safe_float(match_row.get("closing_btts_no"))
+        o_btts_y = _oran("closing_btts_yes", match_row.get("closing_btts_yes"))
+        o_btts_n = _oran("closing_btts_no", match_row.get("closing_btts_no"))
 
         if o_btts_y is not None and o_btts_n is not None:
             mp_y, mp_n = calc_true_prob([o_btts_y, o_btts_n])
@@ -234,8 +260,8 @@ class PaperEngine:
                 })
 
         # --- ALT / UST 2.5 ---
-        o_over = _safe_float(match_row.get("closing_over25"))
-        o_under = _safe_float(match_row.get("closing_under25"))
+        o_over = _oran("closing_over25", match_row.get("closing_over25"))
+        o_under = _oran("closing_under25", match_row.get("closing_under25"))
 
         if o_over is not None and o_under is not None:
             mp_ov, mp_un = calc_true_prob([o_over, o_under])
@@ -393,7 +419,15 @@ class PaperEngine:
                         "signal_score": min(1.0, mp_survival * 0.90),
                     })
 
-        return signals
+        # Son ag. Yukaridaki dallarin hepsi _oran()'dan gecmis fiyat kullaniyor;
+        # ama ileride ham bir fiyatla sinyal eklenirse bahis defterine gecmesin.
+        temiz = [x for x in signals if (x.get("odds") or 0) >= GECERLI_MIN_ORAN]
+        if len(temiz) != len(signals):
+            for x in signals:
+                if (x.get("odds") or 0) < GECERLI_MIN_ORAN:
+                    ELENEN_ORAN.append((x.get("signal_name") or x.get("market") or "?",
+                                        float(x.get("odds") or 0)))
+        return temiz
 
     # ----------------------------------------------------------
     # HEDEFLİ PARA YÖNETİMİ

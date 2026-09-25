@@ -18,6 +18,7 @@ venv/
 **/*.db
 **/*.db-journal
 **/*.db-wal
+**/*.db-shm
 **/*.db.gz
 02_VERI/backups/
 02_VERI/exports/
