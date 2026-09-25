@@ -189,6 +189,15 @@ def canli_maclar(baslik) -> None:
 
     durumlu = sum(1 for m in M if m.get("dakika") is not None)
     capali = sum(1 for m in M if m.get("oran_once"))
+    try:
+        import canli_kaynak as KAYNAK
+        af_hata = KAYNAK.AF_SON_HATA
+    except Exception:
+        af_hata = ""
+    if af_hata:
+        st.markdown(f"<div class='cl-uyari'><b>Durum akışı kesik.</b> Skor ve dakika API-Football'dan "
+                    f"geliyor ve şu an gelmiyor: <code>{_e(af_hata)}</code>. Fiyat toplama sürüyor, ama "
+                    "maç içi model durum olmadan çalışamaz.</div>", unsafe_allow_html=True)
     baslik("Canlı Maçlar", "iddaa'nın canlı fiyatı, bizim maç içi modelimiz ve aradaki sapma.",
            [{"ad": "Sahada", "deger": str(len(M))},
             {"ad": "Durumu bilinen", "deger": f"{durumlu}/{len(M)}"},

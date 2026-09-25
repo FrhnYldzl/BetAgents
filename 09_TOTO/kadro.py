@@ -57,7 +57,11 @@ def _onbellek_yol(ad: str):
     return CACHE / f"af_{ad}.json"
 
 
+_SON_HATA: str = ""          # API'nin son söylediği sorun (panelde dürüstçe gösterilir)
+
+
 def _cagir(yol: str, onbellek_ad: str, taze_sn: int = ONBELLEK_SN):
+    global _SON_HATA
     p = _onbellek_yol(onbellek_ad)
     try:
         if p.exists() and time.time() - p.stat().st_mtime < taze_sn:
@@ -68,10 +72,22 @@ def _cagir(yol: str, onbellek_ad: str, taze_sn: int = ONBELLEK_SN):
     if not k:
         return None
     r = urllib.request.Request(f"https://{h}/{yol}", headers={"x-rapidapi-key": k, "x-rapidapi-host": h})
-    with urllib.request.urlopen(r, timeout=30) as x:
-        d = json.loads(x.read())
+    try:
+        with urllib.request.urlopen(r, timeout=30) as x:
+            d = json.loads(x.read())
+    except Exception as e:
+        _SON_HATA = f"{type(e).__name__}"
+        return None
     if d.get("errors"):
+        # Anahtar var ama API çalışmıyor (kota bitti / hesap askıda / plan dışı
+        # tarih). Bunu YUTARSAK panel "hazır" der, ajan sessizce susar ve biz
+        # veri geldiğini sanırız. Hatayı sakla, gun_ozeti() söylesin.
+        h_metin = d["errors"] if isinstance(d["errors"], str) else "; ".join(
+            f"{a}: {b}" for a, b in (d["errors"] or {}).items())
+        _SON_HATA = str(h_metin)[:160]
         d = {"response": [], "errors": d["errors"]}
+    else:
+        _SON_HATA = ""
     try:
         p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     except Exception:
@@ -196,5 +212,10 @@ def kadro_gorusu(mac: dict, onsel, milli: bool) -> tuple[list | None, dict]:
 
 
 def gun_ozeti() -> str:
+    """Panelde görünen durum. Anahtarın VARLIĞI yetmez — API çalışıyor mu, o önemli."""
     k, _ = _anahtar()
-    return "API-Football anahtarı yok" if not k else "hazır"
+    if not k:
+        return "API-Football anahtarı yok"
+    if _SON_HATA:
+        return f"API yanıt vermiyor — {_SON_HATA}"
+    return "hazır"

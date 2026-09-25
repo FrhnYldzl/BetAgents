@@ -206,17 +206,30 @@ def _anahtar() -> tuple[str, str]:
     return k, h
 
 
+AF_SON_HATA: str = ""        # durum akışı neden gelmiyor — panelde gösterilir
+
+
 def af_canli() -> list[dict] | None:
     """Tek istekte bütün canlı maçlar: skor, dakika, kırmızı kart."""
+    global AF_SON_HATA
     k, h = _anahtar()
     if not k:
+        AF_SON_HATA = "API-Football anahtarı yok"
         return None
     r = urllib.request.Request(f"https://{h}/fixtures?live=all",
                                headers={"x-rapidapi-key": k, "x-rapidapi-host": h})
-    with urllib.request.urlopen(r, timeout=30) as x:
-        d = json.loads(x.read())
-    if d.get("errors"):
+    try:
+        with urllib.request.urlopen(r, timeout=30) as x:
+            d = json.loads(x.read())
+    except Exception as e:
+        AF_SON_HATA = type(e).__name__
         return None
+    if d.get("errors"):
+        # Sessizce None dönersek panel "durum yok" der ve sebebini kimse bilmez.
+        AF_SON_HATA = (d["errors"] if isinstance(d["errors"], str)
+                       else "; ".join(f"{a}: {b}" for a, b in (d["errors"] or {}).items()))[:160]
+        return None
+    AF_SON_HATA = ""
     out = []
     for f in d.get("response") or []:
         fx, t, g = f.get("fixture") or {}, f.get("teams") or {}, f.get("goals") or {}
