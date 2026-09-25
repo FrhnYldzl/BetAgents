@@ -755,3 +755,116 @@ def arsiv(baslik) -> None:
         kay = []
     if kay:
         _kart("Olay günlüğü", "".join(f"<div class='sb'>{_e(t[:16])} · {_e(tr)} · {_e(m)}</div>" for t, tr, m in kay))
+
+
+# ── 5 · TOTO TAKIM ────────────────────────────────────────────────
+# Ajan standardı: ilan edilmiş hipotez + ön kayıtlı emeklilik kuralı +
+# rastgele kontrol. Mantık toto_takim.py'de; burada yalnız çizim var.
+# Türkçe'de .title() bozuyor: "KALABALIK FAVORİ".title() → "Kalabalik Favori̇"
+# (noktalı İ bileşik karaktere düşüyor, noktasız ı kayboluyor). Ad elle yazılır.
+CEYREK_AD = {"BANKO": "Banko", "KALABALIK FAVORİ": "Kalabalık favori",
+             "FIRSAT": "Fırsat", "KARANLIK": "Karanlık"}
+
+TAKIM_TABAN = [
+    ("Favori", 256, 0.83, "0,29 – 1,67", 73, "%53"),
+    ("Kalabalık (ort. oyuncu)", 32, 0.54, "0,21 – 1,03", 37, "%51"),
+    ("Favori", 32, 0.43, "0,21 – 0,73", 39, "%36"),
+    ("Dengeli", 256, 0.08, "0,00 – 0,20", 10, "%88"),
+    ("TOTO JOKER (rastgele)", 32, 0.00, "0,00 – 0,00", 0, "—"),
+]
+
+
+@st.cache_data(ttl=900, show_spinner="Toto Takım kuponları kuruluyor…")
+def _takim_paketleri(A: dict):
+    """Paketler NORMALDE analizle birlikte zamanlayıcıda hesaplanır (toto_worker)
+    ve A['takim'] içinde gelir — panel hazırını okur.
+
+    Bu yol yalnız o anahtarın bulunmadığı ESKİ analizler için: 8 kupon ×
+    Monte Carlo ölçüldü, 26,7 sn (OMURGA ve POLLY'nin ORTA paketi 14'er sn).
+    Streamlit her etkileşimde sayfayı baştan çizdiği için önbelleğe alınır.
+    Anahtar analizin kendisi: hafta tazelenince kuponlar da tazelenir."""
+    hazir = A.get("takim")
+    if hazir:
+        return hazir
+    import toto_takim as TT
+    return TT.paketler(A)
+
+
+def takim(baslik) -> None:
+    st.markdown(CSS, unsafe_allow_html=True)
+    A = _son_analiz()
+    if not A:
+        baslik("Toto Takım", "Haftanın analizi henüz yok.", [])
+        st.markdown("<div class='v2bos'>Toto zamanlayıcısı bu haftanın analizini "
+                    "kurunca takım burada görünür.</div>", unsafe_allow_html=True)
+        return
+    try:
+        import toto_takim as TT
+    except Exception as e:
+        baslik("Toto Takım", "Modül yüklenemedi.", [])
+        st.markdown(f"<div class='v2bos'>toto_takim okunamadı: {_e(type(e).__name__)}</div>",
+                    unsafe_allow_html=True)
+        return
+
+    C = TT.ceyrekler(A["P"], A["Q"])
+    say: dict[str, int] = {}
+    for c in C:
+        say[c["ceyrek"]] = say.get(c["ceyrek"], 0) + 1
+    baslik("Toto Takım",
+           "Her ajanın ilan edilmiş bir hipotezi, ön kayıtlı bir emeklilik kuralı ve zorunlu bir "
+           "rastgele kontrolü var. Hipotez önce yazılır, sonra ölçülür — iyi görünen kuponu "
+           "sonradan açıklamak yasak.",
+           [{"ad": CEYREK_AD.get(k, k), "deger": str(v)} for k, v in sorted(say.items())])
+
+    P = sorted(_takim_paketleri(A), key=lambda x: (x["ajan"], x["paket"] != "GÜÇLÜ"))
+    sat = ""
+    for p in P:
+        h = " · ".join(f"{CEYREK_AD.get(k, k)} ×{v}" for k, v in sorted(p["harcama"].items())) or "—"
+        vurgu = " style='opacity:.62'" if p["ajan"] == "TOTO JOKER" else ""
+        # ⚠️ ev'yi AYRI değişkende biçimlendir. Önce satır içinde
+        #   f"…{_tl(maliyet)}</td>" f"…{ev:.2f}".replace(".", ",")
+        # yazmıştım: Python bitişik literalleri ÖNCE birleştirir, .replace()
+        # sonra tamamına uygulanır — maliyetteki binlik noktası da virgüle
+        # dönüyordu ("2.560 TL" → "2,560 TL").
+        ev = f"{p['ev_tl']:.2f}".replace(".", ",")
+        sat += (f"<tr{vurgu}><td class='ag'>{_e(p['ajan'])}</td><td>{_e(p['paket'])}</td>"
+                f"<td class='n'>{p['kolon']}</td><td class='n'>{_tl(p['maliyet'])}</td>"
+                f"<td class='n'>{ev}</td>"
+                f"<td class='n'>{_pct(p['ev15_pay'])}</td>"
+                f"<td class='n'><b>{_pct(p['p12p'], 1)}</b></td><td>{_e(h)}</td></tr>")
+    uyari = (
+        "<div class='tt-not' style='margin-top:10px'><b>EV/TL'yi sıralama ölçütü olarak kullanma.</b> "
+        "Yanındaki sütun, beklenen değerin ne kadarının 15 kademesinden geldiğini gösterir; o kademe "
+        "milyonda bir olasılıkla gerçekleşiyor. Ölçüldü: TOTO JOKER'in EV/TL'si gerçek ajanlarla "
+        "aynı çıkıyor ama 12+ şansı 20 kat düşük — rastgele kolon benzersiz olduğu için model "
+        "&ldquo;tutarsa havuzu tek başına alır&rdquo; diyor. 166 haftalık gerçek testte JOKER hiç ödeme "
+        "almadı. Karşılaştırma <b>P(12+)</b> ve ölçülen dönüş/TL ile yapılır.</div>")
+    _kart("Bu haftanın paketleri",
+          "<table class='v2'><thead><tr><th>Ajan</th><th>Paket</th><th>Kolon</th><th>Maliyet</th>"
+          "<th>EV/TL</th><th>EV'nin 15'ten payı</th><th>P(12+)</th><th>Bütçe nereye</th></tr></thead>"
+          f"<tbody>{sat}</tbody></table>" + uyari,
+          "GÜÇLÜ 32 kolon · ORTA 256 kolon")
+
+    hip = ""
+    for ad, a in TT.TAKIM.items():
+        hip += (f"<div class='tt-not' style='margin-top:10px'><b>{_e(ad)}</b> — {_e(a['hipotez'])}"
+                f"<div class='al' style='margin-top:4px'>Emeklilik: {_e(a['emeklilik'])}</div></div>")
+    _kart("Hipotezler ve emeklilik kuralları", hip,
+          "önce yazıldı, sonra ölçülüyor")
+
+    tb = "".join(
+        f"<tr><td class='ag'>{_e(ad)}</td><td class='n'>{b}</td>"
+        f"<td class='n'><b>{('%.2f' % d).replace('.', ',')}</b></td><td class='n'>{_e(ar)}</td>"
+        f"<td class='n'>{oh}/166</td><td class='n'>{_e(pay)}</td></tr>"
+        for ad, b, d, ar, oh, pay in TAKIM_TABAN)
+    _kart("Ölçülen taban çizgileri",
+          "<table class='v2'><thead><tr><th>Profil</th><th>Bütçe</th><th>Dönüş/TL</th>"
+          "<th>%95 aralık</th><th>Ödeyen hafta</th><th>En iyi 2 haftanın payı</th></tr></thead>"
+          f"<tbody>{tb}</tbody></table>"
+          "<div class='tt-not' style='margin-top:10px'><b>İki okuma.</b> Birincisi: JOKER 166 haftanın "
+          "hiçbirinde ödeme almadı, gerçek profiller 0,43–0,83 getirdi — <b>model bilgi taşıyor</b>. "
+          "(iddaa tarafında tersiydi: orada rastgele kontrol ajanların çoğunu geçiyordu.) İkincisi: "
+          "<b>kimse başabaşı geçmiyor</b>; en iyisi lira başına 17 kuruş kayıp ve o sayının %53'ü "
+          "166 haftanın 2'sinden geliyor. Bu yüzden hiçbir ajan &ldquo;kârlı&rdquo; diye ilan edilemez — "
+          "ajanların işi şu an kâr üretmek değil, hipotezlerini ölçülebilir kılmak.</div>",
+          "166 hafta · haftalar üzerinden önyükleme, 10.000 tekrar")

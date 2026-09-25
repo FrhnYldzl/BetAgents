@@ -120,6 +120,16 @@ def analiz() -> None:
             print("  açık hafta yok", flush=True)
             return
         A = canli.analiz(program=prog, hafta_listesi=haftalar(), cuzdan_db=True)
+        # TOTO TAKIM paketleri analizle BİRLİKTE hesaplanıp saklanır. Ölçüldü:
+        # 8 kupon × Monte Carlo ≈ 27 sn — panelde yapılırsa sayfayı açan herkes
+        # o süreyi bekler. Burada bir kez hesaplanır, panel hazırını okur.
+        # Hata olursa analiz YAZILMAYA devam eder; takım yoksa panel yerinde hesaplar.
+        try:
+            import toto_takim
+            A["takim"] = toto_takim.paketler(A)
+        except Exception as e:
+            toto_db.kayit("hata", f"takım paketleri: {type(e).__name__}: {e}")
+            print(f"  takım paketleri atlandı: {type(e).__name__}: {e}", flush=True)
         toto_db.analiz_yaz(prog["id"], canli.jsonla(A))
         toto_db.kupon_yaz(prog["id"], A["kuponlar"])
         toto_db.kayit("analiz", f"{prog['sezon']} {prog['ad']} · iddaa {A['iddaa_kapsam']}/15 · {A['sure_sn']} sn")

@@ -4762,6 +4762,12 @@ SAYFA_TANIM = [
          "kirmizi", "Kombine pazarında değer var mı?"),
         ("Turuncu Takım", page_turuncu, ":material/science:", "turuncu",
          "Bağımsız skor modeli sahada ne yapıyor?"),
+        # Toto Takım BetAgents'ın takımı DEĞİL — Süper Toto ürününün takımı.
+        # Kullanıcı isteği (25.09.2026): "diğer takımların altına koyalım".
+        # Gezinme burada duruyor ama veri ayrı kalıyor: sayfa _toto_sayfa ile
+        # sarılı, yalnız toto_* tablolarını okur ve hatası bu sayfada kalır.
+        ("Toto Takım", _toto_sayfa("takim"), ":material/groups:", "toto-takim",
+         "Toto ajanları bu hafta hangi kuponu kuruyor, neden?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
     ("PORTFÖY", [
