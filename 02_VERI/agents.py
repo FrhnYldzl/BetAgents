@@ -706,6 +706,22 @@ def review_league() -> None:
             n_dec = conn.execute(
                 "SELECT COUNT(*) FROM paper_coupons WHERE portfolio_id=? "
                 "AND status IN ('won','lost')", (pid,)).fetchone()[0]
+            # ⚠️ P&L CİRODAN HESAPLANIR, KASA ALANLARINDAN DEĞİL.
+            # Eski hâli (cur-init)/init idi ve kadro dışı bırakma işlemi HER İKİ
+            # alanı da değiştiriyor: devredilen kasa benched ajanın
+            # initial_bankroll'undan düşülüp lidere ekleniyor. Payda bozulunca
+            # yüzde anlamsızlaşıyor ve kasa eksiye düşebiliyor.
+            # Ölçüldü (24.10.2026) — defterdeki yüzde vs gerçek ciro:
+            #   EUVOX  yatan 4.200 → dönen 4.432 = +%5,5 (+232 TL KÂRDA)
+            #          ama defter −%100 diyordu ve "lig sonuncusu" sayılıp atıldı
+            #   AVCI   kasa −229 TL · ÇARPAN −1.500 TL  (kâğıt kasa eksiye düşemez)
+            # Ciro oranı devirden ETKİLENMEZ: ne yatırdın, ne geri geldi.
+            tr = conn.execute(
+                "SELECT COALESCE(SUM(stake),0), COALESCE(SUM(actual_return),0) "
+                "FROM paper_coupons WHERE portfolio_id=? AND status!='open'",
+                (pid,)).fetchone()
+            yatan, donen = float(tr[0] or 0), float(tr[1] or 0)
+            pnl_pct = ((donen - yatan) / yatan * 100) if yatan > 0 else 0.0
             from datetime import timedelta as _td
             # Hipotez ajanlarına (HOCA/SIMYACI/ERKENKUS) geniş pasiflik
             # penceresi: PAS onların meşru davranışı (pas_tolerance_days).
@@ -715,18 +731,39 @@ def review_league() -> None:
                 "AND created_at > ?",
                 (pid, (now - _td(days=tol)).isoformat())).fetchone()[0]
             stats.append({"pid": pid, "cur": cur, "init": init,
-                          "pnl_pct": (cur - init) / init * 100,
+                          "pnl_pct": pnl_pct, "yatan": yatan,
                           "age": age_d, "n_dec": n_dec, "n_win": n_win,
                           "tol": tol, "ihtar": ihtar})
 
         new_ihtar: dict[str, list] = {}
-        # A) performans: en kötü negatif (n_dec>=5)
-        perf = [s for s in stats if s["n_dec"] >= 5 and s["pnl_pct"] < 0
-                and s["age"] >= 5]
+        # ── KONTROL ÇİZGİSİ ────────────────────────────────────────────
+        # ⚠️ "Lig sonuncusu" ve "≤ -%10" eşikleri SKILL ÖLÇMÜYOR.
+        # Ölçüldü: iddaa marjı tek bahiste %10-13, kombinede ayak başına
+        # bileşik. Yani kenarı olmayan HER ajan yapısal olarak -%10'un
+        # altına iner; "rota" kuralı ulaşılamaz bir çıtaydı. "Lig sonuncusu"
+        # ise her değerlendirmede MUTLAKA birini bulur — en iyi ajan bile
+        # tek başına kalsa sonuncu olur. İkisi birlikte ligi kendiliğinden
+        # boşaltan bir cırcır: 24.10.2026'da Mavi'nin çalışan 5 ajanının
+        # tamamı bu yolla kadro dışı kaldı (EUVOX +232 TL KÂRDAYKEN).
+        #
+        # Doğru soru "eksi mi?" değil, "RASTGELE SEÇİMDEN kötü mü?".
+        # JOKER tam bu iş için var. Yoksa marj tabanına düşülür.
+        MARJ_TABAN = -13.0
+        joker = next((s for s in stats if s["pid"] == "JOKER_V1"
+                      and s["n_dec"] >= 20), None)
+        kontrol = joker["pnl_pct"] if joker else MARJ_TABAN
+        # Kontrolden bu kadar kötü olmak gerçek bir fark sayılır (ölçüm
+        # gürültüsü tek bahiste ±%5 mertebesinde).
+        FARK = 10.0
+
+        # A) performans: kontrolden BELİRGİN kötü (n_dec>=5)
+        perf = [s for s in stats if s["n_dec"] >= 5 and s["age"] >= 5
+                and s["pnl_pct"] < kontrol - FARK]
         if perf:
             worst = min(perf, key=lambda s: s["pnl_pct"])
             new_ihtar.setdefault(worst["pid"], []).append(
-                f"performans (lig sonuncusu, {worst['pnl_pct']:+.1f}%)")
+                f"performans ({worst['pnl_pct']:+.1f}% ciro — kontrol "
+                f"{kontrol:+.1f}%, fark {worst['pnl_pct'] - kontrol:+.1f}p)")
         # B) pasiflik — 🩺 ÖLÇÜM ŞARTI: ceza YALNIZCA teşhis "oynayabilirdin"
         # dediğinde. Sessizliğin nedeni teknik tıkanıklık (🔴), meşru PAS (⚪),
         # limit/dönem/uyku ise ajan suçlu değildir; sistem suçludur.
@@ -750,11 +787,14 @@ def review_league() -> None:
                     continue
                 new_ihtar.setdefault(s["pid"], []).append(
                     f"pasiflik ({s['tol']} günde 0 kupon)")
-        # C) rota: 14+ gün ve <= -10%
+        # C) rota: 14+ gün VE kontrolden belirgin kötü VE ölçülebilir hacim.
+        # Eski eşik (-%10) marj tabanının üstündeydi; kenarsız her ajan oraya
+        # düşer, yani kural skill değil YAŞ ölçüyordu — en eski ajan önce gider.
         for s in stats:
-            if s["age"] >= 14 and s["pnl_pct"] <= -10:
+            if s["age"] >= 14 and s["n_dec"] >= 20 \
+                    and s["pnl_pct"] < kontrol - FARK:
                 new_ihtar.setdefault(s["pid"], []).append(
-                    f"rota ({s['pnl_pct']:+.1f}% hedeften uzak)")
+                    f"rota ({s['pnl_pct']:+.1f}% ciro, kontrol {kontrol:+.1f}%)")
 
         leader = max(stats, key=lambda s: s["pnl_pct"]) if stats else None
         for pid, reasons in new_ihtar.items():
