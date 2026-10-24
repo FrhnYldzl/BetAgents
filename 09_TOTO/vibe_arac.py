@@ -228,8 +228,60 @@ def iddaa_bahisler(durum: str = "kapanmis", n: int = 20) -> dict:
         for x in r[:n]]}
 
 
+def iddaa_sinyal_performansi(n: int = 15) -> dict:
+    """Hangi SİNYAL ne kadar üretildi, isabeti ve birim getirisi ne.
+
+    ⚠️ Sinyal ≠ ajan. Bir ajan birçok sinyal üretir, bir sinyali birçok ajan
+    kullanır. Bu fonksiyon eskiden `iddaa_ajan_performansi` adıyla duruyordu
+    ve belgesinde "hangi BetAgents AJANI" yazıyordu ama GROUP BY signal_name
+    yapıyordu — asistan sinyal istatistiğini ajan istatistiği sanıp ajan
+    hakkında kendinden emin biçimde yanlış cevap veriyordu.
+    """
+    try:
+        r = _sorgu(f"SELECT signal_name, COUNT(*), SUM(CASE WHEN status='won' THEN 1 ELSE 0 END), AVG(odds), "
+                   f"AVG(edge), AVG(clv), {BIRIM} FROM paper_bets WHERE {KAPANMIS} GROUP BY signal_name "
+                   f"ORDER BY COUNT(*) DESC")
+    except Exception as e:
+        return {"hata": f"Okunamadı: {type(e).__name__}"}
+    out = []
+    for x in r[: max(1, min(int(n), 40))]:
+        adet = x[1] or 0
+        out.append({"sinyal": x[0], "bahis": adet, "kazanan": x[2],
+                    "isabet": (x[2] / adet) if adet else None, "ort_oran": x[3],
+                    "ort_kenar": x[4], "ort_clv": x[5], "birim_getiri": x[6]})
+    return {"sinyaller": out,
+            "not": "Sinyal ≠ ajan. Ajan karnesi için iddaa_ajan_performansi kullan."}
+
+
 def iddaa_ajan_performansi(n: int = 15) -> dict:
-    """Hangi BetAgents ajanı ne kadar bahis yaptı, isabeti ve birim getirisi ne."""
+    """Hangi BetAgents AJANI ne kadar oynadı — portföy bazında.
+
+    Kupon cirosundan hesaplanır (yatan vs dönen), kasa alanlarından DEĞİL:
+    kadro dışı bırakma işlemi kasa alanlarını değiştiriyor ve yüzdeleri
+    bozuyor (ölçüldü 24.10.2026: EUVOX +232 TL kârdayken defterde -%100).
+    """
+    try:
+        r = _sorgu("SELECT portfolio_id, COUNT(*), "
+                   "SUM(CASE WHEN status='won' THEN 1 ELSE 0 END), "
+                   "COALESCE(SUM(stake),0), COALESCE(SUM(actual_return),0) "
+                   "FROM paper_coupons WHERE status IN ('won','lost','void') "
+                   "GROUP BY portfolio_id ORDER BY COUNT(*) DESC")
+    except Exception as e:
+        return {"hata": f"Okunamadı: {type(e).__name__}"}
+    out = []
+    for pid, adet, kazanan, yatan, donen in r[: max(1, min(int(n), 40))]:
+        yatan = float(yatan or 0); donen = float(donen or 0)
+        out.append({"ajan": pid, "kupon": adet, "kazanan": kazanan,
+                    "isabet": (kazanan / adet) if adet else None,
+                    "yatan": round(yatan), "donen": round(donen),
+                    "donus_tl": round(donen / yatan, 3) if yatan else None})
+    return {"ajanlar": out,
+            "not": "donus_tl = dönen ÷ yatan. 1,00 başabaş. İsabet tek başına "
+                   "yanıltır: kısa oranda yüksek isabet para kaybettirir."}
+
+
+def _eski_ajan_performansi(n: int = 15) -> dict:
+    """(kullanılmıyor — eski gövde, referans için)"""
     try:
         r = _sorgu(f"SELECT signal_name, COUNT(*), SUM(CASE WHEN status='won' THEN 1 ELSE 0 END), AVG(odds), "
                    f"AVG(edge), AVG(clv), {BIRIM} FROM paper_bets WHERE {KAPANMIS} GROUP BY signal_name "

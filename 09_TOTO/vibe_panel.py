@@ -193,6 +193,89 @@ def _sor(oturum: str | None, soru: str, gecmis: list) -> None:
     st.rerun()
 
 
+def _studyo(oturum: str | None, hazir_mi: bool) -> None:
+    """Bağlamı BESTELE, sonra sor.
+
+    Boş sohbet kutusu kötü bir geliştirme aracı: her seferinde "şu tabloya
+    bak" diye anlatmak gerekiyor, cevaplar tekrarlanabilir olmuyor ve
+    asistan turlarının çoğu veri aramaya gidiyor. Stüdyo bunu tersine
+    çevirir — önce ne göreceğini seçersin, sonra sorarsın.
+    """
+    import vibe_studyo as VS
+
+    st.markdown("<div class='vb-kicker'><b></b>Stüdyo</div>"
+                "<div class='vb-h1'>Bugün sistemin <i>neresini</i> "
+                "ileri taşıyoruz?</div>"
+                "<div class='vb-alt'>Kapsam ve alanı seç, hangi veriyi "
+                "göreceğini işaretle, sor. Asistan soruyla birlikte gerçek "
+                "veriyi alır — ne gördüğü aşağıda yazılı.</div>",
+                unsafe_allow_html=True)
+
+    kapsam_ad = list(VS.KAPSAM.values())
+    kapsam_kod = list(VS.KAPSAM.keys())
+    k_i = st.radio("Kapsam", range(len(kapsam_ad)),
+                   format_func=lambda i: kapsam_ad[i],
+                   horizontal=True, key="vb_kapsam")
+    kapsam = kapsam_kod[k_i]
+
+    alan_ad = [v[0] for v in VS.ALAN.values()]
+    alan_kod = list(VS.ALAN.keys())
+    a_i = st.radio("Alan", range(len(alan_ad)),
+                   format_func=lambda i: alan_ad[i],
+                   horizontal=True, key="vb_alan")
+    alan = alan_kod[a_i]
+
+    # ALAN değişince ön seçim yenilenir; kullanıcı sonra elle değiştirebilir.
+    # Ön seçim ÖNERİDİR, kilit değil — bu yüzden her çizimde zorlanmaz,
+    # yalnız alan DEĞİŞTİĞİNDE uygulanır.
+    if st.session_state.get("vb_son_alan") != alan:
+        st.session_state["vb_son_alan"] = alan
+        for k in VS.BAGLAM:
+            st.session_state["vb_bg_" + k] = k in VS.on_secim(alan)
+
+    st.markdown("<div class='vb-not'>Bağlam — asistanın göreceği veri</div>",
+                unsafe_allow_html=True)
+    kutular = []
+    kolon = st.columns(3, gap="small")
+    for i, (k, etiket) in enumerate(VS.BAGLAM.items()):
+        with kolon[i % 3]:
+            if st.checkbox(etiket, key="vb_bg_" + k):
+                kutular.append(k)
+
+    soru = st.text_area(
+        "Soru", height=110, key="vb_studyo_soru", label_visibility="collapsed",
+        placeholder="Örn. Toto takımının ilk kuponları ne durumda? Kenar "
+                    "tahminimiz tuttu mu, CLV ne diyor? Tutmadıysa hangi "
+                    "varsayım yanlıştı?")
+
+    alt1, alt2 = st.columns([3, 1], gap="small")
+    with alt1:
+        if kutular:
+            st.markdown("<div class='vb-iz'>" + _e(" · ".join(
+                VS.BAGLAM[k] for k in kutular)) + "</div>",
+                unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='vb-iz'>Bağlam seçilmedi — asistan "
+                        "gerekirse kendi araçlarıyla arar.</div>",
+                        unsafe_allow_html=True)
+    with alt2:
+        calistir = st.button("Çalıştır", type="primary",
+                             use_container_width=True,
+                             disabled=not hazir_mi, key="vb_calistir")
+
+    if calistir and (soru or "").strip():
+        with st.spinner("Bağlam derleniyor…"):
+            try:
+                bg = VS.baglam_metni(kapsam, alan, kutular) if kutular else ""
+            except Exception as e:
+                bg = f"(bağlam derlenemedi: {type(e).__name__}: {e})"
+        tam = (soru.strip() if not bg else
+               bg + "\n\n## SORU\n" + soru.strip())
+        st.session_state["vb_hazir"] = tam
+        st.session_state["vb_sekme"] = "Oturumlar"
+        st.rerun()
+
+
 def vibe(baslik) -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     _kur()
@@ -211,6 +294,22 @@ def vibe(baslik) -> None:
                         "<code>ANTHROPIC_API_KEY_BET_AGENTS</code> değişkenini ekleyip dağıtınca "
                         "kendiliğinden açılır; panelin geri kalanı etkilenmez.</div>", unsafe_allow_html=True)
         gecmis = vibe_db.mesajlar(oturum) if oturum else []
+
+        # Stüdyo ile Sohbet AYRI sekmeler: stüdyo bağlamı besteler ve soruyu
+        # kuyruğa koyar, sohbet onu çalıştırıp geçmişi gösterir. Aynı ekranda
+        # ikisi birden olunca hangi bağlamın hangi cevaba gittiği kayboluyor.
+        sek_studyo, sek_sohbet = st.tabs(["Stüdyo", f"Sohbet ({len(gecmis)})"])
+        with sek_studyo:
+            _studyo(oturum, d == "hazır")
+        with sek_sohbet:
+            _sohbet(oturum, gecmis, d)
+        _paket_bolumu()
+        return
+
+
+def _sohbet(oturum: str | None, gecmis: list, d: str) -> None:
+    """Sohbet akışı — stüdyodan gelen soruyu da burada çalıştırır."""
+    if True:
         if not gecmis:
             _karsilama()
         for m in gecmis:
@@ -223,7 +322,8 @@ def vibe(baslik) -> None:
         soru = st.chat_input("Bir hafta, bir maç, bir ajan, geçmiş test ya da kodun kendisi…",
                              disabled=(d != "hazır"), key="vb_giris")
         _durum_cubugu(d)
+        # vb_hazir: stüdyodan ya da örnek çiplerinden gelen hazır soru.
+        # pop ile alınır — iki kez çalıştırılmasın.
         hazir = st.session_state.pop("vb_hazir", None)
         if soru or hazir:
             _sor(oturum, soru or hazir, gecmis)
-        _paket_bolumu()
