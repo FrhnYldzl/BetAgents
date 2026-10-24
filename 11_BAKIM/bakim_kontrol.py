@@ -51,10 +51,25 @@ def _veri() -> tuple[list[dict], list[dict]]:
     import db
     c = db.connect()
     try:
+        # era_ici: bahis, portföyünün GÜNCEL döneminde mi kuruldu?
+        # Dönem kapandığında karne arşivlenir (start_era). Arşivdeki bir
+        # kayıt tarihtir, canlı kusur değil — "geçersiz oran" gibi KURULUM
+        # alarmları onları saymazsa alarm kalıcı kırmızı yanmaktan kurtulur.
+        # Sürekli kırmızı yanan alarm, bakılmayan alarmdır.
+        # ⚠️ SONUÇLANDIRMA alarmları era'ya göre KISILMAZ: defterin doğruluğu
+        # arşivde de önemlidir, oradaki yanlış sonuç ölçümü hâlâ bozar.
+        # ⚠️ ARŞİVLENMİŞ portföyün (status='archived') güncel dönemi YOKTUR.
+        # Önce yalnız era_start'a bakıyordum; PAPER_V1'in era_start'ı NULL
+        # olduğu için 18 Temmuz'daki bir kaydı 'güncel' sayıp yanlış alarm
+        # verdi — oysa o portföy kapanmış ve koruma 25 Eylül'de gelmişti.
         b = c.execute(
-            "SELECT bet_id, coupon_id, signal_name, league, home_team, away_team, kickoff_utc, market, pick, "
-            "odds, implied_prob, model_prob, edge, status, home_score, away_score, clv, closing_odds, "
-            "portfolio_id FROM paper_bets").fetchall()
+            "SELECT pb.bet_id, pb.coupon_id, pb.signal_name, pb.league, pb.home_team, pb.away_team, "
+            "pb.kickoff_utc, pb.market, pb.pick, pb.odds, pb.implied_prob, pb.model_prob, pb.edge, "
+            "pb.status, pb.home_score, pb.away_score, pb.clv, pb.closing_odds, pb.portfolio_id, "
+            "CASE WHEN COALESCE(pp.status,'') = 'archived' THEN 0 "            "     WHEN pp.era_start IS NULL OR pc.created_at >= pp.era_start THEN 1 "            "     ELSE 0 END "
+            "FROM paper_bets pb "
+            "LEFT JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
+            "LEFT JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id").fetchall()
         try:
             k = c.execute("SELECT coupon_id, coupon_type, num_legs, combined_odds, status FROM paper_coupons").fetchall()
         except Exception:
@@ -62,7 +77,7 @@ def _veri() -> tuple[list[dict], list[dict]]:
     finally:
         c.close()
     ab = ["bet_id", "coupon_id", "ajan", "lig", "ev", "dep", "kickoff", "market", "pick", "oran", "ip", "mp",
-          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis", "portfoy"]
+          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis", "portfoy", "era_ici"]
     ak = ["coupon_id", "tip", "ayak", "oran", "durum"]
     return [dict(zip(ab, x)) for x in b], [dict(zip(ak, x)) for x in k]
 
@@ -162,21 +177,30 @@ def k_sonuclandirma(B: list[dict]) -> dict:
 
 def k_cift(B: list[dict]) -> dict:
     say = Counter((b["coupon_id"], b["ajan"], b["ev"], b["dep"], str(b["kickoff"])[:10], b["market"], b["pick"])
-                  for b in B)
+                  for b in B if b.get("era_ici", 1))
     cift = [(k, v) for k, v in say.items() if v > 1]
     fazla = sum(v - 1 for _, v in cift)
     ornek = [f"×{v} · {k[1]} · {k[2][:20]} - {k[3][:20]} · {k[5]} {k[6]}" for k, v in cift]
-    return _sonuc("cift", "Aynı kuponda tekrar eden ayak", "alarm", fazla, 0, fazla > 0,
+    return _sonuc("cift", "Aynı kuponda tekrar eden ayak (güncel dönem)", "alarm", fazla, 0, fazla > 0,
                   "Aynı ayağın AYNI kuponda birden çok kez yazılması gerçek çift kayıttır. (Aynı ayağın "
                   "farklı kuponlarda olması kombi tasarımıdır — o ayrıca 'istatistik şişmesi'nde izlenir.)",
                   ornek, "kayıt")
 
 
+def _bozuk_oran(b: dict) -> bool:
+    return b["oran"] is None or float(b["oran"] or 0) <= 1.0 or float(b["oran"] or 0) > 1000
+
+
 def k_oran(B: list[dict]) -> dict:
-    kotu = [b for b in B if b["oran"] is None or float(b["oran"] or 0) <= 1.0 or float(b["oran"] or 0) > 1000]
+    kotu = [b for b in B if _bozuk_oran(b) and b.get("era_ici", 1)]
+    arsiv = sum(1 for b in B if _bozuk_oran(b) and not b.get("era_ici", 1))
     ornek = [f"{b['ajan']} · {_mac(b)} · {b['market']} {b['pick']} · oran {b['oran']}" for b in kotu]
-    return _sonuc("oran", "Geçersiz oran", "alarm", len(kotu), 0, bool(kotu),
-                  "Oranı boş, 1,00 ya da altı veya 1000'in üstü olan bahis. Getiri hesabını bozar.", ornek, "bahis")
+    ek = (f" Arşivde {arsiv} tane daha var (kapanmış dönem, düzeltme öncesi) — "
+          f"onlar tarih, canlı kusur değil." if arsiv else "")
+    return _sonuc("oran", "Geçersiz oran (güncel dönem)", "alarm", len(kotu), 0, bool(kotu),
+                  "Oranı boş, 1,00 ya da altı veya 1000'in üstü olan bahis. Getiri hesabını bozar. "
+                  "Koruması paper_engine._oran()'da: 1,05 altı fiyat değil, 'pazar kapalı' yer tutucusudur."
+                  + ek, ornek, "bahis")
 
 
 def k_bayat(B: list[dict], simdi: datetime) -> dict:
