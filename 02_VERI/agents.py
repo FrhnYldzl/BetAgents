@@ -661,9 +661,17 @@ def bridge_active() -> bool:
     return _now()[:10] < BRIDGE_UNTIL
 
 
-def ensure_portfolio(pid: str) -> None:
+def ensure_portfolio(pid: str, conn=None) -> None:
+    """`conn` verilirse ONU kullanır ve KAPATMAZ.
+
+    ⚠️ start_era bunu kendi açık bağlantısının içinden çağırıyordu; iki ayrı
+    yazma bağlantısı SQLite'ta "database is locked" veriyor. Üretim PostgreSQL
+    olduğu için canlıda patlamıyordu — yani hata YALNIZ yerel sınamada
+    görünüyordu ve bu, ERA geçişinin deploy öncesi denenememesi demekti.
+    """
     prof = PROFILES[pid]
-    conn = db.connect()
+    kapat = conn is None
+    conn = conn or db.connect()
     try:
         now = _now()
         conn.execute(
@@ -690,7 +698,8 @@ def ensure_portfolio(pid: str) -> None:
         except Exception:
             conn.rollback()
     finally:
-        conn.close()
+        if kapat:
+            conn.close()
 
 
 def _mbs(m: dict) -> int:
@@ -2329,7 +2338,7 @@ def start_era(era_no: int = 2, bankroll: float = 1000.0,
               f"{bankroll:.0f} TL, sabit 100 TL bahis")
         for pid in field:
             if pid in PROFILES:          # KURUCU_V2'nin profili yok (kendi hattı)
-                ensure_portfolio(pid)
+                ensure_portfolio(pid, conn)
             n, mean, lcb = flat_skill(conn, pid, era=era_start(conn, pid))
             row = conn.execute(
                 "SELECT current_bankroll, initial_bankroll FROM paper_portfolio "

@@ -207,6 +207,33 @@ def main():
     # sistem dakikalar içinde güncel olsun)
     # 🛡 AÇILIŞ KALKANI: deploy sonrası ilk iş — ajanlar çöküyor mu?
     # (Bir bağımlılık/şema kırılması haftalarca 'pasiflik' sanılmasın.)
+    # 🗓 ERA-4 — bir kez, kendiliğinden. Üretime elle müdahale edilmediği için
+    # geçiş buradan yapılır: era_no < 4 ise kurulur, sonraki açılışlarda atlanır.
+    #
+    # NEDEN GEREKTİ: ERA-3'ün karnesi bozuk sayılarla kirlendi. Lig P&L'i kasa
+    # alanlarından hesaplanıyordu ve kadro dışı bırakma işlemi o alanları
+    # değiştirdiği için yüzdeler anlamsızlaştı — kasa eksiye düştü (ÇARPAN
+    # -1.500 TL), kârda olan ajan atıldı (EUVOX +232 TL iken "lig sonuncusu").
+    # Kural düzeltildi ama ESKİ SAYILAR duruyor; temiz karşılaştırma ancak
+    # ortak başlangıçla mümkün. start_era arşivler, sıfırlar, benched=0 yapar.
+    try:
+        import agents as _agents
+        import db as _db          # worker modül düzeyinde db'yi almıyor
+        _conn = _db.connect()
+        try:
+            _r = _conn.execute(
+                "SELECT MAX(COALESCE(era_no,0)) FROM paper_portfolio").fetchone()
+            _era = int((_r[0] if _r else 0) or 0)
+        finally:
+            _conn.close()
+        if _era < 4:
+            print(f"[{_ts()}] 🗓 ERA-4 kuruluyor (mevcut era {_era})", flush=True)
+            _agents.start_era(era_no=4, bankroll=1000.0)
+        else:
+            print(f"[{_ts()}] era {_era} — ERA-4 geçişi zaten yapılmış", flush=True)
+    except Exception as e:
+        print(f"[{_ts()}] ERA-4 HATA: {e}", flush=True)
+
     try:
         import agents as _agents
         _agents.preflight()
