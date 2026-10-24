@@ -3733,12 +3733,51 @@ def page_ajan() -> None:
         st.markdown("<div class='v2bos'>Sahada ajan yok.</div>",
                     unsafe_allow_html=True)
         return
-    secenek = [x["ad"] for x in tum]
+    # Sayfanın altındaki "önceki/sonraki" SAYFALAR arasında gezer. Ajanlar
+    # arasında gezmek için ayrı bir çift gerekiyordu: 25 ajan var ve her
+    # birini açılır listeden tek tek seçmek yorucu.
+    #
+    # Liste takım sırasına göre: mavi → kırmızı → turuncu → toto → sistem.
+    # Böylece ileri gitmek aynı zamanda takımları sırayla dolaşmak oluyor;
+    # ajanın hangi takımda olduğu da ekranda yazıyor ki kullanıcı kaybolmasın.
     simdi = st.session_state.get("v2_ajan")
     idx = next((i for i, x in enumerate(tum) if x["pid"] == simdi), 0)
-    sec = st.selectbox("Ajan", secenek, index=idx, key="v2_ajan_sec_sf")
-    pid = next(x["pid"] for x in tum if x["ad"] == sec)
+
+    import html as _h          # modül düzeyinde yok; her kullanan yerel alıyor
+
+    def _takimi(pid: str) -> str:
+        for k in TAKIM_SIRA:
+            if any(y["pid"] == pid for y in d.get(k, [])):
+                return TAKIM_TANIM.get(k, {}).get("ad", k)
+        return "—"
+
+    sol, orta, sag = st.columns([1, 2.4, 1], gap="small")
+    with sol:
+        if st.button("← Önceki ajan", use_container_width=True,
+                     key="v2_ajan_onceki", disabled=len(tum) < 2):
+            _yeni = (idx - 1) % len(tum)
+            st.session_state["v2_ajan"] = tum[_yeni]["pid"]
+            # Açılır listenin kendi durumu widget anahtarında tutuluyor;
+            # rerun ÖNCESİ yazılmazsa liste eski adı göstermeye devam eder.
+            st.session_state["v2_ajan_sec_sf"] = _yeni
+            st.rerun()
+    with sag:
+        if st.button("Sonraki ajan →", use_container_width=True,
+                     key="v2_ajan_sonraki", disabled=len(tum) < 2):
+            _yeni = (idx + 1) % len(tum)
+            st.session_state["v2_ajan"] = tum[_yeni]["pid"]
+            st.session_state["v2_ajan_sec_sf"] = _yeni
+            st.rerun()
+    with orta:
+        # Açılır liste INDEKSLE çalışır, adla değil: iki ajanın görünen adı
+        # aynı olursa adla arama yanlış ajanı seçerdi.
+        sec_i = st.selectbox("Ajan", range(len(tum)), index=idx,
+                             format_func=lambda i: tum[i]["ad"],
+                             key="v2_ajan_sec_sf", label_visibility="collapsed")
+    pid = tum[sec_i]["pid"]
     st.session_state["v2_ajan"] = pid
+    st.markdown(f"<div class='v2suz'>{sec_i + 1} / {len(tum)} · "
+                f"{_h.escape(_takimi(pid))}</div>", unsafe_allow_html=True)
     _ajan_paneli(pid, d, sayfa=True)
 
 
