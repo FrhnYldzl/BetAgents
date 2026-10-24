@@ -310,7 +310,7 @@ def load_agents() -> list[dict]:
         n = len(v)
         if n == 0:
             out.append({
-                "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
+                "pid": pid, "ad": _ajan_adi(pid), "em": pid,
                 "n": 0, "won": 0, "hit": 0.0, "exp": 0.0, "edge": 0.0,
                 "odds": 0.0, "skill": 0.0, "t": None, "perfect": False,
                 "bekliyor": True,
@@ -326,7 +326,7 @@ def load_agents() -> list[dict]:
         perfect = (won == 0 or won == n)
         t = (skill / se) if (se > 1e-9 and not perfect) else None
         out.append({
-            "pid": pid, "ad": pid.rsplit("_", 1)[0], "em": pid,
+            "pid": pid, "ad": _ajan_adi(pid), "em": pid,
             "n": n, "won": won, "hit": hit, "exp": exp, "edge": hit - exp,
             "odds": sum(float(x["o"]) for x in v) / n,
             "skill": skill, "t": t, "perfect": perfect,
@@ -409,7 +409,7 @@ def load_board() -> list[dict]:
         _iddaa_ad = _ad.get((r["h"], r["a"]))
         out.append({
             "id": str(r["bet_id"]), "pid": r["p"],
-            "em": r["p"], "ad": str(r["p"]).rsplit("_", 1)[0],
+            "em": r["p"], "ad": _ajan_adi(r["p"]),
             "h": r["h"], "a": r["a"], "lg": lg,
             "iddaa_lig": _iddaa_ad,
             "code": CODE.get(lg, "—"),
@@ -1376,6 +1376,17 @@ def load_havuz() -> dict:
     return {"n": n, "hit": hit, "exp": exp, "edge": hit - exp, "flat": flat}
 
 
+def _ajan_adi(pid) -> str:
+    """Portföy kimliğinden görünen ad: TEMKINLI_V1 → TEMKINLI.
+
+    Alt çizgi BOŞLUĞA çevrilir: TOTO_KONTROL_V1 → "TOTO KONTROL",
+    SISTEM_JOKER_V1 → "SISTEM JOKER". Önce yalnız sondaki sürüm eki
+    atılıyordu ve iki kelimeli ajanlar tabloda "TOTO_KONTROL" diye
+    görünüyordu — diğer ajanların yanında bozuk duruyor.
+    """
+    return str(pid).rsplit("_", 1)[0].replace("_", " ")
+
+
 KIRMIZI = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
 TURUNCU = {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"}
 # 🟢 TOTO: Süper Toto modelini iddaa'da oynayan takım (09_TOTO'dan yalnız OKUR)
@@ -1442,7 +1453,7 @@ def load_lig() -> dict:
         a_ = acik.get(pid, {})
         ib = float(k.get("ib") or 1000)
         cb = float(k.get("cb") or 0)
-        return {"pid": pid, "ad": pid.rsplit("_", 1)[0],
+        return {"pid": pid, "ad": _ajan_adi(pid),
                 "em": pid, "n": n, "won": won, "hit": hit, "exp": exp,
                 "edge": hit - exp, "skill": skill,
                 "t": (skill / se) if (se > 1e-9 and not perfect) else None,
@@ -2124,7 +2135,7 @@ def load_risk() -> list[dict]:
             dur, sev = "İZLEMEDE", "g2"
         out.append({
             "p": r["p"], "em": r["p"],
-            "ad": str(r["p"]).rsplit("_", 1)[0], "cb": cb, "ib": ib,
+            "ad": _ajan_adi(r["p"]), "cb": cb, "ib": ib,
             "oran": oran, "tepe": pk,
             "dusus": ((cb - pk) / pk) if pk > 0 else 0.0,
             "ihtar": int(r["ih"] or 0), "era": r["en"],
@@ -3123,14 +3134,39 @@ def page_opus() -> None:
                 st.error(res.get("msg", "kaydedilemedi"))
 
 
+TAKIM_SIRA = ("mavi", "kirmizi", "turuncu", "toto", "sistem")
+
+
+def _tum_ajanlar(lig: dict) -> list:
+    """load_lig çıktısındaki BÜTÜN takımların ajanları, tek listede.
+
+    ⚠️ Bu yardımcı yoksa her çağrı yerinde elle liste kuruluyor ve yeni bir
+    takım eklendiğinde biri mutlaka unutuluyor. Unutuldu da: TOTO ve SİSTEM
+    takımları eklenince _ajan_paneli kendi listesini kuruyordu, ajan
+    bulunamıyor ve fonksiyon SESSİZCE return ediyordu — kullanıcı ajanın
+    içine girince bomboş sayfa görüyordu ("yok bir şey"). Tek kaynak budur.
+    """
+    out = []
+    for k in TAKIM_SIRA:
+        out += lig.get(k, [])
+    return out
+
+
 def _ajan_paneli(pid: str, lig: dict, sayfa: bool = False) -> None:
     """Ajan dosyası. 19.09'dan beri kendi sayfası var (Ajan Dosyası, sol
     panelde TAKIMLAR altında); sayfa=True o kip — Kapat düğmesi yok, büyük
     işlem bandı var. Takım tablosundaki bant özetin, bu sayfa ayrıntının
     yeri."""
-    tum = lig["mavi"] + lig["kirmizi"] + lig.get("turuncu", [])
+    tum = _tum_ajanlar(lig)
     a = next((x for x in tum if x["pid"] == pid), None)
     if not a:
+        # SESSİZ return yapma: kullanıcı bomboş sayfa görür ve neden
+        # olduğunu anlamaz. Sebebi söyle.
+        st.markdown(
+            "<div class='v2bos'>Bu ajanın bu dönemde kaydı yok — henüz bahis "
+            "kurmamış ya da portföyü yeni açılmış olabilir. Oynadığı ilk "
+            "kupondan sonra dosyası burada dolar.</div>",
+            unsafe_allow_html=True)
         return
     d = load_ajan_detay(pid)
     eg = load_ajan_egri().get(pid, {})
@@ -3574,8 +3610,7 @@ def page_lig() -> None:
     ham = load_egri_ham()
     bant = load_islem_bandi()
     ae = load_ajan_egri()
-    tum = (d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
-           + d.get("toto", []) + d.get("sistem", []))
+    tum = _tum_ajanlar(d)
     _ak = sum(x["acik_kupon"] for x in tum)
     _rk = sum(x["riskte"] for x in tum)
     kpi = [{"ad": "Ajan", "deger": str(len(tum))},
@@ -3691,8 +3726,7 @@ def page_ajan() -> None:
     """👤 Ajan Dosyası — seçilen ajanın seyri, işlem bandı, açık pozisyonu,
     gerekçesi ve sonucu. Eskiden Lig sayfasının dibindeydi."""
     d = load_lig()
-    tum = (d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
-           + d.get("toto", []) + d.get("sistem", []))
+    tum = _tum_ajanlar(d)
     _sayfa_basligi("Ajan Dosyası", "Bir ajanın her işlemi, gerekçesi ve "
                    "sonucu — kronolojik.", [])
     if not tum:
@@ -4229,7 +4263,7 @@ def page_sistem() -> None:
             pid = str(a["pid"])
             body.append(
                 "<tr><td><span class='ag'>" + _rozet(pid) +
-                pid.rsplit("_", 1)[0] + "</span>"
+                _ajan_adi(pid) + "</span>"
                 "<span class='sb'>" + str(a["detail"] or "")[:88] + "</span></td>"
                 "<td class='r'><span class='gr " + g + "'>" +
                 t.replace("🔴 ", "").replace("🟠 ", "").replace("🟢 ", "")
