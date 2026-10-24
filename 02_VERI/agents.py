@@ -40,8 +40,14 @@ TARGET_PCT = 1.50            # hepsi için 1.000 → 2.500 (adil kıyas)
 
 PROFILES: dict[str, dict] = {
     "TEMKINLI_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         "name": "TEMKİNLİ (düşük risk)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -53,8 +59,14 @@ PROFILES: dict[str, dict] = {
         "sort": "safety",                   # model_prob desc
     },
     "MEMUR_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         "name": "MEMUR (orta risk)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -83,10 +95,16 @@ PROFILES: dict[str, dict] = {
     },
     # ── MODEL-AJANLARI: bağımsız Poisson gol modeli (independent_model) ──
     "HOCA_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # ÇİFT-ONAY hipotezi: model + piyasa AYNI fikirdeyse oyna.
         # Backtest dersi: modelin doğru kullanımı teyit, tahmin değil.
         "name": "HOCA (Poisson çift-onay)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1+RATING",
         "stop_pct": -0.15,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -100,11 +118,17 @@ PROFILES: dict[str, dict] = {
         "pas_tolerance_days": 10,
     },
     "SIMYACI_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # DEĞER hipotezi (KONTROL DENEYİ): model piyasadan >= +6p yüksek
         # dediğinde oyna. Backtest -%8 dedi — canlı kontrol grubu; kazanırsa
         # hipotez ayağa kalkar, kaybederse kanıt pekişir. Küçük stake.
         "name": "SİMYACI (model-değer deneyi)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1+RATING",
         "stop_pct": -0.25,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -118,6 +142,13 @@ PROFILES: dict[str, dict] = {
         "pas_tolerance_days": 10,
     },
     "ERKENKUS_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # ⏰ ERKENKUŞ: Era-1 arşiv madenciliğinin (315 bahis) tek pozitif cebi:
         # kickoff'a >48 saat kala girilen bahisler %80 isabet / +1.3% flatROI
         # (n=44); 6-18sa penceresi -%26 (ölüm penceresi). Mantık: erken pazar
@@ -125,7 +156,6 @@ PROFILES: dict[str, dict] = {
         # (CLV>0 bahisler %73/-7.6 vs CLV<=0 %66/-14.5). Avrupa saat bandı
         # filtresi de kanıttan (12-24 UTC: -9%; Asya sabahı: -20%).
         "name": "ERKENKUŞ (erken pazar avcısı)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "UST_25", "ALT_25"},
@@ -148,7 +178,10 @@ PROFILES: dict[str, dict] = {
         # −%71 karnesi arşivde kaldı; yazar picks'i sezonda gerçek maçlara
         # dayanıyor, hipotez temiz sayfayla yeniden ölçülüyor.
         "name": "POPÜLER (yazar + konsensüs)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
+        "retired": True,
+        # 🏁 EMEKLİ (ERA-4): ciro bazlı ölçümde -%44,7 (n=48) — kontrol
+        # çizgisinin (JOKER -%2,8) 42 puan altında. Diğer emeklilikler bozuk
+        # sayılara dayandığı için geri alındı; bu karar ÖLÇÜLDÜ ve duruyor.
         "model": "YOK-TIPSTER",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,      # kendi aday kaynağı var
@@ -202,6 +235,13 @@ PROFILES: dict[str, dict] = {
         "sort": "score", "mode": "midband",
     },
     "TERS_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # 🪞 TERS: yazar-tersleme hipotezi. Ampirik: yazar sinyallerinin
         # KARŞI tarafı %88 isabet / +73.8% ROI (n=16 — küçük örneklem!).
         # Kontrast: KURUCU'yu terslemek ÇALIŞMIYOR (−7.7%) → bu "her kötüyü
@@ -209,7 +249,6 @@ PROFILES: dict[str, dict] = {
         # off-season'da −%76'ydı; sezonda değişebilir → küçük stake deneyi.
         # Yazar KG_VAR'ı terslerken KG_YOK oynanır vb. (hipotez bütünlüğü).
         "name": "TERS (yazar-tersleme deneyi)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "YOK-TIPSTER-TERS",
         "stop_pct": -0.25,
         "markets": set(), "fav_min": 0.0,
@@ -221,6 +260,13 @@ PROFILES: dict[str, dict] = {
         "pas_tolerance_days": 10,
     },
     "KALECI_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # 🧤 KALECİ: 546-bahis örüntü analizinin "kazanan kesişimi" — iki
         # dönemde de tekrarlayan ÜÇ örüntüyü tek gövdede birleştirir:
         #   1) KG_YOK tek pozitif pazar (+8.0%, %80 isabet; Era-1'de de +)
@@ -228,7 +274,6 @@ PROFILES: dict[str, dict] = {
         #   3) U-zamanlama: 6-40sa ÖLÜM PENCERESİ yasak (iki dönemde −26/−31);
         #      yalnız çok-erken (>40sa) veya geç (<6sa) girer.
         "name": "KALECİ (düşük-gol kesişim uzmanı)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "MOTOR-V1",
         "stop_pct": -0.20,
         "markets": {"KG_YOK", "ALT_25"},
@@ -258,12 +303,18 @@ PROFILES: dict[str, dict] = {
         "sort": "score", "mode": "joker",
     },
     "KONSEY_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # 🏛 KONSEY: iç-Polymarket — 8 seçmen ajanın filtrelerini aynı maça
         # uygular; SERVET-AĞIRLIKLI oy (kasa/1000, 0.25-2.0 aralığı) + quorum
         # (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak: motor/model/band) sağlayan
         # pick'leri oynar. Fayda VARSAYILMAZ: ligde yarışır, skor ölçer.
         "name": "KONSEY (ajan heyeti — iç-Polymarket)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         "model": "YOK-HEYET",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,
@@ -282,6 +333,13 @@ PROFILES: dict[str, dict] = {
     # model sinyal hattını bağla. Alt-modeller (MONOVOX/DUOVOX/BTTS-*/OU25-*)
     # aktivasyonda filtre/bacak olarak bunlara bağlanır.
     "CARPAN_V1": {
+        "retired": True,
+        # 🏁 EMEKLİ (ERA-4, 24.10.2026) — ÖLÇÜM: 30 karar kuponunda TOPLAM
+        # DÖNÜŞ SIFIR. 3.000 TL yatırıldı, 0 TL geri geldi. Bu bir performans
+        # sorunu değil, arıza işareti: en kötü rastgele seçim bile 30 kuponda
+        # bir şey tutturur. 1X2_OU kombinesinin fiyatlanması ya da
+        # sonuçlandırılması bozuk olabilir; ÖNCE o incelenmeli, sonra ajan
+        # yeniden değerlendirilir. Kasayı körü körüne yakmasın diye kapalı.
         # 🎰 ÇARPAN — maç içi korelasyon ajanı (İZOLE)
         # Aday kaynağı YALNIZ market_odds tablosu: iddaa'nın "1 ve Üst"
         # tarzı kombine seçimleri. Adil oran = bileşen çarpımı ÷ korelasyon
@@ -310,7 +368,7 @@ PROFILES: dict[str, dict] = {
         "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
         "max_tek": 2, "loss_streak": 99,          # yüksek varyans: mola yok
         "tek_stake": 0.05, "k3_stake": 0.05,
-        "sort": "score", "mode": "multiplier",
+        "sort": "score", "takim": "kirmizi", "mode": "multiplier",
         "combo_market": "1X2_OU", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,                 # veri birikene dek sabır
     },
@@ -327,7 +385,7 @@ PROFILES: dict[str, dict] = {
         "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
-        "sort": "score", "mode": "multiplier",
+        "sort": "score", "takim": "kirmizi", "mode": "multiplier",
         "combo_market": "OU_BTTS", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,
     },
@@ -345,7 +403,7 @@ PROFILES: dict[str, dict] = {
         "combo_cap": 99.0, "max_daily": 2, "max_open": 6,
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05,
-        "sort": "score", "mode": "multiplier",
+        "sort": "score", "takim": "kirmizi", "mode": "multiplier",
         "combo_market": "1X2_BTTS", "min_edge": -0.06, "residual_gate": True,
         "pas_tolerance_days": 30,
     },
@@ -365,7 +423,7 @@ PROFILES: dict[str, dict] = {
         "combo_cap": 99.0, "max_daily": 1, "max_open": 5,
         "max_tek": 1, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
-        "mode": "multiplier", "combo_market": "TOTAL_GOALS", "min_edge": -0.12,
+        "takim": "kirmizi", "mode": "multiplier", "combo_market": "TOTAL_GOALS", "min_edge": -0.12,
         "pas_tolerance_days": 60,
     },
     "DEVRE_V1": {
@@ -384,10 +442,17 @@ PROFILES: dict[str, dict] = {
         "combo_cap": 99.0, "max_daily": 2, "max_open": 5,
         "max_tek": 2, "loss_streak": 99,
         "tek_stake": 0.05, "k3_stake": 0.05, "sort": "score",
-        "mode": "multiplier", "combo_market": "HT_FT", "min_edge": 0.10,
+        "takim": "kirmizi", "mode": "multiplier", "combo_market": "HT_FT", "min_edge": 0.10,
         "pas_tolerance_days": 60,
     },
     "TRIVOX_V1": {
+        # 🔄 ERA-4 (24.10.2026) — GERİ ÇAĞRILDI. Emeklilik kararı ERA-3
+        # tasfiyesinde verilmişti ama o karar BOZUK SAYILARA dayanıyordu:
+        # lig P&L'i kasa alanlarından hesaplanıyordu ve kadro dışı bırakma
+        # işlemi o alanları değiştirdiği için yüzdeler anlamsızdı (EUVOX
+        # +232 TL kârdayken -%100 görünüyordu). Ciro bazlı ölçümde bu
+        # ajanların bir kısmı ARTIDA çıktı — TERS +%14,1 · ERKENKUŞ +%10,0.
+        # Hipotez ve filtreler aynen korundu; yalnız karne sıfırlandı.
         # 🏁 EMEKLİ (29 Ağu 2026) — GERİYE DÖNÜK TEST KARARI.
         # 2.884 Süper Lig maçı / 9 sezon (2017-2026, Pinnacle kapanış) motor
         # sinyalleriyle yeniden oynatıldı; her oran iddaa fiyatına çevrildi
@@ -399,7 +464,6 @@ PROFILES: dict[str, dict] = {
         # ~+5% becerisi var, ama iddaa marjı onu tamamen yiyor.
         # Karar: T1 tek başına uzmanlık alanı değil; slot boşaltıldı.
         "name": "TRIVOX (emekli — T1'de kanıtlanmış edge yok)",
-        "retired": True,   # ERA 3 tasfiyesi (2026-09-07)
         # ⚠️ MODEL BEYANI — ajanlar hangi modeli kullandığını söylemiyordu.
         # Sonuç: model kaydı (MODEL_REGISTRY) canlı sistemle bağını
         # kaybetti ve sessizce yalancı hale geldi. Denetimde bulundu:
@@ -407,7 +471,6 @@ PROFILES: dict[str, dict] = {
         # ama canlı oynuyor. Eşleme ajan ADINDAN tahmin ediliyordu.
         # Bu alan tahmini kanıta çevirir. audit_model_registry.py okur.
         "model": "TRIVOX",
-        "retired": True,
         "stop_pct": -0.15, "leagues": {"T1"},
         "markets": {"KG_YOK", "UST_25"}, "fav_min": 0.72,
         "min_mp": 0.66, "min_odds": 1.20,
@@ -429,6 +492,72 @@ PROFILES: dict[str, dict] = {
     },
 
     # ══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════
+    # ⚫ SİSTEM TAKIM — N/M sistem kuponları
+    # ══════════════════════════════════════════════════════════════
+    # Matematiği 02_VERI/sistem.py'de, ölçümüyle birlikte. Özeti:
+    # SİSTEM KENARI ÇARPAR, İKİ YÖNDE DE. Kenar yoksa hiçbir k bir şey
+    # katmaz (fark tam 0,000); marj varken k büyüdükçe kötüleşir; kenar
+    # varsa k büyüdükçe iyileşir — 1 puanlık kenar 5/5'te 6,2 puana çıkar.
+    #
+    # Dolayısıyla bu takım bir KENAR KAYNAĞI DEĞİL, KALDIRAÇTIR. Ölçtük
+    # (24.10.2026): bugün hiçbir ajan kendi fiyatını geçmiyor, yani sistem
+    # bugün kaybı büyütür. Takım, gerçek kenarı olan bir ajan çıktığı gün
+    # hazır olsun diye kuruluyor ve o güne kadar kendi kontrolüyle ölçülüyor.
+    #
+    # ⚠️ Bir "sistem" C(n,k) KUPON demektir. 4/5 → 5 kupon. max_daily kupon
+    # sayar, sistem sayısını değil; limitler buna göre verildi.
+    "KALDIRAC_V1": {
+        "name": "KALDIRAÇ (4/5 sistem — kenarı üsle) · keşif",
+        "takim": "sistem", "mode": "sistem", "model": "SISTEM",
+        "sistem_n": 5, "sistem_k": 4,
+        "hipotez":
+            "Motorun en yüksek güvenli 5 ayağı gerçekten kenar taşıyorsa, 4/5 "
+            "sistemi o kenarı üsler. Taşımıyorsa marjı üsler. Bu ajan, kenarın "
+            "VAR OLUP OLMADIĞINI büyüteçle sorar.",
+        "emeklilik":
+            "60 sistemden sonra: dönüş/TL, aynı ayakların tekli kontrolünü "
+            "geçmiyorsa kenar yok demektir — ajan kapanır.",
+        "markets": set(), "fav_min": 0.0, "min_mp": 0.62,
+        "min_odds": 1.25, "max_odds": 2.20,
+        "combo_cap": 99.0, "max_daily": 5, "max_open": 15, "max_tek": 0,
+        "loss_streak": 99, "tek_stake": 0.0, "k3_stake": 0.0,
+        "sort": "score", "stop_pct": -0.35, "pas_tolerance_days": 14,
+    },
+    "SIGORTA_V1": {
+        "name": "SİGORTA (2/4 sistem — varyans yastığı) · keşif",
+        "takim": "sistem", "mode": "sistem", "model": "SISTEM",
+        "sistem_n": 4, "sistem_k": 2,
+        "hipotez":
+            "Düşük k, ödeme sıklığını yükseltir: 4 ayakta 2'si tutsa para "
+            "döner. Beklenen değeri ARTIRMAZ (matematik bunu yasaklıyor) ama "
+            "kasanın hayatta kalma süresini uzatır — ölçüm için gereken n'e "
+            "ulaşmak kasa tükenmeden mümkün olsun diye.",
+        "emeklilik":
+            "60 sistemden sonra: tekli kontrole göre dönüş/TL farkı -5 puandan "
+            "kötüyse yastık pahalıya geliyor demektir — ajan kapanır.",
+        "markets": set(), "fav_min": 0.0, "min_mp": 0.58,
+        "min_odds": 1.30, "max_odds": 2.60,
+        "combo_cap": 99.0, "max_daily": 6, "max_open": 18, "max_tek": 0,
+        "loss_streak": 99, "tek_stake": 0.0, "k3_stake": 0.0,
+        "sort": "score", "stop_pct": -0.35, "pas_tolerance_days": 14,
+    },
+    "SISTEM_JOKER_V1": {
+        "name": "SİSTEM JOKER (rastgele 4/5) · kontrol",
+        "takim": "sistem", "mode": "sistem", "model": "SISTEM",
+        "sistem_n": 5, "sistem_k": 4, "rastgele": True,
+        "hipotez":
+            "Hipotez YOK — kontrol çizgisi. Ayaklar rastgele seçilir, sistem "
+            "şekli diğerleriyle aynıdır. KALDIRAÇ bunu geçemiyorsa seçim "
+            "becerisi değil, sistem şeklinin kendisi ölçülmüş olur.",
+        "emeklilik": "Kapanmaz — kontrol çizgisidir.",
+        "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.25, "max_odds": 2.20,
+        "combo_cap": 99.0, "max_daily": 5, "max_open": 15, "max_tek": 0,
+        "loss_streak": 99, "tek_stake": 0.0, "k3_stake": 0.0,
+        "sort": "score", "stop_pct": -0.99, "pas_tolerance_days": 14,
+    },
+
     # 🟠 TURUNCU TAKIM — bağımsız skor modeli (kullanıcı kararı 19.09)
     # ══════════════════════════════════════════════════════════════
     # Kaynak: kullanıcının "Kombine Market Fiyatlama" eki. DATA → MODEL →
@@ -1648,6 +1777,18 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # 🟠 TURUNCU modu: bağımsız skor modeli (turuncu_agent) — izole hat.
     # Hata burada YAKALANMAZ: run_profile bu ajanı 🔴 TIKANIKLIK yazar,
     # diğer ajanlar etkilenmez (fail-loud ilkesi).
+    # ⚫ SİSTEM modu: ayakları diğer takımların görüşünden alır, C(n,k)
+    # kupon kurar. Montaj _assemble_coupons DEĞİL — o tek/ikili/üçlü mantığı
+    # kurar, sistem ise tek bir seçim kümesinin altkümeleridir.
+    if mode == "sistem":
+        picks = _sistem_adaylari(prof, tag, matches, eng)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
+        kup = _sistem_kuponlari(prof, picks, unit)
+        if not kup:
+            print(f"{tag} ⚪ MEŞRU PAS sistem için yeterli ayak yok "
+                  f"({len(picks)} aday, {prof.get('sistem_n', 5)} gerek)")
+        return kup[:max(0, prof["max_daily"])]
+
     if mode == "turuncu":
         import turuncu_agent as _ta
         picks = _ta.adaylar(prof, tag)
@@ -1700,6 +1841,52 @@ def _lock_open(picks: list[dict], open_matches: set, open_keys: set,
         out.append(p)
     if tag and len(out) != len(picks):
         print(f"{tag} 🔒 {len(picks)-len(out)} aday elendi (zaten açık pozisyon)")
+    return out
+
+
+def _sistem_adaylari(prof: dict, tag: str, matches: list[dict], eng) -> list[dict]:
+    """SİSTEM ajanının ayak havuzu.
+
+    Rastgele kontrol dışındakiler sinyal motorunun adaylarını kullanır —
+    yani SİSTEM takımı kendi görüşünü üretmez, DİĞER takımların görüşünü
+    kaldıraçlar. Kasıtlı: böylece ölçülen şey "sistem şekli ne katıyor"
+    olur, araya yeni bir seçim becerisi karışmaz.
+    """
+    if prof.get("rastgele"):
+        return _joker_candidates(prof, tag, matches)
+    return _engine_candidates(prof, tag, matches, eng)
+
+
+def _sistem_kuponlari(prof: dict, picks: list[dict], unit: float = 100.0) -> list[dict]:
+    """n ayak seç, C(n,k) kombinasyonunu ayrı kupon olarak döndür.
+
+    Her maçtan EN ÇOK BİR ayak: aynı maçın iki sonucu hem korelasyonlu hem de
+    çoğu zaman birbirini dışlar; sistemin bağımsızlık varsayımı çöker ve
+    P(≥k) hesabı yalan söyler.
+    """
+    import itertools
+    n = int(prof.get("sistem_n", 5))
+    k = int(prof.get("sistem_k", 4))
+    gorulen, secim = set(), []
+    for p in sorted(picks, key=lambda x: -(x.get("signal_score") or 0)):
+        mid = (p.get("_match") or {}).get("match_id")
+        if mid in gorulen:
+            continue
+        gorulen.add(mid)
+        secim.append(p)
+        if len(secim) == n:
+            break
+    if len(secim) < n:
+        return []
+    out = []
+    for c in itertools.combinations(secim, k):
+        co = 1.0
+        for x in c:
+            co *= float(x["odds"])
+        out.append({
+            "coupon_type": f"S_{k}/{n}", "picks": list(c), "stake": unit,
+            "combined_odds": round(co, 3),
+            "potential_return": round(unit * co, 2)})
     return out
 
 
