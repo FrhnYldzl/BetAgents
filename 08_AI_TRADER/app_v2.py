@@ -1378,6 +1378,10 @@ def load_havuz() -> dict:
 
 KIRMIZI = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
 TURUNCU = {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"}
+# 🟢 TOTO: Süper Toto modelini iddaa'da oynayan takım (09_TOTO'dan yalnız OKUR)
+TOTO = {"TOTOCU_V1", "AYKIRI_V1", "TOTO_KONTROL_V1"}
+# ⚫ SİSTEM: N/M sistem kuponları — diğer takımların görüşünü kaldıraçlar
+SISTEM = {"KALDIRAC_V1", "SIGORTA_V1", "SISTEM_JOKER_V1"}
 
 
 @st.cache_data(ttl=180, show_spinner=False)
@@ -1466,7 +1470,7 @@ def load_lig() -> dict:
         pass
     for p in kasa:
         if p not in by and (p in _aktif or p in KIRMIZI or p in TURUNCU
-                            or p in acik):
+                            or p in TOTO or p in SISTEM or p in acik):
             tum.append(kur(p, []))
 
     # ⚠️ EMEKLILER ARSIVE — kullanici "listeyi kalabalik gosteriyor" dedi.
@@ -1479,17 +1483,18 @@ def load_lig() -> dict:
     # ⚠️ AJAN OLMAYAN PORTFOYLER: PAPER_V1 (arsiv), OPUS5_V1 (gercek
     # para defteri), KURUCU_V2 (kurucu portfoyu). KURUCU listede yoktu
     # ve Mavi Takim'da n=80 ile "KADRO DISI" olarak goruunuyordu.
-    mavi = [x for x in tum if x["pid"] not in KIRMIZI
-            and x["pid"] not in TURUNCU
+    _ayri = KIRMIZI | TURUNCU | TOTO | SISTEM
+    mavi = [x for x in tum if x["pid"] not in _ayri
             and x["pid"] not in ("PAPER_V1", "OPUS5_V1", "KURUCU_V2")]
     kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
     turuncu = [x for x in tum if x["pid"] in TURUNCU]
-    mavi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
-    kirmizi.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
-    turuncu.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
+    toto = [x for x in tum if x["pid"] in TOTO]
+    sistem = [x for x in tum if x["pid"] in SISTEM]
+    for g in (mavi, kirmizi, turuncu, toto, sistem):
+        g.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
     arsiv.sort(key=lambda z: -z["edge"])
     return {"mavi": mavi, "kirmizi": kirmizi, "turuncu": turuncu,
-            "arsiv": arsiv}
+            "toto": toto, "sistem": sistem, "arsiv": arsiv}
 
 
 # Para piyasası yıllık getirisi — belge §2.3'te 35/40/45 senaryoları
@@ -3509,6 +3514,10 @@ TAKIM_TANIM = {
                 "renk": "#a82f22"},
     "turuncu": {"ad": "Turuncu Takım",
                 "alt": "bağımsız skor modeli · keşif", "renk": "#d9730d"},
+    "toto": {"ad": "Toto Takım",
+             "alt": "Süper Toto modeli × iddaa · keşif", "renk": "#1f7a4d"},
+    "sistem": {"ad": "Sistem Takım",
+               "alt": "N/M sistem kuponları · keşif", "renk": "#4b4b57"},
 }
 TAKIM_NOTU = {
     "turuncu": (
@@ -3565,7 +3574,8 @@ def page_lig() -> None:
     ham = load_egri_ham()
     bant = load_islem_bandi()
     ae = load_ajan_egri()
-    tum = d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+    tum = (d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+           + d.get("toto", []) + d.get("sistem", []))
     _ak = sum(x["acik_kupon"] for x in tum)
     _rk = sum(x["riskte"] for x in tum)
     kpi = [{"ad": "Ajan", "deger": str(len(tum))},
@@ -3665,11 +3675,24 @@ def page_turuncu() -> None:
     _takim_sayfasi("turuncu")
 
 
+def page_toto_takim() -> None:
+    """🟢 TOTO TAKIM — Süper Toto modeli iddaa'da. Diğer takımlarla AYNI
+    biçim: kendi kasası, paper_bets defteri, lig kuralları."""
+    _takim_sayfasi("toto")
+
+
+def page_sistem_takim() -> None:
+    """⚫ SİSTEM TAKIM — N/M sistem kuponları.
+    ⚠️ Ad dikkat: page_sistem zaten 'Sağlık' sayfası."""
+    _takim_sayfasi("sistem")
+
+
 def page_ajan() -> None:
     """👤 Ajan Dosyası — seçilen ajanın seyri, işlem bandı, açık pozisyonu,
     gerekçesi ve sonucu. Eskiden Lig sayfasının dibindeydi."""
     d = load_lig()
-    tum = d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+    tum = (d["mavi"] + d["kirmizi"] + d.get("turuncu", [])
+           + d.get("toto", []) + d.get("sistem", []))
     _sayfa_basligi("Ajan Dosyası", "Bir ajanın her işlemi, gerekçesi ve "
                    "sonucu — kronolojik.", [])
     if not tum:
@@ -4766,8 +4789,10 @@ SAYFA_TANIM = [
         # Kullanıcı isteği (25.09.2026): "diğer takımların altına koyalım".
         # Gezinme burada duruyor ama veri ayrı kalıyor: sayfa _toto_sayfa ile
         # sarılı, yalnız toto_* tablolarını okur ve hatası bu sayfada kalır.
-        ("Toto Takım", _toto_sayfa("takim"), ":material/groups:", "toto-takim",
-         "Toto ajanları bu hafta hangi kuponu kuruyor, neden?"),
+        ("Toto Takım", page_toto_takim, ":material/groups:", "toto-takim",
+         "Toto modeli iddaa'da ne buluyor?"),
+        ("Sistem Takım", page_sistem_takim, ":material/account_tree:",
+         "sistem-takim", "Sistem kuponu kenarı büyütüyor mu?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
     ("PORTFÖY", [
@@ -4787,6 +4812,8 @@ SAYFA_TANIM = [
          "Hangi ajanın sesi ne kadar, neden?"),
         ("Toto · Geçmiş Test", _toto_sayfa("gecmis_test"), ":material/history:", "toto-test",
          "Bu sistemle geçmişte oynasaydık ne olurdu?"),
+        ("Toto · Kupon Takımı", _toto_sayfa("takim"), ":material/style:",
+         "toto-kupon", "Toto kolonunu kim nasıl dolduruyor, neden?"),
         ("Toto · Arşiv", _toto_sayfa("arsiv"), ":material/inventory_2:", "toto-arsiv",
          "Ne oynadık, ne oldu, ne öğrendik?")]),
     # CANLI — üçüncü ürün, kendi tabloları (cl_*) ve kendi toplayıcısı. Toto ve

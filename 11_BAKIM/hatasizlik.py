@@ -197,14 +197,25 @@ def asama_uretec() -> None:
             continue
         p = dict(prof)
         p["min_lead_h"] = 0
-        if mode == "sistem":
+        # ⚠️ Her mod AÇIKÇA yazılır; bilinmeyen mod sessizce _engine_candidates'e
+        # DÜŞMEZ. Düşüyordu: 'toto' modu motor üretecine gidip 65 aday
+        # raporladı (gerçek Toto üreteci 3 veriyor) — yani o satır Toto'yu hiç
+        # sınamadan YEŞİL yazdı. Denetimin yanlış yeşili, kırmızısından beterdir.
+        if mode == "toto":
+            fn, args = A._toto_adaylari, (p, pid)
+        elif mode == "sistem":
             fn, args = A._sistem_adaylari, (p, pid, M, eng)
         elif mode == "midband":
             fn, args = A._midband_candidates, (p, pid, M)
         elif mode == "joker":
             fn, args = A._joker_candidates, (p, pid, M)
-        else:
+        elif mode in ("engine", "confirm", "value"):
             fn, args = A._engine_candidates, (p, pid, M, eng)
+        else:
+            _ekle("4 ÜRETEÇ", f"{mode} ({pid})", KALDI,
+                  "bu mod denetimde TANIMSIZ — sessizce motora düşmesin diye "
+                  "açıkça kaldı yazılıyor; hatasizlik.py'ye dalı ekle")
+            continue
         r, hata = _sessiz(fn, *args)
         if hata:
             _ekle("4 ÜRETEÇ", f"{mode} ({pid})", KALDI, _kisa(hata))

@@ -36,6 +36,8 @@ import db
 from paper_engine import PaperEngine
 
 INITIAL = 1000.0
+SECENEK_SIRA = {"1": 0, "0": 1, "2": 2}
+
 TARGET_PCT = 1.50            # hepsi için 1.000 → 2.500 (adil kıyas)
 
 PROFILES: dict[str, dict] = {
@@ -492,6 +494,78 @@ PROFILES: dict[str, dict] = {
     },
 
     # ══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════
+    # 🟢 TOTO TAKIM — Süper Toto modelini İDDAA'da oynat
+    # ══════════════════════════════════════════════════════════════
+    # O haftanın 15 Toto maçı iddaa'da da var. Toto'nun olasılık modeli
+    # (Elo · Form · H2H · Kadro · Piyasa pazarı) iddaa fiyatından BAĞIMSIZ
+    # bir görüş üretiyor; fiyatla ayrıştığı yerde kenar olabilir.
+    #
+    # ⚠️ BU TAKIM NEDEN FARKLI: ölçtük (24.10.2026), BetAgents ajanlarının
+    # model_prob'u `_vig_strip(fiyat)` — kendi fiyatının marjsızı. Kendi
+    # fiyatını tekrar eden modelin kenarı YAPISAL OLARAK EKSİDİR
+    # (edge = -raw·(S-1)/S, 1.252 bahsin 1.252'sinde doğrulandı). Toto'nun
+    # P'si fiyattan türetilmiyor. Projede ilk kez gerçek kenarın OLABİLECEĞİ
+    # yer burası — "olabileceği", olduğu değil.
+    #
+    # İki görüş, iki ajan, bir kontrol. Toto pazarının fiyatı PİYASA ajanına
+    # demirli (servetin %68'i kulüpte, %53'ü millide — çünkü en isabetli o).
+    # TOTOCU o demirli fiyatı kullanır (muhafazakâr), AYKIRI PİYASA'yı
+    # çıkarıp kalanları kullanır (agresif). Hangisinin doğru olduğunu
+    # bilmiyoruz; bilmediğimizi bilerek kurmak, birini seçip haklı çıkmayı
+    # ummaktan iyidir.
+    "TOTOCU_V1": {
+        "name": "TOTOCU (Toto pazar fiyatı × iddaa) · keşif",
+        "takim": "toto", "mode": "toto", "model": "TOTO-PAZAR",
+        "toto_gorus": "toto", "toto_min_kenar": 0.04,
+        "hipotez":
+            "Toto'nun servet ağırlıklı pazar fiyatı, iddaa fiyatından sonra "
+            "KALAN bilgiyi taşır. Fark küçüktür (ölçüldü: ortalama 0,042) ama "
+            "piyasa çıpasından arta kalan budur ve yönü doğruysa kenardır.",
+        "emeklilik":
+            "60 bahis sonra: CLV ortalaması sıfırın altındaysa model fiyatı "
+            "öngörmüyor demektir — ajan kapanır.",
+        "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.20, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "AYKIRI_V1": {
+        "name": "AYKIRI (PİYASA'sız Toto görüşü × iddaa) · keşif",
+        "takim": "toto", "mode": "toto", "model": "TOTO-BAGIMSIZ",
+        "toto_gorus": "bagimsiz", "toto_min_kenar": 0.08,
+        "hipotez":
+            "Elo · Form · H2H · Kadro, PİYASA ajanı çıkarıldığında fiyattan "
+            "TAMAMEN bağımsız bir görüş verir (ölçüldü: piyasadan sapma 0,093, "
+            "demirli görüşün 2,2 katı). Piyasanın yanıldığı maçı ancak böyle "
+            "bir görüş bulabilir. Riski açık: cüzdan bu ajanların PİYASA'dan "
+            "daha az isabetli olduğunu söylüyor — hipotez tam da bunu sınıyor.",
+        "emeklilik":
+            "60 bahis sonra: CLV ortalaması TOTOCU'yu geçmiyorsa PİYASA'yı "
+            "çıkarmak bilgi değil gürültü ekliyor demektir — ajan kapanır.",
+        "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.20, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "TOTO_KONTROL_V1": {
+        "name": "TOTO KONTROL (aynı maçlar, rastgele taraf) · kontrol",
+        "takim": "toto", "mode": "toto", "model": "TOTO-KONTROL",
+        "toto_gorus": "rastgele", "toto_min_kenar": -9.0,
+        "hipotez":
+            "Hipotez YOK. AYNI Toto maçlarında rastgele taraf oynar. Bu ayrım "
+            "şart: TOTOCU kazanırsa sebebi 'Toto modeli iyi' mi, yoksa 'Toto "
+            "maçları zaten iyi fiyatlı' mı? Kontrol bunu ayırır.",
+        "emeklilik": "Kapanmaz — kontrol çizgisidir.",
+        "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.20, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "score", "stop_pct": -0.99, "pas_tolerance_days": 14,
+    },
+
     # ══════════════════════════════════════════════════════════════
     # ⚫ SİSTEM TAKIM — N/M sistem kuponları
     # ══════════════════════════════════════════════════════════════
@@ -1786,6 +1860,15 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # 🟠 TURUNCU modu: bağımsız skor modeli (turuncu_agent) — izole hat.
     # Hata burada YAKALANMAZ: run_profile bu ajanı 🔴 TIKANIKLIK yazar,
     # diğer ajanlar etkilenmez (fail-loud ilkesi).
+    # 🟢 TOTO modu: haftanın Toto maçlarını iddaa'da oynar. Montaj diğer
+    # takımlarla AYNI (_assemble_coupons) — kullanıcı şartı: "aynı diğer
+    # takımlar gibi oynasın".
+    if mode == "toto":
+        picks = _toto_adaylari(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks, unit)
+
     # ⚫ SİSTEM modu: ayakları diğer takımların görüşünden alır, C(n,k)
     # kupon kurar. Montaj _assemble_coupons DEĞİL — o tek/ikili/üçlü mantığı
     # kurar, sistem ise tek bir seçim kümesinin altkümeleridir.
@@ -1851,6 +1934,82 @@ def _lock_open(picks: list[dict], open_matches: set, open_keys: set,
     if tag and len(out) != len(picks):
         print(f"{tag} 🔒 {len(picks)-len(out)} aday elendi (zaten açık pozisyon)")
     return out
+
+
+def _toto_adaylari(prof: dict, tag: str) -> list[dict]:
+    """🟢 TOTO TAKIM adayları: haftanın Toto maçları, iddaa fiyatıyla.
+
+    Toto tarafı AYRI bir üründür (09_TOTO, kendi tabloları). Buradan YALNIZ
+    OKURUZ: son analizi alır, iddaa eşleşmesi olan maçlarda kenarı hesaplar.
+    Toto'nun hiçbir tablosuna yazılmaz — iki ürünün birbirini etkilememesi
+    şartı korunur.
+
+    event_id → match_id: paper_bets match_id ister, yoksa bahis SONUÇLANAMAZ.
+    Eşleşmeyen maç aday OLMAZ (ölçüldü: 8/8 eşleşiyor, ama milli haftalarda
+    Toto maçlarının yarısı iddaa programında hiç yok).
+    """
+    import os
+    import sys as _sys
+    _t = os.path.join(os.path.dirname(THIS_DIR), "09_TOTO")
+    if _t not in _sys.path:
+        _sys.path.append(_t)              # SONA: ad çakışmasında BetAgents kazanır
+    try:
+        import toto_db
+        import toto_iddaa as TI
+    except Exception as e:
+        print(f"{tag} 🔴 TOTO modülü yüklenemedi: {type(e).__name__}: {e}")
+        return []
+    try:
+        A = toto_db.son_analiz()
+    except Exception as e:
+        print(f"{tag} 🔴 Toto analizi okunamadı: {type(e).__name__}: {e}")
+        return []
+    if not A:
+        print(f"{tag} ⚪ MEŞRU PAS Toto analizi yok (hafta açılmamış olabilir)")
+        return []
+
+    gorus = prof.get("toto_gorus", "toto")
+    if gorus == "rastgele":
+        # Kontrol: AYNI maçlar, taraf maç kimliğinden deterministik rastgele.
+        # Tohum olarak event_id kullanılır — tekrarlanabilir, koşudan koşuya
+        # değişmez (random.random() olsaydı karne gürültülenirdi).
+        ham = TI.adaylar(A, gorus="toto", min_kenar=-9.0,
+                         min_oran=prof["min_odds"], max_oran=prof.get("max_odds", 6.0))
+        secili, gorulen = [], set()
+        for x in sorted(ham, key=lambda y: (y["sira"], y["pick"])):
+            if x["sira"] in gorulen:
+                continue
+            h = (int(x["event_id"]) * 2654435761) % 3 if str(x["event_id"]).isdigit() else 0
+            if SECENEK_SIRA.get(x["pick"], 0) != h:
+                continue
+            gorulen.add(x["sira"])
+            secili.append(x)
+        ham = secili
+    else:
+        ham = TI.adaylar(A, gorus=gorus,
+                         min_kenar=float(prof.get("toto_min_kenar", 0.05)),
+                         min_oran=prof["min_odds"], max_oran=prof.get("max_odds", 6.0))
+    if not ham:
+        print(f"{tag} ⚪ MEŞRU PAS Toto maçlarında eşiği geçen kenar yok")
+        return []
+
+    conn = db.connect()
+    try:
+        picks, kayip = [], 0
+        for x in ham:
+            r = conn.execute(
+                "SELECT * FROM matches_v2 WHERE external_id_iddaa = ?",
+                (str(x["event_id"]),)).fetchone()
+            if not r:
+                kayip += 1
+                continue
+            m = dict(r)
+            picks.append({**x, "_match": m})
+    finally:
+        conn.close()
+    print(f"{tag} 🟢 TOTO aday: {len(picks)}"
+          + (f" · {kayip} maç matches_v2'de yok" if kayip else ""))
+    return picks
 
 
 def _sistem_adaylari(prof: dict, tag: str, matches: list[dict], eng) -> list[dict]:
