@@ -105,6 +105,51 @@ def void_stray_matches(hours: int = 48) -> int:
         conn.close()
 
 
+def void_orphan_legs() -> int:
+    """Maci VOID olmus ama kendisi hala 'open' duran bahis ayaklarini void'le.
+
+    ⚠️ NEDEN AYRI BIR FONKSIYON
+    void_stale_matches'in belgesi "boylece kupon ayagi push/iade olur" diyor
+    ama kod YALNIZ matches_v2'yi guncelliyordu; paper_bets'e hic dokunmuyordu.
+    Niyet uygulanmamisti.
+
+    Ustelik o fonksiyonun sorgusu `pc.status='open'` ile sinirli. Kombine
+    mantigi geregi bir ayak kaybedince kupon HEMEN 'lost' yaziliyor ve kalan
+    ayaklar acik birakiliyor (sonuclari gelince kapanacaklar diye). Maç VOID'e
+    duserse o sonuc HIC gelmez ve ayak sonsuza kadar acik kalir — ama kuponu
+    artik 'open' olmadigi icin yukaridaki temizlik onu GORMEZ.
+
+    Olculdu (25.09.2026): LNZ Cherkasy - Veres Rivne, KALECI, 54 gundur acik;
+    kuponu 'lost', maci VOID. 1.630 ayakta 1 vaka — nadir ama panelin "acik
+    bahis" sayacini ve Haftalik Bakim'in 'bayat' alarmini kalici olarak
+    kirletiyor. Surekli kirmizi yanan alarm, bakilmayan alarmdir.
+
+    Kupon durumuna BAKMAZ: maç void ise ayak da void'dir. Kasa etkisi yok —
+    kupon zaten cozulmus, bu yalniz ayagin defterdeki durumunu duzeltir.
+    """
+    conn = db.connect()
+    try:
+        now_iso = datetime.utcnow().isoformat()
+        rows = conn.execute(
+            """
+            SELECT pb.bet_id FROM paper_bets pb
+            JOIN matches_v2 m ON m.match_id = pb.match_id
+            WHERE pb.status = 'open'
+              AND m.is_settled = 1
+              AND m.home_score IS NULL
+            """).fetchall()
+        ids = [r[0] for r in rows]
+        for bid in ids:
+            conn.execute(
+                "UPDATE paper_bets SET status='void', "
+                "settled_at=COALESCE(settled_at,?) WHERE bet_id=?",
+                (now_iso, bid))
+        conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
+
+
 def run():
     log("=== AUTO SETTLE BASLADI ===")
 
@@ -143,6 +188,18 @@ def run():
             log(f"BAYAT MAÇ VOID: {n_void} maç (kickoff+12sa sonuçsuz) → kuponlar çözülecek")
     except Exception as e:
         log(f"VOID STALE HATA: {e}")
+
+    # ── Öksüz ayak temizliği: maçı VOID ama kendisi hâlâ 'open' duran
+    # bahisler. Yukarıdaki iki void yolu YALNIZ matches_v2'yi güncelliyor;
+    # ayağı kapatan kimse yoktu. Kuponu çoktan kapanmış olanlar da burada
+    # yakalanır — o vakayı void_stale_matches'in pc.status='open' filtresi
+    # hiç görmüyordu.
+    try:
+        n_oksuz = void_orphan_legs()
+        if n_oksuz:
+            log(f"ÖKSÜZ AYAK: {n_oksuz} bahis void (maçı VOID, kendisi açık kalmış)")
+    except Exception as e:
+        log(f"VOID ORPHAN HATA: {e}")
 
     log("Settle deneniyor...")
 

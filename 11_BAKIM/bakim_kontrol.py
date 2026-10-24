@@ -26,8 +26,9 @@ if str(_V) not in sys.path:
 
 # Kontrol seti — panel, saklanan sonuçta bunlar eksikse denetimi yeniden koşar
 # (yeni kontrol eklendiğinde sayfada görünmeden kalmasın).
-BEKLENEN_IDLER = {"sonuclandirma", "cift", "oran", "bagimlilik_eksik", "bagimlilik_olu",
-                  "bayat", "sahipsiz", "lig", "clv", "karne", "filtre", "sisme"}
+BEKLENEN_IDLER = {"sonuclandirma", "cift", "oran", "oksuz", "bagimlilik_eksik",
+                  "bagimlilik_olu", "bayat", "sahipsiz", "lig", "clv", "karne",
+                  "filtre", "sisme", "iddia_defteri"}
 KIRLI_LIG = {"", "ALL", "UNK", "?", "NONE"}
 BAYAT_SAAT = 48
 LIG_ESIK = 0.50            # 'ALL' payı bunun üstündeyse SARI
@@ -191,6 +192,62 @@ def k_bayat(B: list[dict], simdi: datetime) -> dict:
     return _sonuc("bayat", f"Başlamasından {BAYAT_SAAT} saat geçip hâlâ açık", "izle", len(bayat), 0,
                   bool(bayat), "Sonuçlandırma boru hattının kaçırdığı maçlar — çoğu zaman ertelenen ya da "
                   "yarıda kalan maç. Kasada askıda para demektir.", ornek, "bahis")
+
+
+def k_oksuz(B: list[dict], K: list[dict]) -> dict:
+    """Kuponu kapanmış ama kendisi hâlâ 'open' duran ayak.
+
+    Kombine mantığı gereği bir ayak kaybedince kupon HEMEN 'lost' yazılır ve
+    kalan ayaklar açık bırakılır — sonuçları gelince kapanacaklar diye. Maç
+    VOID'e düşerse o sonuç HİÇ gelmez; ayak sonsuza kadar açık kalır, panelin
+    "açık bahis" sayacını ve aşağıdaki 'bayat' alarmını kalıcı kirletir.
+    (Ölçüldü 25.09.2026: LNZ Cherkasy - Veres Rivne, 54 gün.)
+    Onarımı auto_settle.void_orphan_legs() yapar.
+    """
+    kd = {k["coupon_id"]: k["durum"] for k in K}
+    o = [b for b in B if b["durum"] == "open"
+         and kd.get(b["coupon_id"]) not in (None, "open")]
+    ornek = [f"{b['ajan']} · {_mac(b)} · kupon={kd.get(b['coupon_id'])}" for b in o]
+    return _sonuc("oksuz", "Kuponu kapalı ama ayağı açık", "alarm", len(o), 0, bool(o),
+                  "Ayak, ait olduğu kupondan uzun yaşayamaz. Çoğu zaman maç VOID'e düşmüş "
+                  "ve ayağı kapatan olmamıştır. auto_settle.void_orphan_legs() onarır.",
+                  ornek, "bahis")
+
+
+def k_iddia_defteri(simdi: datetime) -> dict:
+    """İddia defteri (ajan_iddia) yazılmaya devam ediyor mu?
+
+    Bu defter ajanların KOTASIZ görüşünü tutuyor ve sürekli puanlamanın tek
+    kaynağı. Sessizce durursa kimse fark etmez — ölçüm aylarca boş birikir ve
+    bunu ancak rapor çekerken anlarız. Bakımın var oluş sebebi tam olarak bu
+    tür sessiz düşüşler.
+    """
+    import db
+    c = db.connect()
+    try:
+        try:
+            n, son = c.execute(
+                "SELECT COUNT(*), MAX(kayit_ts) FROM ajan_iddia").fetchone()
+        except Exception:
+            try:
+                c.rollback()          # PG: patlayan statement transaction'ı abort eder
+            except Exception:
+                pass
+            return _sonuc("iddia_defteri", "İddia defteri", "izle", None, 0, True,
+                          "ajan_iddia tablosu yok. Worker henüz koşmadıysa normal; "
+                          "koştuysa iddia_defteri.kaydet() düşüyor demektir.", [], "")
+    finally:
+        c.close()
+    if not n:
+        return _sonuc("iddia_defteri", "İddia defteri", "izle", 0, 1, True,
+                      "Defter boş. Ajanlar her gün görüş yazmalıydı.", [], "iddia")
+    t = _zaman(son)
+    gun = (simdi - t).days if t else 99
+    return _sonuc("iddia_defteri", f"İddia defteri · son kayıt {gun} gün önce", "izle",
+                  n, 1, gun > 2,
+                  "ajan_iddia her gün auto_play sonrası yazılır. 2 günden eskiyse "
+                  "iddia_defteri.kaydet() sessizce düşüyor olabilir.",
+                  [f"son kayıt: {str(son)[:16]} · toplam {n} iddia"], "iddia")
 
 
 def k_sahipsiz(B: list[dict]) -> dict:
@@ -415,9 +472,9 @@ def kos(simdi: datetime | None = None) -> dict:
     """Bütün kontrolleri çalıştır. Hiçbir şey yazmaz; sonucu döndürür."""
     simdi = simdi or datetime.now(timezone.utc)
     B, _K = _veri()
-    sonuclar = ([k_sonuclandirma(B), k_cift(B), k_oran(B)] + k_bagimlilik()
+    sonuclar = ([k_sonuclandirma(B), k_cift(B), k_oran(B), k_oksuz(B, _K)] + k_bagimlilik()
                 + [k_bayat(B, simdi), k_sahipsiz(B), k_lig(B), k_clv(B),
-                   k_karne(B), k_filtre(B), k_sisme(B)])
+                   k_karne(B), k_filtre(B), k_sisme(B), k_iddia_defteri(simdi)])
     return {"ts": simdi.isoformat(timespec="seconds"), "bahis": len(B),
             "kontrol_idler": [x["id"] for x in sonuclar],
             "kirmizi": sum(1 for x in sonuclar if x["durum"] == "kirmizi"),
