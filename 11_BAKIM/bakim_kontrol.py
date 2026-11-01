@@ -66,10 +66,12 @@ def _veri() -> tuple[list[dict], list[dict]]:
             "SELECT pb.bet_id, pb.coupon_id, pb.signal_name, pb.league, pb.home_team, pb.away_team, "
             "pb.kickoff_utc, pb.market, pb.pick, pb.odds, pb.implied_prob, pb.model_prob, pb.edge, "
             "pb.status, pb.home_score, pb.away_score, pb.clv, pb.closing_odds, pb.portfolio_id, "
+            "m.is_settled, m.home_score, "
             "CASE WHEN COALESCE(pp.status,'') = 'archived' THEN 0 "            "     WHEN pp.era_start IS NULL OR pc.created_at >= pp.era_start THEN 1 "            "     ELSE 0 END "
             "FROM paper_bets pb "
             "LEFT JOIN paper_coupons pc ON pc.coupon_id = pb.coupon_id "
-            "LEFT JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id").fetchall()
+            "LEFT JOIN paper_portfolio pp ON pp.portfolio_id = pb.portfolio_id "
+            "LEFT JOIN matches_v2 m ON m.match_id = pb.match_id").fetchall()
         try:
             k = c.execute("SELECT coupon_id, coupon_type, num_legs, combined_odds, status FROM paper_coupons").fetchall()
         except Exception:
@@ -77,7 +79,8 @@ def _veri() -> tuple[list[dict], list[dict]]:
     finally:
         c.close()
     ab = ["bet_id", "coupon_id", "ajan", "lig", "ev", "dep", "kickoff", "market", "pick", "oran", "ip", "mp",
-          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis", "portfoy", "era_ici"]
+          "kenar", "durum", "ev_skor", "dep_skor", "clv", "kapanis", "portfoy",
+          "mac_settled", "mac_skor", "era_ici"]
     ak = ["coupon_id", "tip", "ayak", "oran", "durum"]
     return [dict(zip(ab, x)) for x in b], [dict(zip(ak, x)) for x in k]
 
@@ -219,22 +222,42 @@ def k_bayat(B: list[dict], simdi: datetime) -> dict:
 
 
 def k_oksuz(B: list[dict], K: list[dict]) -> dict:
-    """Kuponu kapanmış ama kendisi hâlâ 'open' duran ayak.
+    """Kuponu kapanmış ve ayağı ARTIK KAPANAMAYACAK olan bahis.
 
-    Kombine mantığı gereği bir ayak kaybedince kupon HEMEN 'lost' yazılır ve
-    kalan ayaklar açık bırakılır — sonuçları gelince kapanacaklar diye. Maç
-    VOID'e düşerse o sonuç HİÇ gelmez; ayak sonsuza kadar açık kalır, panelin
-    "açık bahis" sayacını ve aşağıdaki 'bayat' alarmını kalıcı kirletir.
-    (Ölçüldü 25.09.2026: LNZ Cherkasy - Veres Rivne, 54 gün.)
+    Kombine mantığı: bir ayak kaybedince kupon HEMEN 'lost' yazılır, kalan
+    ayaklar açık bırakılır — maçları oynanınca kapanacaklar diye. Yani
+    "kuponu kapalı, ayağı açık" tek başına HATA DEĞİLDİR; çoğu zaman
+    geçicidir ve kendiliğinden düzelir.
+
+    ⚠️ İLK SÜRÜM BUNU AYIRMIYORDU ve yanlış alarm veriyordu. 01.11.2026'da
+    18 "öksüz" bildirdi; incelendi, hepsi status='NS' — maçlar henüz
+    OYNANMAMIŞTI. 14'ü SİSTEM takımındandı: sistem kuponu çok ayaklı
+    olduğu için bir ayak kaybedince diğerleri doğal olarak bekler. Yani
+    alarm, takım büyüdükçe büyüyecek bir YANLIŞ alarmdı. Sürekli kırmızı
+    yanan alarm, bakılmayan alarmdır.
+
+    Gerçek kusur, ayağın ASLA kapanamayacağı hâldir: maç sonuçlandırılmış
+    (is_settled=1) ama skoru yok — yani VOID. O sonuç hiç gelmeyecek.
+    (Ölçüldü 25.09.2026: LNZ Cherkasy - Veres Rivne, 54 gün açık kaldı.)
     Onarımı auto_settle.void_orphan_legs() yapar.
     """
     kd = {k["coupon_id"]: k["durum"] for k in K}
-    o = [b for b in B if b["durum"] == "open"
-         and kd.get(b["coupon_id"]) not in (None, "open")]
-    ornek = [f"{b['ajan']} · {_mac(b)} · kupon={kd.get(b['coupon_id'])}" for b in o]
-    return _sonuc("oksuz", "Kuponu kapalı ama ayağı açık", "alarm", len(o), 0, bool(o),
-                  "Ayak, ait olduğu kupondan uzun yaşayamaz. Çoğu zaman maç VOID'e düşmüş "
-                  "ve ayağı kapatan olmamıştır. auto_settle.void_orphan_legs() onarır.",
+    acik_kapali = [b for b in B if b["durum"] == "open"
+                   and kd.get(b["coupon_id"]) not in (None, "open")]
+    # Kapanamaz = maçı settled ama skorsuz. Skoru olan ya da henüz
+    # oynanmamış maç kendiliğinden çözülür.
+    kapanamaz = [b for b in acik_kapali
+                 if b.get("mac_settled") and b.get("mac_skor") is None]
+    bekleyen = len(acik_kapali) - len(kapanamaz)
+    ornek = [f"{b['ajan']} · {_mac(b)} · kupon={kd.get(b['coupon_id'])}"
+             for b in kapanamaz]
+    ek = (f" Ayrıca {bekleyen} ayak kuponu kapalı ama maçı henüz oynanmamış — "
+          f"bu NORMAL, oynanınca kapanırlar." if bekleyen else "")
+    return _sonuc("oksuz", "Ayağı kapanamayan bahis", "alarm",
+                  len(kapanamaz), 0, bool(kapanamaz),
+                  "Maçı VOID olduğu için sonucu HİÇ gelmeyecek ayak; sonsuza kadar "
+                  "açık kalır ve 'bayat' alarmını kalıcı kirletir. "
+                  "auto_settle.void_orphan_legs() onarır." + ek,
                   ornek, "bahis")
 
 

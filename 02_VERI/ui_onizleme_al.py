@@ -49,6 +49,11 @@ def al() -> None:
         ("exec_reports", "SELECT * FROM exec_reports", ()),
         ("paper_journal", "SELECT * FROM paper_journal WHERE created_at >= ?", (once(20),)),
         ("agent_license", "SELECT * FROM agent_license", ()),
+        # ⚠️ ajan_iddia olmadan sürekli puanlamanın DOLUP DOLMADIĞI yerelden
+        # görülemiyordu: Haftalık Bakım "tablo yok" diyordu ama bu yalnız
+        # anlık görüntüde yok demekti, üretim hakkında hiçbir şey söylemiyordu.
+        # Ölçemediğin şeyin sessizce durduğunu da fark edemezsin.
+        ("ajan_iddia", "SELECT * FROM ajan_iddia WHERE kayit_ts >= ?", (once(30),)),
     ]
     src = db.connect()
     dst = sqlite3.connect(HEDEF)

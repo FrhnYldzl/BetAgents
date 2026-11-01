@@ -139,7 +139,21 @@ def _adaylar(A, pid: str, prof: dict, matches: list[dict], eng) -> list[dict]:
         return A._joker_candidates(prof, tag, matches)
     if mode == "popular":
         return A._popular_candidates(prof, tag)
-    return A._engine_candidates(prof, tag, matches, eng)
+    if mode == "toto":
+        return A._toto_adaylari(prof, tag)
+    if mode == "sistem":
+        return A._sistem_adaylari(prof, tag, matches, eng)
+    if mode in (None, "engine", "confirm", "value"):
+        return A._engine_candidates(prof, tag, matches, eng)
+    # ⚠️ BİLİNMEYEN MOD SESSİZCE MOTORA DÜŞMESİN.
+    # Düşüyordu: TOTO ve SİSTEM modları bu listeye eklenmeyince üç Toto
+    # ajanı da _engine_candidates'e gidiyor ve BİREBİR AYNI iddiaları
+    # yazıyordu (01.11.2026 karnesinde TOTOCU · AYKIRI · TOTO KONTROL
+    # üçü de n=350, z=-1,31 — aynı satır). Defter, ajanların gerçekte ne
+    # dediğini değil motorun ne dediğini kaydediyordu; kontrol ajanı bile
+    # kontrol olmaktan çıkmıştı.
+    print(f"{tag} 🔴 '{mode}' modu iddia defterinde TANIMSIZ — iddia yazılmadı")
+    return []
 
 
 def kaydet(sessiz: bool = False) -> dict:

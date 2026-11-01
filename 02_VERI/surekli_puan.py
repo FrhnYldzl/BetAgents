@@ -132,13 +132,30 @@ def _f(v) -> float:
 # ----------------------------------------------------------------------
 # İDDİANIN DERECELENDİRİLMESİ
 # ----------------------------------------------------------------------
+# ⚠️ BERABERLİK GÖSTERİMİ: bu projede "0". iddaa kolon gösterimi 1-0-2 ve
+# defterin tamamı (paper_bets.pick, bakim_kontrol._s1x2, Toto kolonları) öyle
+# yazıyor. Bu modül başta "X" kullanıyordu ve kimse fark etmemişti — çünkü
+# sinyal motoru hiç beraberlik seçmiyor. TOTO TAKIM seçince ortaya çıktı:
+# tuttu_mu("1X2","0",…) hep False dönüyordu, yani HER BERABERLİK İDDİASI
+# otomatik kayıp sayılıyordu; olasılık eşlemesi de KeyError veriyordu.
+# Üretimdeki para defteri doğruydu, yalnız bu ölçüm modülü yanlıştı.
+BERABERE = "0"
+
+
+def _pick_normal(pick) -> str:
+    """Dışarıdan 'X' gelirse projenin gösterimine çevir — iki dünya arasında
+    tek kapı olsun, her çağrı yerinde ayrı ayrı kontrol edilmesin."""
+    p = str(pick).strip().upper()
+    return BERABERE if p in ("X", "0") else p
+
+
 def sonuc_1x2(h: int, a: int) -> str:
-    return "1" if h > a else ("2" if a > h else "X")
+    return "1" if h > a else ("2" if a > h else BERABERE)
 
 
 def tuttu_mu(market: str, pick: str, h: int, a: int) -> bool | None:
     if market == "1X2":
-        return sonuc_1x2(h, a) == str(pick)
+        return sonuc_1x2(h, a) == _pick_normal(pick)
     f = IKI_YONLU.get(market)
     return f(h, a) if f else None
 
@@ -147,7 +164,7 @@ def iddia_olasiligi(market: str, pick: str, m: dict) -> float | None:
     """Piyasanın bu iddiaya biçtiği MARJSIZ olasılık — sınamanın tabanı."""
     if market == "1X2":
         p = piyasa_1x2(m)
-        return None if not p else p[{"1": 0, "X": 1, "2": 2}[str(pick)]]
+        return None if not p else p[{"1": 0, BERABERE: 1, "2": 2}[_pick_normal(pick)]]
     alan = ESLI_ALAN.get(market)
     if not alan:
         return None
@@ -197,7 +214,7 @@ class Kalibrasyon:
             if h is None or a is None:
                 continue
             for market, pick, alan in (
-                    ("1X2", "1", "closing_1"), ("1X2", "X", "closing_X"),
+                    ("1X2", "1", "closing_1"), ("1X2", BERABERE, "closing_X"),
                     ("1X2", "2", "closing_2"),
                     ("UST_25", "UST", "closing_over25"), ("ALT_25", "ALT", "closing_under25"),
                     ("KG_VAR", "VAR", "closing_btts_yes"), ("KG_YOK", "YOK", "closing_btts_no")):
@@ -322,7 +339,8 @@ def puanla(iddialar, ad: str, kal: "Kalibrasyon | None" = None) -> dict:
             continue
         acilis = None
         if market == "1X2":
-            acilis = _f(m.get({"1": "opening_1", "X": "opening_X", "2": "opening_2"}[str(pick)]))
+            acilis = _f(m.get({"1": "opening_1", BERABERE: "opening_X",
+                               "2": "opening_2"}[_pick_normal(pick)]))
         k.ekle(t, p, float(oran), acilis or None)
     o = k.ozet()
     o["bant_yok"] = atlanan_bant      # kalibrasyon bandı ince → puanlanamayan iddia
@@ -339,8 +357,9 @@ def taban_piyasa(maclar):
         if not p:
             continue
         i = max(range(3), key=lambda j: p[j])
-        pick = ("1", "X", "2")[i]
-        oran = _f(m.get({"1": "closing_1", "X": "closing_X", "2": "closing_2"}[pick]))
+        pick = ("1", BERABERE, "2")[i]
+        oran = _f(m.get({"1": "closing_1", BERABERE: "closing_X",
+                         "2": "closing_2"}[pick]))
         yield "1X2", pick, oran, m
 
 
@@ -350,8 +369,9 @@ def taban_joker(maclar, tohum: int = 20260925):
     for m in maclar:
         if not piyasa_1x2(m):
             continue
-        pick = rnd.choice(("1", "X", "2"))
-        oran = _f(m.get({"1": "closing_1", "X": "closing_X", "2": "closing_2"}[pick]))
+        pick = rnd.choice(("1", BERABERE, "2"))
+        oran = _f(m.get({"1": "closing_1", BERABERE: "closing_X",
+                         "2": "closing_2"}[pick]))
         yield "1X2", pick, oran, m
 
 
