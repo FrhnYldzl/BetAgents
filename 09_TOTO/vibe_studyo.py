@@ -58,13 +58,38 @@ BAGLAM = {
 }
 
 # KAPSAM → hangi ajanlar (panel tarafındaki setlerle AYNI olmalı)
-KAPSAM_AJAN = {
-    "mavi": None,          # None = "diğerlerinin dışında kalanlar"
-    "kirmizi": {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"},
-    "turuncu": {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"},
-    "toto": {"TOTOCU_V1", "AYKIRI_V1", "TOTO_KONTROL_V1"},
-    "sistem": {"KALDIRAC_V1", "SIGORTA_V1", "SISTEM_JOKER_V1"},
-}
+def _kapsam_ajan() -> dict:
+    """Takım üyeliği agents.PROFILES'tan — elle liste tutma.
+
+    Elle tutulunca yeni ajan eklenince burası unutuluyor ve kapsam süzgeci
+    onu görmüyor (01.11.2026'da KAZANC_V1 ile oldu).
+    """
+    try:
+        import sys as _s
+        from pathlib import Path as _P
+        p = str(_P(__file__).resolve().parent.parent / "02_VERI")
+        if p not in _s.path:
+            _s.path.append(p)
+        import agents as _A
+        d: dict = {}
+        for pid, prof in _A.PROFILES.items():
+            t = prof.get("takim", "mavi")
+            if t != "mavi":
+                d.setdefault(t, set()).add(pid)
+        if d:
+            return d
+    except Exception:
+        pass
+    return {"kirmizi": {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"},
+            "turuncu": {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"},
+            "toto": {"TOTOCU_V1", "KAZANC_V1", "AYKIRI_V1", "TOTO_KONTROL_V1"},
+            "sistem": {"KALDIRAC_V1", "SIGORTA_V1", "SISTEM_JOKER_V1"}}
+
+
+# KAPSAM → hangi ajanlar. 'mavi' burada YOK: diğerlerinin dışında kalanlar
+# olarak hesaplanır (bkz. _sz_ajan), böylece yeni Mavi ajanı eklenince
+# burayı güncellemek gerekmez.
+KAPSAM_AJAN = _kapsam_ajan()
 
 
 def on_secim(alan: str) -> tuple:

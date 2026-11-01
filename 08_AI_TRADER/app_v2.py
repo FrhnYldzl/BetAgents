@@ -1387,12 +1387,39 @@ def _ajan_adi(pid) -> str:
     return str(pid).rsplit("_", 1)[0].replace("_", " ")
 
 
-KIRMIZI = {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"}
-TURUNCU = {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"}
-# 🟢 TOTO: Süper Toto modelini iddaa'da oynayan takım (09_TOTO'dan yalnız OKUR)
-TOTO = {"TOTOCU_V1", "AYKIRI_V1", "TOTO_KONTROL_V1"}
-# ⚫ SİSTEM: N/M sistem kuponları — diğer takımların görüşünü kaldıraçlar
-SISTEM = {"KALDIRAC_V1", "SIGORTA_V1", "SISTEM_JOKER_V1"}
+def _takim_setleri() -> dict:
+    """Takım üyeliğini TEK KAYNAKTAN türet: agents.PROFILES[*]["takim"].
+
+    ⚠️ Eskiden setler burada ELLE yazılıydı ve agents.py'deki `takim` alanıyla
+    ikizdi. Sonuç kaçınılmazdı: 01.11.2026'da KAZANC_V1 ajanı PROFILES'a
+    eklendi ama bu listeye eklenmedi — ajan canlıda oynadı, Toto Takım
+    sayfasında GÖRÜNMEDİ. Aynı liste üç yerde duruyordu (agents, burası,
+    vibe_studyo). Tek kaynak bu sorunu kökten kapatır.
+
+    İçe aktarma başarısız olursa panel çökmesin diye elle liste yedekte
+    kalır — ama o yedek ARTIK YALNIZCA ACİL DURUM İÇİN, kadroyu oradan
+    yönetme.
+    """
+    try:
+        import agents as _A
+        d: dict = {}
+        for pid, prof in _A.PROFILES.items():
+            d.setdefault(prof.get("takim", "mavi"), set()).add(pid)
+        if d.get("kirmizi") and d.get("turuncu"):
+            return d
+    except Exception:
+        pass
+    return {"kirmizi": {"CARPAN_V1", "SIMETRI_V1", "KAVSAK_V1", "BANT_V1", "DEVRE_V1"},
+            "turuncu": {"TEMEL_V1", "DAR_V1", "GENIS_V1", "GOLBANT_V1", "HARMAN_V1"},
+            "toto": {"TOTOCU_V1", "KAZANC_V1", "AYKIRI_V1", "TOTO_KONTROL_V1"},
+            "sistem": {"KALDIRAC_V1", "SIGORTA_V1", "SISTEM_JOKER_V1"}}
+
+
+_SETLER = _takim_setleri()
+KIRMIZI = _SETLER.get("kirmizi", set())
+TURUNCU = _SETLER.get("turuncu", set())
+TOTO = _SETLER.get("toto", set())
+SISTEM = _SETLER.get("sistem", set())
 
 
 @st.cache_data(ttl=180, show_spinner=False)
