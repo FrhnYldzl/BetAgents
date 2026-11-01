@@ -523,3 +523,86 @@ Bu iki sonuç doğuruyor:
 Not: canlı anlatım sayfası FAZ 2'nin kaynağını da çözmüş durumda — ama FAZ 1
 için bile değerli, çünkü maç BİTTİKTEN sonra toplanan olay akışı (kart, gol
 dakikası, kırmızı) maç öncesi modelin **yuvarlanan takım özelliği** olur.
+
+---
+
+# ■ GÜNCELLEME 3 — KRİTİK: iddaa istatistik ÜRETMİYOR, lisanslıyor
+
+Önceki güncellemede "A seçeneği: iddaa'nın kendi arka ucunu araştır"
+demiştim. Araştırıldı. **A seçeneği yok.**
+
+## Bulgu
+
+iddaa'nın Lig Analiz bölümünün tamamı — puan durumu, form tablosu,
+gol/asist/kart krallığı, sonuçlar — **Sportradar'dan** geliyor:
+
+```
+widgets.fn.sportradar.com/common/tr/Etc:UTC/gismo/season_dynamictable/143916
+                                           .../stats_formtable/143916
+                                           .../stats_season_topgoals/143916
+                                           .../stats_season_topassists/143916
+                                           .../stats_season_topcards/143916
+                                           .../livescore_season_lastx/143916
+```
+
+Her istek **süreli imzalı belirteç** taşıyor:
+`?T=exp=1793639311~acl=/*~data=...`
+Ayrıca ayrı bir `/licensing` çağrısı ve iddaa'ya ait lisans anahtarı var.
+
+Maç istatistikleri (şut, korner, topla oynama) için de aynı durum:
+`/lmt-old/{bri}` Sportradar'ın Live Match Tracker widget'ı.
+
+## Bunun anlamı
+
+**"iddaa'nın ürettiği istatistikler" diye bir şey yok.** Sitede gördüğün
+istatistikler Sportradar'ın verisi; iddaa onu lisanslayıp gösteriyor.
+
+Dolayısıyla "tek kaynak iddaa" kuralı, istatistik projesini olduğu gibi
+mümkün kılmıyor:
+
+- Bu veriyi almak = iddaa'yı kaynak olarak kullanmak DEĞİL, **Sportradar'ın
+  lisanslı akışını iddaa'nın lisansıyla kendi hattımıza aktarmak**.
+- Belirteçler süreli ve imzalı; erişim bilinçli olarak sınırlanmış.
+- Teknik olarak denendi ve engellendi; zorlanmadı.
+
+## iddaa'nın GERÇEKTEN kendi verisi ne
+
+| Veri | Kaynak | Durum |
+|---|---|---|
+| **Fiyatlar — bütün pazarlar** | `sportsbookv2.iddaa.com` | ✅ iddaa'nın kendi ürünü, kullanıyoruz (ama %10'unu) |
+| Program / olaylar | `mpc-prod-*.run.app` | ✅ iddaa |
+| Puan durumu · form · krallar | Sportradar | ❌ lisanslı |
+| Maç istatistikleri · LMT | Sportradar | ❌ lisanslı |
+| Canlı skor · olay akışı | Sportradar | ❌ lisanslı |
+| **Kendi maç geçmişimiz** | `matches_v2` (10.587 maç, %72,6 skorlu) | ✅ BİZİM |
+
+## Revize FAZ 1 — dürüst hâli
+
+İstatistik kolu kapanmıyor ama **lisans kararına** bağlanıyor. Bu arada
+gerçekten elimizde olan iki kol var ve ikisi de FAZ 1:
+
+### S-A · Pazar genişletme *(kullanıcı onayladı, en büyük kullanılmayan iddaa verisi)*
+Tek maç detayı Alt/Üst 2.5 ve 4.5, Tek/Çift, handikap ve devamını
+veriyor — her biri `odd` ve `wodd` ile. Biz yalnız 1X2 + AU25 topluyoruz.
+- Yeni pazarları topla, ajanlara aç
+- **İlişkili pazar tutarsızlığı**: AU2.5 ile AU4.5, Tek/Çift ve 1X2
+  birbirini ima eder. Tutarsızlık model gerektirmeyen kenar kaynağıdır —
+  tahmin yapmadan, yalnız fiyatları karşılaştırarak.
+- `odd` / `wodd` farkı (~%4) incelenmeli: hangisi oynanabilir fiyat?
+  Marj hesabımız buna bağlı.
+
+### S-B · Kendi geçmişimizden özellik *(lisans gerektirmez)*
+10.587 maçın %72,6'sında skor var — bu BİZİM verimiz:
+form, gol ortalaması, H2H, ev/dep performansı, temiz çarşaf.
+Beklenti düşük (piyasa formu bilir) ama bedava, temiz ve
+diğer özelliklerin **kontrolü** olarak gerekli.
+
+### S-C · İstatistik — KARAR GEREKTİRİYOR
+| Seçenek | Not |
+|---|---|
+| Sportradar'dan **kendi lisansımızı** almak | Tek temiz yol. Maliyet araştırılmalı. Kapsam bizim alt liglerimizi içeriyor (iddaa onu kullanıyor). |
+| Başka sağlayıcı | "Tek kaynak iddaa" kuralına zaten aykırı; kapsam tuzağı geri gelir |
+| İstatistiksiz devam | S-A + S-B ile yetin |
+
+**Önerim:** S-A ile başla (onaylandı, bedava, en büyük kullanılmayan veri),
+S-B'yi paralel yürüt, S-C için lisans maliyetini araştır.
