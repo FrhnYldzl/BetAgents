@@ -3781,6 +3781,70 @@ def page_ajan() -> None:
     _ajan_paneli(pid, d, sayfa=True)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _tahsis_veri():
+    import kasa as K
+    try:
+        return K.ajan_karneleri(), None
+    except Exception as e:
+        return [], f"{type(e).__name__}: {e}"
+
+
+def _tahsis_karti() -> None:
+    """DEĞERLENDİRME ile TAHSİSİ ayıran kart.
+
+    İki ayrı soru: "bu ajan iyi mi" (ölçüm) ve "ne kadar yatırayım" (sermaye).
+    Tek sayı ikisini birden yapamaz — karıştırınca karne sermaye sanılıyor ve
+    "ne kadar yatırayım"ın cevabı "geçen hafta ne kazandı"ya iniyor.
+    """
+    import html as _h          # modül düzeyinde yok; her kullanan yerel alıyor
+    import kasa as K
+    satirlar, hata = _tahsis_veri()
+    if hata:
+        st.markdown(f"<div class='v2bos'>Tahsis hesaplanamadı: {_h.escape(hata)}</div>",
+                    unsafe_allow_html=True)
+        return
+    if not satirlar:
+        return
+    bankroll = 1000.0
+    sat = ""
+    acik = 0
+    for d in satirlar:
+        if not d.get("n"):
+            continue
+        t = K.tahsis(d, bankroll)
+        kanit = t["pay"] > K.OLCUM_PAY
+        acik += 1 if kanit else 0
+        isaret = "ps" if kanit else ""
+        sat += (f"<tr><td class='ag'>{_h.escape(_ajan_adi(d['ajan']))}</td>"
+                f"<td class='n'>{d['n']}</td>"
+                f"<td class='n'>%{d['isabet']*100:.1f}</td>"
+                f"<td class='n'>{d['ort_oran']:.2f}</td>"
+                f"<td class='n'>%{d['basabas']*100:.1f}</td>"
+                f"<td class='n {'ps' if d['kenar']>0 else 'ng'}'>{d['kenar']*100:+.1f}</td>"
+                f"<td class='n {'ps' if d['kenar_alt']>0 else 'ng'}'>"
+                f"<b>{d['kenar_alt']*100:+.1f}</b></td>"
+                f"<td class='n {isaret}'><b>{t['tutar']:.0f} ₺</b></td>"
+                f"<td class='al'>{_h.escape(t['gerekce'][:54])}</td></tr>")
+    st.markdown(
+        "<div class='v2card'><div class='v2head'><h2>Değerlendirme ve Tahsis</h2>"
+        f"<div class='hint'>1.000 ₺ kasa · {acik} ajanda kanıt var</div></div>"
+        "<div class='v2body'>"
+        "<div class='dq'><b>Tek anlamlı eşik: isabet &gt; 1/oran.</b> "
+        "&ldquo;%70 isabet&rdquo; bir eşik değildir — 1,24 oranda başabaş için "
+        "%80,6 gerekir, yani %79 tutturan ajan bile kaybeder. "
+        "<b>Bahis, kenarın NOKTA tahminine değil ALT GÜVEN SINIRINA bağlanır:</b> "
+        "az kararla elde edilen yüksek kenar gürültü olabilir; para kanıtı "
+        "takip eder, görüntüyü değil. Alt sınır sıfırın altındaysa ajan en "
+        "küçük birimle <i>ölçüm bahsi</i> oynar — veri birikince para "
+        "kendiliğinden açılır.</div>"
+        "<table class='v2' style='margin-top:10px'><thead><tr>"
+        "<th>Ajan</th><th>Karar</th><th>İsabet</th><th>Ort. oran</th>"
+        "<th>Başabaş gerek</th><th>Kenar</th><th>Kenar alt sınır</th>"
+        "<th>Bahis</th><th>Gerekçe</th></tr></thead>"
+        f"<tbody>{sat}</tbody></table></div></div>", unsafe_allow_html=True)
+
+
 def page_kasa() -> None:
     """💰 Kasa ve Getiri — para büyüyor mu, neye göre? Eskiden Lig'deydi."""
     ham = load_egri_ham()
@@ -3795,6 +3859,7 @@ def page_kasa() -> None:
                 "cls": ("ps" if _t >= 0 else "ng")}]
     _sayfa_basligi("Kasa ve Getiri", "Yürürlükteki dönemin kasa eğrisi ve "
                    "para piyasası tabanına göre gerçek katkı.", kpi)
+    _tahsis_karti()
     # ── KASA EĞRİSİ · süzgeçli, zaman eksenli
     if ham:
         tum_ajan = sorted({str(x["p"]) for x in ham})
