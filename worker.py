@@ -234,6 +234,37 @@ def main():
     except Exception as e:
         print(f"[{_ts()}] ERA-4 HATA: {e}", flush=True)
 
+    # 🟢 TOTO TAKIM · ERA-5 — YALNIZ bu takım, bir kez.
+    #
+    # NEDEN: 01.11.2026'da Toto takımının kârlılık şartı değişti. Eski kural
+    # kenarı MARJSIZ olasılığa göre süzüyordu ve kendi modelimize göre bile
+    # kaybeden bahisleri geçiriyordu (Kuzey Makedonya-İsviçre: bizim %18,9,
+    # başabaş %21,3, beklenen getiri 0,888). Yeni kural p × oran ≥ 1,03.
+    # TOTOCU'nun o ana kadarki 2 bahsi ESKİ kuralla açılmıştı; karnede
+    # durmaları yeni kuralın ölçümünü yanıltır.
+    #
+    # Diğer takımlara DOKUNULMAZ: onların kuralı değişmedi, biriktirdikleri
+    # veri geçerli. Lig saati de sıfırlanmaz.
+    try:
+        import agents as _agents
+        import db as _db
+        _conn = _db.connect()
+        try:
+            _r = _conn.execute(
+                "SELECT MIN(COALESCE(era_no,0)) FROM paper_portfolio "
+                "WHERE portfolio_id IN ('TOTOCU_V1','KAZANC_V1','TOTO_KONTROL_V1')"
+            ).fetchone()
+            _te = int((_r[0] if _r and _r[0] is not None else 0) or 0)
+        finally:
+            _conn.close()
+        if _te < 5:
+            print(f"[{_ts()}] 🟢 TOTO ERA-5 kuruluyor (takım erası {_te})", flush=True)
+            _agents.start_era(era_no=5, bankroll=1000.0, takim="toto")
+        else:
+            print(f"[{_ts()}] toto erası {_te} — ERA-5 zaten yapılmış", flush=True)
+    except Exception as e:
+        print(f"[{_ts()}] TOTO ERA-5 HATA: {e}", flush=True)
+
     try:
         import agents as _agents
         _agents.preflight()

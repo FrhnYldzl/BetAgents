@@ -2494,7 +2494,7 @@ def preflight() -> list[str]:
 
 
 def start_era(era_no: int = 2, bankroll: float = 1000.0,
-              include_kurucu: bool = True) -> None:
+              include_kurucu: bool = True, takim: str | None = None) -> None:
     """🗓 YENİ ERA: mevcut karne ARŞİVLENİR (kuponlar/journal aynen kalır),
     herkes aynı gün · aynı kasa · aynı sabit bahisle yeniden yarışır.
     Gerekçe: Era-1 kıyası kirli — kimi ajan %-stake, kimi köprü yarım stake,
@@ -2504,9 +2504,25 @@ def start_era(era_no: int = 2, bankroll: float = 1000.0,
     try:
         ensure_contract_columns(conn)
         now = _now()
-        field = list(PROFILES) + (["KURUCU_V2"] if include_kurucu else [])
-        print(f"[ERA] 🗓 ERA-{era_no} başlıyor — {len(field)} oyuncu, "
-              f"{bankroll:.0f} TL, sabit 100 TL bahis")
+        if takim:
+            # TAKIM BAZLI ERA: yalnız o takımın ajanları sıfırlanır, diğerleri
+            # dönemlerini SÜRDÜRÜR. Gerekçe: bir takımın kuralı değişince
+            # eski kuralla açılmış bahisler karneyi kirletir ve ölçüm
+            # yanıltır — ama bu, diğer takımların biriktirdiği veriyi
+            # çöpe atmayı gerektirmez. (01.11.2026: TOTO'nun kârlılık şartı
+            # değişti; TOTOCU'nun 2 bahsi eski kuralla açılmıştı.)
+            # EMEKLİ ajan sıfırlanmaz: karnesi, neden emekli edildiğinin
+            # KANITIDIR. Sıfırlarsak AYKIRI'nın "ayrışma kovalamak işe
+            # yaramadı" kaydı silinir ve aynı hipotez bir süre sonra
+            # yeniden denenir.
+            field = [p for p, v in PROFILES.items()
+                     if v.get("takim", "mavi") == takim and not v.get("retired")]
+        else:
+            field = list(PROFILES) + (["KURUCU_V2"] if include_kurucu else [])
+        print(f"[ERA] 🗓 ERA-{era_no}"
+              + (f" · YALNIZ '{takim}' takımı" if takim else "")
+              + f" başlıyor — {len(field)} oyuncu, {bankroll:.0f} TL, "
+                f"sabit 100 TL bahis")
         for pid in field:
             if pid in PROFILES:          # KURUCU_V2'nin profili yok (kendi hattı)
                 ensure_portfolio(pid, conn)
@@ -2533,12 +2549,20 @@ def start_era(era_no: int = 2, bankroll: float = 1000.0,
             print(f"[ERA]   {pid:12s} arşiv: {karne} → sıfırlandı")
         # lisanslar da sıfırdan (beceri yeni erada kanıtlanır)
         try:
-            conn.execute("DELETE FROM agent_license")
+            if takim:
+                q = ",".join("?" * len(field)) or "''"
+                conn.execute(f"DELETE FROM agent_license WHERE pid IN ({q})",
+                             tuple(field))
+            else:
+                conn.execute("DELETE FROM agent_license")
         except Exception:
             conn.rollback()
-        # lig saati yeniden başlasın (ilk değerlendirme 7 gün sonra)
-        conn.execute("UPDATE paper_portfolio SET last_review=? "
-                     "WHERE portfolio_id='PAPER_V1'", (now,))
+        # Lig saati YALNIZ genel erada sıfırlanır. Takım bazlı sıfırlamada
+        # diğer takımların sözleşme saati işlemeye devam etmeli — yoksa tek
+        # takımı yenilemek bütün ligin değerlendirmesini erteler.
+        if not takim:
+            conn.execute("UPDATE paper_portfolio SET last_review=? "
+                         "WHERE portfolio_id='PAPER_V1'", (now,))
         conn.commit()
         print(f"[ERA] ✅ ERA-{era_no} kuruldu. İlk lig değerlendirmesi 7 gün sonra.")
     finally:
