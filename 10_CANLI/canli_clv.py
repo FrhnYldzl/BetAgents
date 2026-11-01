@@ -74,14 +74,25 @@ def _askida(v) -> bool:
 
 
 def bahis_clv(conn, asgari_anlik: int = 5) -> list[dict]:
-    """Her sonuçlanmış 1X2 bahsi için canlı CLV.
+    """Her sonuçlanmış 1X2 bahsi için CLV — referans İLK DÜDÜK fiyatı.
 
-    Bahis → maç → cl_mac (iddaa kimliğinden) → cl_anlik serisi.
-    Erken pencere fiyatı referans alınır; yoksa serinin ilk sağlam fiyatı.
+    ⚠️ İLK SÜRÜM YANLIŞTI. Referansı "maç içi erken pencere" diye arıyordum
+    ve pencereyi `(dakika or 0) <= 10` ile süzüyordum. Ama dakika bilgisi
+    API-Football'dan geliyor ve kayıtların YALNIZ %2,8'inde var (hesap
+    askıda). NULL dakika 0 sayılınca maçın 80. dakikasındaki fiyat "erken"
+    diye referans alınıyordu — 730.391 satırın tamamı etkileniyordu.
+
+    Doğrusu: cl_mac.oran_kapanis — ilk düdükteki fiyat, toplayıcı tarafından
+    maç başlayana kadar her turda güncellenerek yazılıyor. API-Football'a
+    HİÇ ihtiyaç duymaz ve %77 kapsamı var. CLV cetveli zaten budur.
+
+    Maç içi seri, kapanış fiyatı YOKSA yedek olarak kullanılır — ve o zaman
+    da yalnız GERÇEK dakika bilgisi olan satırlar kabul edilir; tahmin
+    edilmez.
     """
     B = conn.execute(
-        "SELECT pb.bet_id, pb.portfolio_id, pb.market, pb.pick, pb.odds, pb.status, "
-        "       m.mac_id "
+        "SELECT pb.bet_id, pb.portfolio_id, pb.pick, pb.odds, pb.status, "
+        "       m.mac_id, m.oran_kapanis "
         "FROM paper_bets pb "
         "JOIN matches_v2 mv ON mv.match_id = pb.match_id "
         "JOIN cl_mac m ON CAST(m.iddaa_id AS TEXT) = CAST(mv.external_id_iddaa AS TEXT) "
@@ -89,39 +100,42 @@ def bahis_clv(conn, asgari_anlik: int = 5) -> list[dict]:
     ).fetchall()
     if not B:
         return []
-    maclar = {r[6] for r in B}
-    seri: dict = {}
-    for mid in maclar:
+
+    # Kapanış fiyatı olmayan maçlar için maç içi yedek seri
+    eksik = {r[5] for r in B if not r[6]}
+    yedek: dict = {}
+    for mid in eksik:
         rows = conn.execute(
             "SELECT dakika, ev_skor, dep_skor, oran, askida FROM cl_anlik "
             "WHERE mac_id = ? ORDER BY ts", (mid,)).fetchall()
         temiz = []
         for dk, h, a, o, ask in rows:
-            if _askida(ask):
+            if _askida(ask) or dk is None:      # dakikası YOKSA kullanma
                 continue
             oo = _oran(o)
-            if oo:
-                temiz.append((dk, (h or 0) + (a or 0), oo))
-        if len(temiz) >= asgari_anlik:
-            seri[mid] = temiz
+            if oo and int(dk) <= ERKEN_DK and (h or 0) + (a or 0) == 0:
+                temiz.append(oo)
+        if len(temiz) >= 1:
+            yedek[mid] = temiz[0]
+
     out = []
-    for bet_id, pid, mkt, pick, odds, durum, mid in B:
-        S = seri.get(mid)
-        if not S:
-            continue
+    for bet_id, pid, pick, odds, durum, mid, kapanis in B:
         j = SIRA.get(str(pick))
         if j is None:
             continue
-        # Erken pencere: ilk ERKEN_DK dakika VE henüz gol yok
-        erken = [o for dk, gol, o in S
-                 if (dk or 0) <= ERKEN_DK and gol == 0]
-        ref = (erken[0] if erken else S[0][2])[j]
+        ref, kaynak = None, ""
+        ko = _oran(kapanis) if kapanis else None
+        if ko:
+            ref, kaynak = ko[j], "kapanis"
+        elif mid in yedek:
+            ref, kaynak = yedek[mid][j], "mac_ici"
+        if not ref or ref <= 1.01:
+            continue
         out.append({
             "bet_id": bet_id, "ajan": pid, "pick": str(pick),
-            "oran": float(odds), "ref_oran": float(ref),
+            "oran": float(odds), "ref_oran": float(ref), "kaynak": kaynak,
             "canli_clv": float(odds) / float(ref) - 1.0,
             "kazandi": 1 if durum == "won" else 0,
-            "erken": bool(erken), "anlik": len(S),
         })
     return out
 
