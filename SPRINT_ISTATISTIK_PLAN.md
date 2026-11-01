@@ -429,3 +429,97 @@ hâlihazırda çektiğimiz yanıttan daha fazla pazar okumak. Her yeni pazar
 hem yeni bahis alanı hem yeni marjsızlaştırma çifti demek. Ayrıca `odd` /
 `wodd` ikiliği incelenmeli: ikisi arasında ~%4 fark var ve hangisinin
 gerçekte oynanabilir fiyat olduğu marj hesabımızı doğrudan etkiler.
+
+---
+
+# ■ GÜNCELLEME 2 — öncelik netleşti
+
+## Kullanıcı önceliği
+
+> "Önceliğim canlı fiyatlar üzerindeki bahislerden çok **istatistiklerin edge
+> ve CLV yaratmasını sağlayacak kadar MODEL oluşturarak** ajanların kazanma
+> olasılıklarını artırmak! Canlı veri 2. aşamadaki konumuz olmalı."
+>
+> "Daha fazla pazar olması güzel! Buraya da oynayarak edge bulabiliriz,
+> ajanlar üretebiliriz."
+
+**FAZ 1 (şimdi):** maç öncesi istatistik → özellik → model → kenar/CLV → ajan.
+**FAZ 2 (sonra):** canlı fiyat, canlı istatistik, canlı kupon önerisi.
+
+Pazar genişletme FAZ 1'de kalır: yeni pazar = yeni ajan alanı.
+
+---
+
+## iddaa'da istatistikler BULUNDU — ve bir erişim sorusu var
+
+iddaa'nın sayfa rotaları tarandı (81 rota). İki tanesi belirleyici:
+
+```
+/canli-skor/[sportName]/canli-anlatim/[betradarId]
+/lmt-old/[betradarId]
+```
+
+`betradarId`, bültende çektiğimiz her olayın **`bri`** alanı — yani eşleştirme
+sorunu YOK, kimlik zaten elimizde.
+
+### Canlı anlatım sayfası (doğrulandı, gerçek maçta)
+
+```
+21'  2:0
+ 9'  PENALTI GOLÜ — Saeter, Ole Christian
+ 7'  İKİNCİ SARIDAN KIRMIZI KART — Skjaervik, Vetle
+11'  SARI KART ×2 · 10' OYUNCU DEĞİŞİKLİĞİ
+```
+→ dakika, skor ve **tam olay akışı** (gol, penaltı, sarı, kırmızı, değişiklik,
+oyuncu adlarıyla).
+
+### LMT sayfası — `/lmt-old/{bri}` (doğrulandı, gerçek maçta)
+
+```
+KARTLAR 1-2 · İSABETLİ ŞUT 2-0 · İSABETSİZ ŞUT 1-1 · BLOKLANAN ŞUT 0-0
+KORNER 0-0 · TOPA SAHİP OLMA %61-%39
+TEHLİKELİ ATAK 31-12 · TEHLİKELİ ATAĞIN SÜRESİ %85-%15 · ORT. DK/ATAK
+```
+
+Bu tam olarak boş duran sütunların karşılığı: `home/away_shots_on`,
+`shots_total`, `corners`, `yellows`, `reds`, `possession_pct`.
+
+### ⚠️ Erişim sorusu — kullanıcı kararı gerekiyor
+
+LMT verisi iddaa'nın kendi sunucusundan değil, **`widgets.sir.sportradar.com`**
+adresinden geliyor; iddaa Sportradar'ın widget'ını gömüyor.
+
+Bu iki sonuç doğuruyor:
+
+1. **"Tek kaynak iddaa" kuralına göre Sportradar iddaa DEĞİL.** Kendi
+   kuralımız bu yolu baştan sorgulatıyor.
+2. Sportradar'ın widget arka ucunu doğrudan çağırmayı denedim ve bu
+   **engellendi** (sitenin erişim yolunu aşmak). Zorlamadım ve
+   zorlanmamalı — hizmet şartları açısından da ayrı bir konu.
+
+**Üç seçenek, karar kullanıcının:**
+
+| Seçenek | Not |
+|---|---|
+| **A · iddaa'nın KENDİ arka ucu** | Ağ izinde `contentv2.iddaa.com` ve `mpc-prod-*.run.app` göründü. Bu uçlar aynı istatistikleri veriyorsa "tek kaynak iddaa" tam sağlanır. **Önerilen ilk adım: bunu araştırmak.** |
+| **B · Sayfayı sayfa olarak okumak** | iddaa'nın servis ettiği sayfayı tarayıcıyla okumak. Maç başına yavaş; 10.587 maçlık geriye dönük doldurma için ağır. |
+| **C · Vazgeçmek** | İstatistik yerine yalnız lig-analiz (puan durumu, form, ev/dep) ile yetinmek. Beklenti düşük ama bedava ve temiz. |
+
+---
+
+## FAZ 1 — revize sprint sırası
+
+| # | Sprint | Durum | Not |
+|---|---|---|---|
+| 1 | Açılış fiyatı + hareket | ✅ bitti | sinyal yok; `cl_onmac_yol` topluyor |
+| **2** | **Lig analizi: puan durumu · form · EV/DEP** | **sıradaki** | iddaa, temiz, kesin erişilebilir |
+| **3** | **Pazar genişletme + tutarsızlık taraması** | **onaylandı** | yeni kaynak yok; yeni ajan alanı |
+| 4 | Maç istatistikleri (şut/korner/kart) | **karar bekliyor** | yukarıdaki A/B/C |
+| 5 | Özellik üretimi (sızıntısız, yuvarlanan) | 2-4'e bağlı | |
+| 6 | Korelasyon taraması → model | 5'e bağlı | asıl cevap burada |
+| 7 | Ajanlaştırma | 6'ya bağlı | mevcut kanıt eşiğine bağlanır |
+
+**FAZ 2 (sonraya):** canlı skor/dakika akışı, canlı istatistik, canlı kupon.
+Not: canlı anlatım sayfası FAZ 2'nin kaynağını da çözmüş durumda — ama FAZ 1
+için bile değerli, çünkü maç BİTTİKTEN sonra toplanan olay akışı (kart, gol
+dakikası, kırmızı) maç öncesi modelin **yuvarlanan takım özelliği** olur.
