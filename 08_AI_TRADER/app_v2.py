@@ -3647,6 +3647,12 @@ try:
     FK_ASGARI = _FK_MOD.ASGARI_KUPON
 except Exception:
     FK_ASGARI = 20
+try:
+    import kupon_orkestra as _KO_MOD
+    FK_ASGARI_N = _KO_MOD.ASGARI_N
+    FK_TEKRAR = _KO_MOD.TEKRAR_TAVAN
+except Exception:
+    FK_ASGARI_N, FK_TEKRAR = 30, 2
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -3688,7 +3694,8 @@ def load_kupon_defter() -> dict:
             return {"defter": FK.son_kuponlar(c, 30), "karne": FK.karne(c)}
         except Exception as e:
             return {"defter": [], "karne": {"satirlar": [], "acik": 0,
-                                            "sonuclanan": 0},
+                                            "sonuclanan": 0,
+                                            "eski_surum": 0, "surum": 0},
                     "hata": f"{type(e).__name__}: {e}"}
 
 
@@ -3738,7 +3745,7 @@ def _kupon_satiri(k: dict) -> str:
         "<b>" + oran_toplam + "</b></div>"
         "<div class='v2kpi'><span>KAZANMA ŞANSI</span><b>" + sans_yaz +
         "</b></div>"
-        "<div class='v2kpi'><span>FİYATIN DEDİĞİ</span><b style='opacity:.6;'>"
+        "<div class='v2kpi'><span>MARJSIZ PİYASA</span><b style='opacity:.6;'>"
         + fiy_yaz + "</b></div>"
         "<div class='v2kpi'><span>fark</span><b class='" +
         ("ps" if kenar > 0.0005 else ("ng" if kenar < -0.0005 else "")) +
@@ -3788,16 +3795,21 @@ def page_kuponlar() -> None:
         "1₺ karşılığı şu kadar. Söylemez: bunu oyna. Karar senin.</div>"
         "<div class='vd' style='margin-top:var(--s3);'>"
         "<b>Şans nereden geliyor</b><br>"
-        "Ayağın olasılığı <code>1/oran + ajanın ölçülmüş kenarı</code>. "
-        "Kenar, ajanın geçmişte fiyattan ne kadar saptığıdır ve az kararda "
-        "sıfıra doğru çekilir — yoksa 20 bahiste yakalanmış gürültü şansı "
-        "şişirir.<br>"
-        "<b>«fark» sıfırsa</b> kuponda görüş yok, yalnız şekil var: "
-        "beklenen getiri 1,00'in altındadır, yani marj kadar kaybedilir. "
-        "Bu sayfa onu saklamaz.<br>"
+        "Ajanın <b>kanıtı varsa</b> (en az " + str(FK_ASGARI_N) + " sonuçlanmış "
+        "karar) olasılık <code>1/oran + kenarın ALT güven sınırı</code>. "
+        "Nokta tahmini kullanılmaz: az kararda yakalanan sapma gürültüdür.<br>"
+        "<b>Kanıt yoksa</b> olasılık piyasanın <b>marjsız</b> olasılığıdır. "
+        "Dikkat: <code>1/oran</code> olasılık DEĞİLDİR, marj içerir — "
+        "ölçüldü, iddaa marjı %16,8 (1X2 n=10.181). Ham 1/oran kullanmak "
+        "tek ayakta ~12, üç ayakta ~17 puan şişirme olurdu.<br>"
+        "<b>Ayak arttıkça marj katlanır.</b> Kanıt yokken 1₺ karşılığı tek "
+        "maçta ~0,88₺, 2'lide ~0,77₺, 3'lüde ~0,67₺. Kombine kupon kenar "
+        "yaratmaz, yalnız marjı çarpar.<br>"
         "<b>Ayaklar bağımsız sayılır</b> ve aynı maçtan iki ayak asla aynı "
         "kupona girmez — aynı maçın sonuçları korelasyonlu olduğu için "
-        "çarpım kuralı orada yalan söyler.</div>"
+        "çarpım kuralı orada yalan söyler. Tek ayak en çok " +
+        str(FK_TEKRAR) + " kuponda görünür: yoksa liste çeşitli görünürken "
+        "aslında tek bahse yoğunlaşır.</div>"
         "</div></div>", unsafe_allow_html=True)
 
     # ── DEFTERE YAZ (elle) — otomatik yazma worker'da, saat başı
@@ -3884,6 +3896,18 @@ def page_kuponlar() -> None:
         if d.get("hata"):
             st.markdown("<div class='sb'>defter okunamadı: " +
                         d["hata"] + "</div>", unsafe_allow_html=True)
+        if kn.get("eski_surum"):
+            # Formül değişti; eski tahminler SİLİNMEDİ ama karneye girmiyor.
+            # Saklamak dürüstlük, saymak ise formül değişikliğini
+            # kalibrasyon hatası gibi göstermek olurdu.
+            st.markdown(
+                "<div class='sb'>Defterde eski formül sürümüyle üretilmiş <b>"
+                + str(kn["eski_surum"]) + "</b> kupon var; karneye "
+                "GİRMİYOR. Güncel olasılık formülü: sürüm <b>" +
+                str(kn.get("surum")) + "</b> (marjsız taban + kanıt eşiği). "
+                "Başka bir formülün tahminini bugünün sonuçlarıyla "
+                "karşılaştırmak, formül değişikliğini kalibrasyon "
+                "bozukluğu diye raporlardı.</div>", unsafe_allow_html=True)
         satir = kn["satirlar"]
         if not satir:
             st.markdown(

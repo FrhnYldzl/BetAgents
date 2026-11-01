@@ -46,19 +46,34 @@ import db  # noqa: E402
 ASGARI_KUPON = 20
 
 
+def _surum() -> int:
+    """Tahmini üreten formülün sürümü (kupon_orkestra.FORMUL_SURUM)."""
+    try:
+        import kupon_orkestra
+        return int(kupon_orkestra.FORMUL_SURUM)
+    except Exception:
+        return 0
+
+
 def _ts() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def kupon_kimligi(tip: str, ayaklar: list[dict]) -> str:
-    """Kuponun KİMLİĞİ = seçimlerinin kümesi (oranı değil).
+def kupon_kimligi(tip: str, ayaklar: list[dict], surum: int | None = None) -> str:
+    """Kuponun KİMLİĞİ = seçimlerinin kümesi + FORMÜL SÜRÜMÜ (oranı değil).
 
     Saat başı yeniden üretilince aynı kupon yeni satır açmaz; yoksa aynı
     kupon günde 12 kez sayılır ve kalibrasyon karnesi şişer.
+
+    Sürüm kimliğe DAHİL: formül değişince aynı seçimler yeni bir tahmindir
+    ve yeni satır açmalıdır. Dahil olmasaydı, düzeltilmiş olasılık
+    "zaten var" diye sessizce atlanır, defterde yalnız eski yanlış değer
+    kalırdı.
     """
+    s = _surum() if surum is None else surum
     parca = sorted("{}|{}|{}".format(a.get("mac_id"), a.get("market"),
                                      a.get("pick")) for a in ayaklar)
-    ham = tip + "::" + "++".join(parca)
+    ham = f"{tip}::v{s}::" + "++".join(parca)
     return hashlib.sha1(ham.encode("utf-8")).hexdigest()[:16]
 
 
@@ -80,8 +95,17 @@ def kur(conn=None) -> None:
                 fiyat_sansi  REAL,
                 bek_getiri   REAL,
                 durum        TEXT,
-                sonuc_ts     TEXT
+                sonuc_ts     TEXT,
+                surum        INTEGER
             )""")
+        # Üretimde tablo SÜRÜM SÜTUNU OLMADAN oluşmuştu (ilk dağıtım 10
+        # kupon yazdı). CREATE TABLE IF NOT EXISTS onu düzeltmez; sütun
+        # elle eklenir. Hem SQLite hem PostgreSQL'de geçerli.
+        try:
+            conn.execute("ALTER TABLE ferhan_kupon ADD COLUMN surum INTEGER")
+            conn.commit()
+        except Exception:
+            conn.rollback()        # zaten var
         conn.execute("""
             CREATE TABLE IF NOT EXISTS ferhan_kupon_ayak (
                 kupon_id  TEXT,
@@ -117,6 +141,7 @@ def kaydet(kuponlar: list[dict], tip: str = "normal", conn=None) -> int:
     kapat = conn is None
     conn = conn or db.connect()
     yeni = 0
+    surum = _surum()
     try:
         kur(conn)
         for k in kuponlar:
@@ -129,11 +154,11 @@ def kaydet(kuponlar: list[dict], tip: str = "normal", conn=None) -> int:
                 continue
             conn.execute(
                 "INSERT INTO ferhan_kupon (kupon_id, uretim_ts, tip, ayak, "
-                "oran, sans, fiyat_sansi, bek_getiri, durum) "
-                "VALUES (?,?,?,?,?,?,?,?,'acik')",
+                "oran, sans, fiyat_sansi, bek_getiri, durum, surum) "
+                "VALUES (?,?,?,?,?,?,?,?,'acik',?)",
                 (kid, _ts(), tip, int(k["ayak"]), float(k["oran"]),
                  float(k["sans"]), float(k.get("fiyat_sansi") or 0),
-                 float(k.get("bek_getiri") or 0)))
+                 float(k.get("bek_getiri") or 0), surum))
             for i, a in enumerate(ayaklar):
                 conn.execute(
                     "INSERT INTO ferhan_kupon_ayak (kupon_id, sira, bet_id, "
@@ -208,11 +233,19 @@ def karne(conn=None) -> dict:
     conn = conn or db.connect()
     try:
         kur(conn)
+        # ⚠️ YALNIZ GÜNCEL FORMÜL. Başka bir formülle üretilmiş tahmini
+        # bugünün gerçekleşmeleriyle karşılaştırmak, formül değişikliğini
+        # kalibrasyon bozukluğu diye raporlar.
+        sr = _surum()
         r = conn.execute(
             "SELECT tip, ayak, oran, sans, durum FROM ferhan_kupon "
-            "WHERE durum IN ('kazandi','kaybetti')").fetchall()
+            "WHERE durum IN ('kazandi','kaybetti') "
+            "AND COALESCE(surum,0) = ?", (sr,)).fetchall()
         acik = conn.execute("SELECT COUNT(*) FROM ferhan_kupon "
-                            "WHERE durum = 'acik'").fetchone()[0]
+                            "WHERE durum = 'acik' AND COALESCE(surum,0) = ?",
+                            (sr,)).fetchone()[0]
+        eski = conn.execute("SELECT COUNT(*) FROM ferhan_kupon "
+                            "WHERE COALESCE(surum,0) <> ?", (sr,)).fetchone()[0]
     finally:
         if kapat:
             conn.close()
@@ -235,7 +268,8 @@ def karne(conn=None) -> dict:
                     "fark": gercek - soylenen,
                     "z": (gercek - soylenen) / se if se else 0.0,
                     "getiri": getiri, "yeterli": n >= ASGARI_KUPON})
-    return {"satirlar": out, "acik": int(acik),
+    return {"satirlar": out, "acik": int(acik), "surum": sr,
+            "eski_surum": int(eski),
             "sonuclanan": sum(x["n"] for x in out)}
 
 
@@ -319,6 +353,22 @@ def kendi_testi() -> list[str]:
             hata.append(f"açık kupon 1 olmalı, {kr['acik']}")
         if len(son_kuponlar(c)) != 4:
             hata.append("son_kuponlar 4 satır döndürmeli")
+        # ESKİ FORMÜL SÜRÜMÜ karneye GİRMEMELİ. Üretimde sürüm 1 ile
+        # yazılmış satırlar var; süzgeç çalışmazsa formül değişikliği
+        # "kalibrasyon bozuk" diye raporlanır.
+        c.execute("INSERT INTO ferhan_kupon (kupon_id, uretim_ts, tip, ayak, "
+                  "oran, sans, fiyat_sansi, bek_getiri, durum, surum) "
+                  "VALUES ('eski1','2026-01-01','normal',1,2.0,0.95,0.95,"
+                  "1.9,'kazandi',1)")
+        c.execute("INSERT INTO ferhan_kupon_ayak (kupon_id, sira, bet_id) "
+                  "VALUES ('eski1',0,'1')")
+        c.commit()
+        kr2 = karne(c)
+        if kr2["sonuclanan"] != 2:
+            hata.append(f"eski sürüm karneye girdi: {kr2['sonuclanan']} "
+                        f"(2 olmalı)")
+        if kr2.get("eski_surum") != 1:
+            hata.append(f"eski sürüm sayısı 1 olmalı, {kr2.get('eski_surum')}")
         c.close()
     except Exception as e:
         hata.append(f"{type(e).__name__}: {e}")
