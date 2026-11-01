@@ -148,7 +148,7 @@ def asama_kendi_testi() -> None:
     # ⚠️ Yeni modülün kendi testi buraya YAZILMAZSA denetimden geçmiş
     # sayılır ama hiç koşmaz — sessiz bir boşluk. Liste elle tutuluyor.
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
-               "kasa", "vibe_studyo"):
+               "kasa", "vibe_studyo", "canli_db"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:

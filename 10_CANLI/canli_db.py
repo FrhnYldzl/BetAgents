@@ -36,6 +36,19 @@ SEMA = [
     """CREATE TABLE IF NOT EXISTS cl_kupon (
         hafta_id INTEGER, profil TEXT, butce INTEGER, ts TEXT, icerik TEXT,
         PRIMARY KEY (hafta_id, profil, butce, ts))""",
+    # MAÇ ÖNCESİ FİYAT YOLU — açılış ile kapanış ARASINDAKİ adımlar.
+    # ⚠️ Neden ayrı tablo: cl_mac yalnız ilk (oran_once) ve son (oran_kapanis)
+    # fiyatı tutuyor, aradaki yol atılıyordu. Ölçüldü (01.11.2026, 4.037 maç):
+    # kapanış açılıştan GERÇEKTEN daha iyi kalibre (Brier farkı −0,0049,
+    # z=−4,04), yani açılış ile kapanış arasında piyasaya bilgi giriyor.
+    # Ama o bilginin NE ZAMAN girdiğini göremiyoruz, çünkü yalnız iki nokta
+    # saklıyoruz. Hareketi erken yakalayıp iyi fiyattan girmek (CLV) ancak
+    # yol bilinirse ölçülebilir.
+    # cl_anlik'e karıştırılmadı: orası MAÇ İÇİ ve canlı analizler satırların
+    # in-play olduğunu varsayıyor.
+    """CREATE TABLE IF NOT EXISTS cl_onmac_yol (
+        mac_id TEXT, ts TEXT, oran TEXT, baslangic TEXT,
+        PRIMARY KEY (mac_id, ts))""",
     """CREATE TABLE IF NOT EXISTS cl_kayit (ts TEXT, tur TEXT, mesaj TEXT)""",
     """CREATE TABLE IF NOT EXISTS cl_ayar (anahtar TEXT PRIMARY KEY, deger TEXT, guncelleme TEXT)""",
 ]
@@ -118,6 +131,13 @@ def mac_yaz(m: dict) -> None:
             if once is None:
                 once = yeni
             kapanis = yeni                 # maç öncesi her görüldüğünde tazelenir
+            # Yol: açılış ve kapanış arasındaki adımlar. Yalnız maç
+            # BAŞLAMADAN önceki gözlemler; maç içi fiyat cl_anlik'e gider.
+            if m.get("durum") == "bekliyor":
+                try:
+                    yol_yaz(c, m["mac_id"], yeni, m.get("baslangic"))
+                except Exception:
+                    pass        # yol ikincil; ana kaydı asla düşürmesin
         c.execute(
             "INSERT INTO cl_mac (mac_id, iddaa_id, af_id, lig, ev, dep, baslangic, ilk_gorulme, son_gorulme, "
             "toto_hafta, toto_sira, durum, sonuc_ev, sonuc_dep, oran_once, oran_kapanis) "
@@ -132,6 +152,24 @@ def mac_yaz(m: dict) -> None:
         c.commit()
     finally:
         c.close()
+
+
+def yol_yaz(c, mac_id: str, oran_js: str, baslangic) -> bool:
+    """Maç öncesi fiyat yoluna bir adım ekle — YALNIZ FİYAT DEĞİŞTİYSE.
+
+    ⚠️ Her turu yazmak hacmi boşuna şişirir: önmaç turu 15 dakikada bir
+    koşuyor ve çoğu maçın fiyatı turlar boyunca kıpırdamıyor. Yol zaten
+    DEĞİŞİMLERLE tanımlıdır; değişmeyen turu yazmak bilgi katmaz, yalnız
+    satır sayısını büyütür (cl_anlik 751 bin satırda).
+    """
+    son = c.execute("SELECT oran FROM cl_onmac_yol WHERE mac_id = ? "
+                    "ORDER BY ts DESC LIMIT 1", (mac_id,)).fetchone()
+    if son and str(son[0]) == str(oran_js):
+        return False
+    c.execute("INSERT INTO cl_onmac_yol (mac_id, ts, oran, baslangic) "
+              "VALUES (?,?,?,?) ON CONFLICT (mac_id, ts) DO NOTHING",
+              (mac_id, simdi(), oran_js, baslangic))
+    return True
 
 
 def oran_once_harita() -> dict:
@@ -436,3 +474,49 @@ def olculebilir(asgari_anlik: int = 20) -> int:
         return 0
     finally:
         c.close()
+
+
+def kendi_testi() -> list[str]:
+    """Maç öncesi fiyat yolu: değişimde yazar, değişmeyende yazmaz.
+
+    ⚠️ İki yön de sınanır. Yalnız "yazdı mı" bakılsaydı, koşul ters kurulmuş
+    olsa bile test geçerdi ve yol tablosu ya hiç dolmaz ya her turu yazıp
+    şişerdi — ikisi de sessizce olurdu.
+    """
+    import json
+    import os
+    import sqlite3
+    import tempfile
+    hata = []
+    yol = os.path.join(tempfile.gettempdir(), f"cl_yol_{os.getpid()}.db")
+    try:
+        os.unlink(yol)
+    except OSError:
+        pass
+    try:
+        c = sqlite3.connect(yol)
+        c.execute("CREATE TABLE cl_onmac_yol (mac_id TEXT, ts TEXT, "
+                  "oran TEXT, baslangic TEXT, PRIMARY KEY (mac_id, ts))")
+        A = json.dumps([1.60, 3.20, 5.00])
+        B = json.dumps([1.55, 3.30, 5.40])
+        if not yol_yaz(c, "M1", A, None):
+            hata.append("ilk fiyat yazılmalıydı")
+        if yol_yaz(c, "M1", A, None):
+            hata.append("DEĞİŞMEYEN fiyat yazıldı — yol gereksiz şişer")
+        # Aynı saniyede ikinci kayıt PRIMARY KEY'e takılabilir; ts saniye
+        # çözünürlüklü. Değişimi ayrı bir maçla sına ki çakışma karıştırmasın.
+        if not yol_yaz(c, "M2", B, None):
+            hata.append("DEĞİŞEN fiyat yazılmadı — hareket kaybolur")
+        c.commit()
+        n = c.execute("SELECT COUNT(*) FROM cl_onmac_yol").fetchone()[0]
+        if n != 2:
+            hata.append(f"2 satır olmalı, {n}")
+        c.close()
+    except Exception as e:
+        hata.append(f"{type(e).__name__}: {e}")
+    finally:
+        try:
+            os.unlink(yol)
+        except OSError:
+            pass
+    return hata

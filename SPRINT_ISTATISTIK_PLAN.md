@@ -305,3 +305,127 @@ Bu plan kenar bulacağını **garanti etmiyor**. Dürüst olasılıklar:
 **Her sprintin sonunda sorulacak tek soru:** *bu sprint, ölçülebilir bir
 bilgi kattı mı?* Katmadıysa sütun silinir, sprint kapatılır, bir sonrakine
 geçilir. Doldurulmayan 78 sütunun dersi budur.
+
+---
+
+# ■ GÜNCELLEME — 01.11.2026 akşamı
+
+## Kullanıcı direktifi: **TEK KAYNAK İDDAA**
+
+> "Nt: Tek kaynak iddaa olmalı!"
+
+Bu, planın 4. ve 5. sprintini kökten değiştirir — ve **iyi yönde**:
+
+- API-Football, dış istatistik sağlayıcısı, ücretli abonelik **yok**.
+- Kapsam tuzağı kendiliğinden çözülür: iddaa, tanımı gereği **tam olarak
+  bizim oynadığımız maçları** kapsar. "5 büyük ligi kapsıyor" sorunu biter.
+- Maliyet sıfır, kota yok, hesap askıya alınmaz (API-Football'un başına
+  gelen buydu ve canlı projeyi %2,8'e düşürdü).
+
+## iddaa'nın gerçekte NE verdiği — tarandı, varsayılmadı
+
+### 1 · Lig analizi — `iddaa.com/lig-analiz/...` ✅ DOĞRULANDI
+
+Puan durumu sayfası şunları veriyor ve **Toplam / Ev Sahibi / Deplasman**
+sekmeleriyle ayrışıyor:
+
+`POZ · O · G · B · M · AG:YG · +/- · P · Form (son 5: G/B/M)`
+
+Ayrıca aynı bölümde: **Fikstür**, **Sonuçlar**, **Liderler (gol, asist,
+kart)**, **Takım Kadroları**.
+
+Bu, boş duran şu sütunların doğrudan kaynağıdır:
+`home/away_league_pos`, `pts`, `gd`, `form_5g`, `avg_goals_5g` ve
+kullanıcının özellikle istediği **iç saha / dış saha ayrımı**.
+
+→ **Sprint 2 artık dış kaynaksız DEĞİL, iddaa kaynaklı ve daha zengin.**
+Kendi geçmişimizden türetmek yerine iddaa'nın kendi tablosu alınır; ev/dep
+ayrımı bizim kısmi geçmişimizden güvenilir çıkarılamıyordu.
+
+### 2 · Canlı skor — `iddaa.com/canli-skor/futbol` ✅ VAR
+
+Lig listesi **tam bizim bültenimiz**: Belarus, Estonya, Tayland, Uganda,
+Botsvana, Kosova, Nikaragua… yani dış sağlayıcıların kapsamadığı alt
+ligler burada.
+
+→ **Sprint 5'in kaynağı var.** Taşıma biçimi (WebSocket mi, arka uç API mi)
+henüz belirsiz; veri istemci tarafında geliyor, `__NEXT_DATA__` boş.
+İlk adres: ağ izinde görülen `mpc-prod-24-s6uit34pua-uw.a.run.app`.
+Bu hâlâ zaman kutulu keşif, ama artık "kaynak var mı" sorusu değil
+"hangi uçtan" sorusu.
+
+### 3 · Pazarlar — kullandığımızdan ÇOK fazlası ⚠️ YENİ FIRSAT
+
+`sportsbookv2.iddaa.com/sportsbook/event/{id}` tek maç için şunları
+döndürüyor: Alt/Üst 2.5, Alt/Üst 4.5, Tek/Çift, handikaplar ve
+devamı — her biri `odd` ve `wodd` (iki ayrı fiyat) ile.
+
+**Biz yalnız 1X2 ve AU25 topluyoruz.** Bu, elimizdeki en büyük
+kullanılmayan iddaa verisi ve hiçbir yeni kaynak gerektirmiyor.
+
+→ **Yeni sprint eklendi (aşağıda S4b).**
+
+---
+
+## SPRINT 1 — TAMAMLANDI · ölçüm sonuçları
+
+**Örneklem:** 4.037 maç (açılış + kapanış + skor), açılış medyan **36 saat**
+önce görülmüş (%69'u 24 saatten erken).
+
+| Sınav | Sonuç | Yorum |
+|---|---|---|
+| Kapanış, açılıştan iyi mi? | Brier −0,00487, **z = −4,04** | ✅ EVET — hareket **gerçek bilgi** taşıyor |
+| Hareket, kapanışın kaçırdığını söylüyor mu? | r = +0,006, **z = +0,68** | ❌ HAYIR — bilgi kapanışta tam fiyatlanmış |
+| Açılışın fiyat bandı yanlılığı var mı? | 60-70 bandında +6,3p | ⚠️ **ARTEFAKT** |
+
+### ⚠️ Yakalanan tuzak
+
+60-70 bandındaki "+6,3 puan favori ucuzluğu" bulgu **değil**. Aynı analiz
+**kapanış** fiyatına uygulandığında aynı profil çıktı (10-20 bandı −2,58p,
+40-80 bandı artı). Yani sapma piyasanın yanlılığı değil, **oransal
+marjsızlaştırmanın** bilinen kusuru: marjı orantılı dağıtmak favoriyi
+sistematik olarak düşük gösterir.
+
+Bu projede aynı karışıklık üçüncü kez karşımıza çıktı (`kenar-sutunu-marj`,
+`marjsiz-favori-sismesi`). Kontrol koşulmasaydı +6,3 puanlık sahte bir
+kenar raporlanacaktı.
+
+### Sprint 1 çıktısı: `cl_onmac_yol`
+
+Ölçüm şunu gösterdi: açılış ile kapanış arasında piyasaya **bilgi giriyor**
+(z=−4,04), ama o bilginin **ne zaman** girdiğini göremiyoruz — çünkü
+`cl_mac` yalnız ilk (`oran_once`) ve son (`oran_kapanis`) fiyatı tutuyor,
+aradaki yol atılıyor.
+
+Oysa önmaç turu **zaten 15 dakikada bir fiyat çekiyor**. Eklenen:
+`cl_onmac_yol` tablosu — her maç öncesi gözlemi biriktirir, **yalnız fiyat
+değiştiğinde** (yol değişimlerle tanımlıdır; değişmeyen turu yazmak hacmi
+boşuna şişirir).
+
+Bu, hareketi erken yakalayıp iyi fiyattan girme (CLV) testinin **önkoşulu**.
+O test ancak birkaç hafta yol biriktikten sonra yapılabilir.
+
+**Sprint 1 hükmü:** hareket tek başına oynanacak bir sinyal **değil**
+(ölçüldü). Ama hareketin *yolu* henüz ölçülmedi ve artık ölçülebilir hâle
+geldi.
+
+---
+
+## REVİZE SIRALAMA
+
+| # | Sprint | Durum | Kaynak |
+|---|---|---|---|
+| 1 | Açılış fiyatı + hareket | ✅ **bitti** — sinyal yok, yol toplanıyor | iddaa |
+| 2 | Lig analizi: puan durumu · form · **ev/dep** | sıradaki | **iddaa lig-analiz** |
+| 3 | Pazar bazlı CLV | hazır | iddaa |
+| 4a | Maç istatistikleri (şut, korner, kart) | iddaa'da var mı — keşif | iddaa |
+| **4b** | **Pazar genişletme (AU4.5, Tek/Çift, handikap…)** | **YENİ — en ucuz kazanç** | iddaa |
+| 5 | Canlı skor/dakika | kaynak bulundu, uç aranıyor | **iddaa canli-skor** |
+| 6 | Korelasyon taraması | önkoşullu | — |
+| 7 | Ajanlaştırma | önkoşullu | — |
+
+**S4b neden öne alınmalı:** yeni veri kaynağı yok, yeni model yok, yalnız
+hâlihazırda çektiğimiz yanıttan daha fazla pazar okumak. Her yeni pazar
+hem yeni bahis alanı hem yeni marjsızlaştırma çifti demek. Ayrıca `odd` /
+`wodd` ikiliği incelenmeli: ikisi arasında ~%4 fark var ve hangisinin
+gerçekte oynanabilir fiyat olduğu marj hesabımızı doğrudan etkiler.
