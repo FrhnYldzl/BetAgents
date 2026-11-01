@@ -228,6 +228,31 @@ def main():
     # sistem dakikalar içinde güncel olsun)
     # 🛡 AÇILIŞ KALKANI: deploy sonrası ilk iş — ajanlar çöküyor mu?
     # (Bir bağımlılık/şema kırılması haftalarca 'pasiflik' sanılmasın.)
+    # 📡 GENİŞ PENCERE DENEMESİ — 7 gün, bir kez başlatılır.
+    # Kullanıcı: "1 hafta boyunca sadece". Maliyeti bant genişliği; API
+    # kotası HARCANMAZ (fiyat iddaa'dan ücretsiz, API-Football'un ayrı
+    # rezervi var — zaten kayıtların %2,8'inde durum geliyor).
+    # Amaç CLV kapsamını büyütmek: 997 bahsin 554'ü ölçülebiliyor, dar
+    # pencere yüzünden maçların canlı serisi yok.
+    try:
+        import os as _os
+        import sys as _sys
+        from datetime import date as _date, timedelta as _td2
+        _c = _os.path.join(str(THIS_DIR), "10_CANLI")
+        if _c not in _sys.path:
+            _sys.path.append(_c)
+        import canli_db as _cdb
+        _cdb.kur()
+        if not _cdb.ayar_oku("genis_pencere_bitis", "") \
+                and _cdb.ayar_oku("genis_pencere_baslatildi", "") != "1":
+            _son = (_date.today() + _td2(days=7)).isoformat()
+            _cdb.ayar_yaz("genis_pencere_bitis", _son)
+            _cdb.ayar_yaz("genis_pencere_baslatildi", "1")
+            print(f"[{_ts()}] 📡 geniş pencere açıldı — {_son} tarihinde "
+                  f"kendiliğinden dar pencereye döner", flush=True)
+    except Exception as e:
+        print(f"[{_ts()}] GENİŞ PENCERE HATA: {e}", flush=True)
+
     # 🗓 ERA-4 — bir kez, kendiliğinden. Üretime elle müdahale edilmediği için
     # geçiş buradan yapılır: era_no < 4 ise kurulur, sonraki açılışlarda atlanır.
     #

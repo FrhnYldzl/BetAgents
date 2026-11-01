@@ -42,7 +42,10 @@ SEMA = [
 # mod: kapali · otomatik (saat penceresinde) · acik (elle, sürekli)
 # Pencereler TR saatiyle; bitiş başlangıçtan küçükse gece yarısını aşar (21:00-02:00).
 VARSAYILAN_AYAR = {"toplayici": "otomatik", "kapsam": "hepsi",
-                   "pencere_hafta_ici": "19:00-24:00", "pencere_hafta_sonu": "13:00-24:00"}
+                   "pencere_hafta_ici": "19:00-24:00", "pencere_hafta_sonu": "13:00-24:00",
+                   # Süreli geniş pencere: bitiş boşsa devre dışı.
+                   "genis_hafta_ici": "12:00-24:00", "genis_hafta_sonu": "10:00-24:00",
+                   "genis_pencere_bitis": ""}
 
 
 def simdi() -> str:
@@ -315,6 +318,26 @@ def pencere_icinde(an: datetime | None = None) -> tuple[bool, str]:
     hafta_sonu = an.weekday() >= 5
     ad = "pencere_hafta_sonu" if hafta_sonu else "pencere_hafta_ici"
     ham = ayar_oku(ad)
+    # ── GENİŞ PENCERE DENEMESİ (süreli) ───────────────────────────
+    # Kullanıcı 01.11.2026'da "1 hafta boyunca sadece" dedi. Süreli
+    # denemeyi elle geri almaya bırakmak, unutulup kalıcı olması demektir —
+    # bu projede ölçüm penceresi bir kez öyle açık kalmıştı. Bitiş tarihi
+    # ayarda durur ve geçince KENDİLİĞİNDEN dar pencereye döner.
+    bitis = ayar_oku("genis_pencere_bitis", "")
+    if bitis:
+        try:
+            if an.date().isoformat() <= str(bitis)[:10]:
+                # Varsayılan GEÇİLMEZ: ayar_oku boş varsayılan verilince
+                # VARSAYILAN_AYAR'a düşmüyor ve geniş pencere sessizce
+                # devre dışı kalıyordu.
+                g = ayar_oku("genis_hafta_sonu" if hafta_sonu else "genis_hafta_ici")
+                if g and _saat_coz(g):
+                    ham = g
+            # süre dolduysa ayarı temizle ki durum ekranda net olsun
+            elif ayar_oku("genis_pencere_bitis", ""):
+                ayar_yaz("genis_pencere_bitis", "")
+        except Exception:
+            pass
     a = _saat_coz(ham)
     if not a:
         return True, f"pencere okunamadı ({ham}) — açık sayıldı"
