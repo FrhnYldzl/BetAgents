@@ -45,6 +45,12 @@ import db  # noqa: E402
 # Karne için asgari kupon sayısı: altında kalibrasyon farkı gürültüdür.
 ASGARI_KUPON = 20
 
+# STANDART BAHİS — her kupon 100 TL oynanmış gibi kaydedilir (kullanıcı
+# kararı, 01.11.2026). Sabit olması şart: değişken bahisle kuponların
+# getirisi karşılaştırılamaz, iyi kupon mu büyük bahis mi anlaşılmaz.
+# Ajanların defteriyle aynı form: bahis · potansiyel · dönen · kâr.
+BAHIS = 100.0
+
 
 def _surum() -> int:
     """Tahmini üreten formülün sürümü (kupon_orkestra.FORMUL_SURUM)."""
@@ -96,16 +102,15 @@ def kur(conn=None) -> None:
                 bek_getiri   REAL,
                 durum        TEXT,
                 sonuc_ts     TEXT,
-                surum        INTEGER
+                surum        INTEGER,
+                -- Ajanların paper_coupons formuyla birebir aynı alanlar:
+                -- stake · potential_return · actual_return · pnl · reasoning
+                bahis        REAL,
+                potansiyel   REAL,
+                donen        REAL,
+                kar          REAL,
+                gerekce      TEXT
             )""")
-        # Üretimde tablo SÜRÜM SÜTUNU OLMADAN oluşmuştu (ilk dağıtım 10
-        # kupon yazdı). CREATE TABLE IF NOT EXISTS onu düzeltmez; sütun
-        # elle eklenir. Hem SQLite hem PostgreSQL'de geçerli.
-        try:
-            conn.execute("ALTER TABLE ferhan_kupon ADD COLUMN surum INTEGER")
-            conn.commit()
-        except Exception:
-            conn.rollback()        # zaten var
         conn.execute("""
             CREATE TABLE IF NOT EXISTS ferhan_kupon_ayak (
                 kupon_id  TEXT,
@@ -119,17 +124,94 @@ def kur(conn=None) -> None:
                 pick      TEXT,
                 oran      REAL,
                 p         REAL,
-                kickoff   TEXT
+                kickoff   TEXT,
+                -- paper_bets.reason / implied_prob / edge karşılıkları
+                p_piyasa  REAL,
+                kenar     REAL,
+                kanit     INTEGER,
+                gerekce   TEXT
             )""")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_fk_ayak_tekil "
                      "ON ferhan_kupon_ayak (kupon_id, sira)")
         conn.execute("CREATE INDEX IF NOT EXISTS ix_fk_durum "
                      "ON ferhan_kupon (durum, uretim_ts)")
         conn.commit()
+        # ⚠️ ALTER'ler CREATE'ler COMMIT EDİLDİKTEN SONRA, tek tek.
+        # İlk yazımda ALTER, CREATE ile commit ARASINDAYDI: PostgreSQL'de
+        # DDL işlemseldir, ALTER "sütun zaten var" diye patlayıp rollback
+        # çağrılınca tabloyu yaratan CREATE de geri alınıyordu. SQLite'ta
+        # şansa çalıştı, üretimde ilk koşuda kırılırdı.
+        for tablo, sutun, tip in (
+                ("ferhan_kupon", "surum", "INTEGER"),
+                ("ferhan_kupon", "bahis", "REAL"),
+                ("ferhan_kupon", "potansiyel", "REAL"),
+                ("ferhan_kupon", "donen", "REAL"),
+                ("ferhan_kupon", "kar", "REAL"),
+                ("ferhan_kupon", "gerekce", "TEXT"),
+                ("ferhan_kupon_ayak", "p_piyasa", "REAL"),
+                ("ferhan_kupon_ayak", "kenar", "REAL"),
+                ("ferhan_kupon_ayak", "kanit", "INTEGER"),
+                ("ferhan_kupon_ayak", "gerekce", "TEXT")):
+            try:
+                conn.execute(f"ALTER TABLE {tablo} ADD COLUMN {sutun} {tip}")
+                conn.commit()
+            except Exception:
+                conn.rollback()     # sütun zaten var
     finally:
         if kapat:
             conn.close()
 
+
+
+def _yz(v: float, b: int = 1) -> str:
+    return f"{v*100:.{b}f}".replace(".", ",")
+
+
+def _sy(v: float, b: int = 2) -> str:
+    """Ondalık ayırıcı VİRGÜL — proje geneliyle aynı. Gerekçe metninde
+    "2.33" ile "%28,9" yan yana durunca okuyan iki ayrı birim sanıyor."""
+    return f"{v:.{b}f}".replace(".", ",")
+
+
+def ayak_gerekcesi(a: dict) -> str:
+    """Bu ayak neden burada ve olasılığı NEREDEN geliyor.
+
+    Ajanların paper_bets.reason alanının karşılığı. Olasılığın kaynağını
+    açıkça yazar: kanıt varsa ajanın ölçülmüş alt sınırı, yoksa piyasanın
+    marjsız olasılığı. Kaynağı yazmayan bir sayı denetlenemez.
+    """
+    oran = float(a.get("oran") or 0)
+    p = float(a.get("p") or 0)
+    ajan = str(a.get("ajan") or "?")
+    if a.get("kanit"):
+        kenar = float(a.get("kenar") or 0)
+        return (f"{ajan} · KANIT VAR → şans = 1/{_sy(oran)} + kenar alt sınırı "
+                f"({_yz(kenar)}p) = %{_yz(p)}")
+    ima = float(a.get("ima") or 0)
+    return (f"{ajan} · kanıt yok (ölçülmüş kenar kullanılmadı) → şans = "
+            f"piyasanın MARJSIZ olasılığı: 1/{_sy(oran)} ÷ {_sy(ima, 3)} "
+            f"= %{_yz(p)}")
+
+
+def kupon_gerekcesi(k: dict, bahis: float = None) -> str:
+    """Kuponun tamamının gerekçesi — paper_coupons.reasoning karşılığı."""
+    b = BAHIS if bahis is None else bahis
+    oran = float(k.get("oran") or 0)
+    sans = float(k.get("sans") or 0)
+    piy = float(k.get("fiyat_sansi") or 0)
+    bg = float(k.get("bek_getiri") or 0)
+    fark = sans - piy
+    isaret = "+" if fark >= 0 else "−"
+    sat = [f"{k.get('ayak')} ayak · ödeme {_sy(oran)} · şans %{_yz(sans)} "
+           f"(marjsız piyasa %{_yz(piy)}, fark {isaret}{_yz(abs(fark))}p)",
+           f"{b:.0f} TL oynanırsa: kazanırsa {b*oran:.0f} TL · "
+           f"1 TL karşılığı {_sy(bg, 3)} TL"]
+    if fark <= 0.0005:
+        sat.append("Kenar YOK: şans tam olarak fiyatın marjsız dediği kadar. "
+                   "Beklenen getiri 1 TL'nin altında, fark marjdır.")
+    for a in (k.get("ayaklar") or []):
+        sat.append("  · " + ayak_gerekcesi(a))
+    return chr(10).join(sat)
 
 # ----------------------------------------------------------------------
 # KAYIT
@@ -154,22 +236,27 @@ def kaydet(kuponlar: list[dict], tip: str = "normal", conn=None) -> int:
                 continue
             conn.execute(
                 "INSERT INTO ferhan_kupon (kupon_id, uretim_ts, tip, ayak, "
-                "oran, sans, fiyat_sansi, bek_getiri, durum, surum) "
-                "VALUES (?,?,?,?,?,?,?,?,'acik',?)",
+                "oran, sans, fiyat_sansi, bek_getiri, durum, surum, "
+                "bahis, potansiyel, gerekce) "
+                "VALUES (?,?,?,?,?,?,?,?,'acik',?,?,?,?)",
                 (kid, _ts(), tip, int(k["ayak"]), float(k["oran"]),
                  float(k["sans"]), float(k.get("fiyat_sansi") or 0),
-                 float(k.get("bek_getiri") or 0), surum))
+                 float(k.get("bek_getiri") or 0), surum,
+                 BAHIS, BAHIS * float(k["oran"]), kupon_gerekcesi(k)))
             for i, a in enumerate(ayaklar):
                 conn.execute(
                     "INSERT INTO ferhan_kupon_ayak (kupon_id, sira, bet_id, "
-                    "mac_id, ajan, ev, dep, market, pick, oran, p, kickoff) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "mac_id, ajan, ev, dep, market, pick, oran, p, kickoff, "
+                    "p_piyasa, kenar, kanit, gerekce) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (kid, i, str(a.get("bet_id") or ""),
                      str(a.get("mac_id") or ""), str(a.get("ajan") or ""),
                      str(a.get("ev") or ""), str(a.get("dep") or ""),
                      str(a.get("market") or ""), str(a.get("pick") or ""),
                      float(a.get("oran") or 0), float(a.get("p") or 0),
-                     str(a.get("kickoff") or "")))
+                     str(a.get("kickoff") or ""),
+                     float(a.get("p_piyasa") or 0), float(a.get("kenar") or 0),
+                     1 if a.get("kanit") else 0, ayak_gerekcesi(a)))
             yeni += 1
         conn.commit()
     finally:
@@ -193,9 +280,10 @@ def sonuclandir(conn=None) -> dict:
     try:
         kur(conn)
         acik = conn.execute(
-            "SELECT kupon_id FROM ferhan_kupon WHERE durum = 'acik'").fetchall()
+            "SELECT kupon_id, oran, COALESCE(bahis,?) FROM ferhan_kupon "
+            "WHERE durum = 'acik'", (BAHIS,)).fetchall()
         sayac = {"kazandi": 0, "kaybetti": 0, "iptal": 0, "acik": 0}
-        for (kid,) in acik:
+        for kid, oran, bahis in acik:
             ayak = conn.execute(
                 "SELECT a.bet_id, b.status FROM ferhan_kupon_ayak a "
                 "LEFT JOIN paper_bets b ON CAST(b.bet_id AS TEXT) = a.bet_id "
@@ -214,8 +302,19 @@ def sonuclandir(conn=None) -> dict:
                 # yarısı tutmuş kuponu "kazandı" saymak en bariz şişirme yolu.
                 sayac["acik"] += 1
                 continue
-            conn.execute("UPDATE ferhan_kupon SET durum = ?, sonuc_ts = ? "
-                         "WHERE kupon_id = ?", (yeni, _ts(), kid))
+            # Ajanların formu: dönen (actual_return) ve kâr (pnl).
+            # İPTAL'de bahis geri döner, kâr sıfırdır — kaybetmiş saymak
+            # getiriyi olduğundan kötü gösterirdi.
+            b = float(bahis or BAHIS)
+            if yeni == "kazandi":
+                donen = b * float(oran or 0)
+            elif yeni == "iptal":
+                donen = b
+            else:
+                donen = 0.0
+            conn.execute("UPDATE ferhan_kupon SET durum = ?, sonuc_ts = ?, "
+                         "donen = ?, kar = ? WHERE kupon_id = ?",
+                         (yeni, _ts(), donen, donen - b, kid))
             sayac[yeni] += 1
         conn.commit()
         return sayac
@@ -238,9 +337,10 @@ def karne(conn=None) -> dict:
         # kalibrasyon bozukluğu diye raporlar.
         sr = _surum()
         r = conn.execute(
-            "SELECT tip, ayak, oran, sans, durum FROM ferhan_kupon "
+            "SELECT tip, ayak, oran, sans, durum, COALESCE(bahis,?), "
+            "       COALESCE(kar,0) FROM ferhan_kupon "
             "WHERE durum IN ('kazandi','kaybetti') "
-            "AND COALESCE(surum,0) = ?", (sr,)).fetchall()
+            "AND COALESCE(surum,0) = ?", (BAHIS, sr)).fetchall()
         acik = conn.execute("SELECT COUNT(*) FROM ferhan_kupon "
                             "WHERE durum = 'acik' AND COALESCE(surum,0) = ?",
                             (sr,)).fetchone()[0]
@@ -251,9 +351,10 @@ def karne(conn=None) -> dict:
             conn.close()
     from collections import defaultdict
     g = defaultdict(list)
-    for tip, ayak, oran, sans, durum in r:
+    for tip, ayak, oran, sans, durum, bahis, kar in r:
         g[(tip, int(ayak))].append((float(oran), float(sans),
-                                    1 if durum == "kazandi" else 0))
+                                    1 if durum == "kazandi" else 0,
+                                    float(bahis or 0), float(kar or 0)))
     out = []
     for (tip, ayak), K in sorted(g.items()):
         n = len(K)
@@ -263,12 +364,18 @@ def karne(conn=None) -> dict:
         var = sum(x[1] * (1 - x[1]) for x in K)
         se = (var ** 0.5) / n if var > 0 else 0.0
         getiri = sum((x[0] - 1.0) if x[2] else -1.0 for x in K) / n
+        yatan = sum(x[3] for x in K)
+        kar = sum(x[4] for x in K)
         out.append({"tip": tip, "ayak": ayak, "n": n,
                     "soylenen": soylenen, "gercek": gercek,
                     "fark": gercek - soylenen,
                     "z": (gercek - soylenen) / se if se else 0.0,
-                    "getiri": getiri, "yeterli": n >= ASGARI_KUPON})
+                    "getiri": getiri, "yeterli": n >= ASGARI_KUPON,
+                    "yatan": yatan, "kar": kar,
+                    "roi": (kar / yatan) if yatan else 0.0})
     return {"satirlar": out, "acik": int(acik), "surum": sr,
+            "toplam_yatan": sum(x["yatan"] for x in out),
+            "toplam_kar": sum(x["kar"] for x in out),
             "eski_surum": int(eski),
             "sonuclanan": sum(x["n"] for x in out)}
 
@@ -281,13 +388,15 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
         kur(conn)
         K = conn.execute(
             "SELECT kupon_id, uretim_ts, tip, ayak, oran, sans, bek_getiri, "
-            "       durum FROM ferhan_kupon "
-            "ORDER BY uretim_ts DESC LIMIT ?", (en_cok,)).fetchall()
+            "       durum, COALESCE(bahis,?), COALESCE(potansiyel,0), "
+            "       donen, kar, gerekce, fiyat_sansi FROM ferhan_kupon "
+            "ORDER BY uretim_ts DESC LIMIT ?", (BAHIS, en_cok)).fetchall()
         out = []
-        for kid, ts, tip, ayak, oran, sans, bg, durum in K:
+        for (kid, ts, tip, ayak, oran, sans, bg, durum, bahis, pot,
+             donen, kar, gerekce, piy) in K:
             ay = conn.execute(
                 "SELECT a.ev, a.dep, a.market, a.pick, a.oran, a.ajan, "
-                "       COALESCE(b.status,'open') "
+                "       COALESCE(b.status,'open'), a.gerekce, a.kanit "
                 "FROM ferhan_kupon_ayak a "
                 "LEFT JOIN paper_bets b ON CAST(b.bet_id AS TEXT) = a.bet_id "
                 "WHERE a.kupon_id = ? ORDER BY a.sira", (kid,)).fetchall()
@@ -295,9 +404,15 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
                 "kupon_id": kid, "uretim_ts": ts, "tip": tip,
                 "ayak": int(ayak), "oran": float(oran), "sans": float(sans),
                 "bek_getiri": float(bg or 0), "durum": durum,
+                "fiyat_sansi": float(piy or 0),
+                "bahis": float(bahis or BAHIS), "potansiyel": float(pot or 0),
+                "donen": None if donen is None else float(donen),
+                "kar": None if kar is None else float(kar),
+                "gerekce": gerekce or "",
                 "ayaklar": [{"ev": e, "dep": d, "market": m, "pick": p,
-                             "oran": float(o or 0), "ajan": aj, "durum": st}
-                            for e, d, m, p, o, aj, st in ay]})
+                             "oran": float(o or 0), "ajan": aj, "durum": st,
+                             "gerekce": gk or "", "kanit": bool(kn)}
+                            for e, d, m, p, o, aj, st, gk, kn in ay]})
         return out
     finally:
         if kapat:
@@ -342,7 +457,24 @@ def kendi_testi() -> list[str]:
                         ("acik", 1)):
             if s[ad] != bek:
                 hata.append(f"{ad} {bek} olmalı, {s[ad]}")
+        # PARA: 100 TL standart · oran 2,00 → kazanan 200 döner (+100),
+        # kaybeden 0 (−100), iptal bahsi geri verir (0).
+        para = {d: (dn, kr_) for d, dn, kr_ in c.execute(
+            "SELECT durum, donen, kar FROM ferhan_kupon "
+            "WHERE durum <> 'acik'").fetchall()}
+        for d, bek_donen, bek_kar in (("kazandi", 200.0, 100.0),
+                                      ("kaybetti", 0.0, -100.0),
+                                      ("iptal", 100.0, 0.0)):
+            got = para.get(d)
+            if not got or abs(got[0] - bek_donen) > 1e-6                     or abs(got[1] - bek_kar) > 1e-6:
+                hata.append(f"{d}: dönen/kâr {got} olmalı "
+                            f"({bek_donen}, {bek_kar})")
         kr = karne(c)
+        if abs(kr.get("toplam_kar", 0) - 0.0) > 1e-6:
+            hata.append(f"toplam kâr 0 olmalı (bir kazanan bir kaybeden), "
+                        f"{kr.get('toplam_kar')}")
+        if abs(kr.get("toplam_yatan", 0) - 200.0) > 1e-6:
+            hata.append(f"toplam yatan 200 olmalı, {kr.get('toplam_yatan')}")
         if kr["sonuclanan"] != 2:
             hata.append(f"karnede 2 kupon olmalı (iptal/açık sayılmaz), "
                         f"{kr['sonuclanan']}")

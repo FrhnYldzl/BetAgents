@@ -3653,6 +3653,10 @@ try:
     FK_TEKRAR = _KO_MOD.TEKRAR_TAVAN
 except Exception:
     FK_ASGARI_N, FK_TEKRAR = 30, 2
+try:
+    FK_BAHIS = _FK_MOD.BAHIS
+except Exception:
+    FK_BAHIS = 100.0
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -3711,6 +3715,14 @@ def _kupon_satiri(k: dict) -> str:
     # Kenar = bizim şansımız ile fiyatın şansı arasındaki fark. Sıfırsa
     # kupon yalnız bir ŞEKİL, bir görüş değil.
     kenar = sans - fiy
+    # GEREKÇE — ajanların paper_coupons.reasoning / paper_bets.reason
+    # karşılığı. Olasılığın NEREDEN geldiğini yazmayan sayı denetlenemez.
+    g = str(k.get("gerekce") or "")
+    gerekce_html = ("<details style='margin-top:6px;'><summary "
+                    "style='cursor:pointer;font-size:11px;opacity:.7;'>"
+                    "gerekçe</summary><pre style='white-space:pre-wrap;"
+                    "font-size:11px;opacity:.8;margin:6px 0 0;'>" +
+                    g.replace("<", "&lt;") + "</pre></details>") if g else ""
     ayak_html = ""
     for a in k["ayaklar"]:
         durum = a.get("durum")
@@ -3731,6 +3743,20 @@ def _kupon_satiri(k: dict) -> str:
     ad, cls = _KUPON_DURUM.get(k.get("durum") or "", ("", ""))
     durum_html = ("<span class='" + cls + "' style='font-size:11px;'>" + ad +
                   "</span>") if ad else ""
+    # PARA — ajanların defteriyle aynı form: bahis · potansiyel · dönen · kâr.
+    # Standart 100 TL: değişken bahiste "iyi kupon mu büyük bahis mi"
+    # ayırt edilemez.
+    bahis = float(k.get("bahis") or FK_BAHIS)
+    pot = float(k.get("potansiyel") or (bahis * k["oran"]))
+    para = ("<div class='v2kpi'><span>BAHİS</span><b>" +
+            _num(bahis, 0) + " ₺</b></div>"
+            "<div class='v2kpi'><span>KAZANIRSA</span><b>" +
+            _num(pot, 0) + " ₺</b></div>")
+    kar = k.get("kar")
+    if kar is not None:
+        para += ("<div class='v2kpi'><span>KÂR</span><b class='" +
+                 ("ps" if kar >= 0 else "ng") + "'>" + _para(float(kar)) +
+                 "</b></div>")
     sans_yaz = _pct(sans)
     fiy_yaz = _pct(fiy)
     bg_yaz = _num(bg, 3)
@@ -3752,8 +3778,8 @@ def _kupon_satiri(k: dict) -> str:
         "'>" + kenar_yaz + "</b></div>"
         "<div class='v2kpi'><span>1₺ karşılığı</span><b class='" +
         ("ps" if bg >= 1.0 else "ng") + "'>" + bg_yaz + " ₺</b></div>"
-        + durum_html +
-        "</div>" + ayak_html + "</div></div>")
+        + para + durum_html +
+        "</div>" + ayak_html + gerekce_html + "</div></div>")
 
 
 def page_kuponlar() -> None:
@@ -3775,6 +3801,10 @@ def page_kuponlar() -> None:
             "deger": str(len(u["normal"]) + len(u["canli"]))},
            {"ad": "Defterde açık", "deger": str(kn["acik"])},
            {"ad": "Sonuçlanan", "deger": str(n_top)}]
+    if kn.get("toplam_yatan"):
+        _k = kn.get("toplam_kar") or 0.0
+        kpi.append({"ad": "KÂR (100₺/kupon)", "deger": _para(_k),
+                    "cls": ("ps" if _k >= 0 else "ng")})
     if n_top:
         _soy = sum(x["soylenen"] * x["n"] for x in tum) / n_top
         _ger = sum(x["gercek"] * x["n"] for x in tum) / n_top
@@ -3919,7 +3949,8 @@ def page_kuponlar() -> None:
         else:
             gov = ("<table class='v2tbl'><thead><tr><th>TİP</th><th>ayak</th>"
                    "<th>kupon</th><th>söylenen şans</th><th>gerçekleşen</th>"
-                   "<th>fark</th><th>z</th><th>BİRİM GETİRİ</th></tr></thead>"
+                   "<th>fark</th><th>z</th><th>BİRİM GETİRİ</th>"
+                   "<th>yatan</th><th>kâr</th><th>ROI</th></tr></thead>"
                    "<tbody>")
             for x in satir:
                 z = x["z"]
@@ -3937,7 +3968,12 @@ def page_kuponlar() -> None:
                         _sgn(x["fark"]) + "</td><td class='" + z_cls + "'>" +
                         _num(z, 2) + "</td><td class='" +
                         ("ps" if x["getiri"] >= 0 else "ng") + "'>" +
-                        getiri_yaz + "</td></tr>")
+                        getiri_yaz + "</td><td>" +
+                        _num(x.get("yatan") or 0, 0) + " ₺</td><td class='" +
+                        ("ps" if (x.get("kar") or 0) >= 0 else "ng") + "'>" +
+                        _para(x.get("kar") or 0) + "</td><td class='" +
+                        ("ps" if (x.get("roi") or 0) >= 0 else "ng") + "'>" +
+                        _sgn(x.get("roi") or 0) + "</td></tr>")
             gov += "</tbody></table>"
             st.markdown(
                 "<div class='v2card'><div class='v2head'>"
