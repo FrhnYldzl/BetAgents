@@ -100,6 +100,54 @@ def _oran(alan: str, val) -> float | None:
 # PAPER ENGINE
 # ============================================================
 
+# ─────────────────────────────────────────────────────────────
+# S-A · yeni pazarların pick ayrıştırıcıları
+# ─────────────────────────────────────────────────────────────
+# Beraberlik proje genelinde "0"; eski kayıtlarda "X" geçebiliyor, ikisi de
+# kabul edilir (bu karışıklık surekli_puan'da bir kez bütün beraberlikleri
+# kayıp saydırmıştı).
+_CS_HARITA = {
+    "1X": {"1", "0"}, "1-X": {"1", "0"}, "1/X": {"1", "0"},
+    "10": {"1", "0"}, "1-0": {"1", "0"}, "1/0": {"1", "0"},
+    "12": {"1", "2"}, "1-2": {"1", "2"}, "1/2": {"1", "2"},
+    "X2": {"0", "2"}, "X-2": {"0", "2"}, "X/2": {"0", "2"},
+    "02": {"0", "2"}, "0-2": {"0", "2"}, "0/2": {"0", "2"},
+}
+
+
+def _cs(pick) -> set | None:
+    """Çifte şans pick'ini sonuç kümesine çevir."""
+    p = str(pick or "").strip().upper().replace(" ", "")
+    return _CS_HARITA.get(p)
+
+
+def _handikap(pick):
+    """'1(-1)' → (-1.0, '1'). Handikap EV SAHİBİNE uygulanır."""
+    import re as _re
+    p = str(pick or "").strip().upper().replace(" ", "")
+    m = _re.match(r"^([10X2])\(?([+-]?\d+(?:[.,]\d+)?)\)?$", p)
+    if not m:
+        return None, None
+    taraf = "0" if m.group(1) == "X" else m.group(1)
+    try:
+        return float(m.group(2).replace(",", ".")), taraf
+    except ValueError:
+        return None, None
+
+
+def _cizgi(pick):
+    """'ALT 3.5' → ('ALT', 3.5) · 'ÜST 1,5' → ('UST', 1.5)."""
+    import re as _re
+    p = str(pick or "").strip().upper().replace("Ü", "U").replace("İ", "I")
+    m = _re.match(r"^(ALT|UST)\s*([0-9]+(?:[.,][0-9]+)?)$", p)
+    if not m:
+        return None, None
+    try:
+        return m.group(1), float(m.group(2).replace(",", "."))
+    except ValueError:
+        return None, None
+
+
 class PaperEngine:
     """
     Paper Trader ana sinifi.
@@ -1376,6 +1424,54 @@ class PaperEngine:
                 return "won" if total > 2.5 else "lost"
             return "lost"
 
+        # ── SKORDAN SONUÇLANAN YENİ PAZARLAR (S-A) ────────────────────
+        # ⚠️ KURAL: ölçülemeyen pazar OYNANMAZ. Buraya yalnız elimizdeki
+        # skorla sonucu KESİN belirlenebilen pazarlar eklenir. iddaa korner
+        # ve kart pazarı da açıyor (bültende %20) ama korner/kart sayısı
+        # verimiz yok — onları eklemek, sonucu hiç belli olmayacak bahisler
+        # üretirdi ve ajan ölçülemezdi.
+        # Ölçüldü (01.11.2026, 205 maçlık bülten): ajanlar fiilen açılan
+        # 26 pazar türünden 2'sini oynuyordu.
+        sonuc = _cs(pick)
+
+        if market == "CIFTE_SANS":
+            # "1 veya 0"a oynamak, 1 ve 0'a orantılı oynamakla eşdeğerdir.
+            # Ölçüldü: "12" bacağı 1X2 ikilisinden 157 maçın 149'unda daha
+            # iyi ödüyor (+%0,94) — ajan beraberlik dışı pozisyonu buradan
+            # almalı. "X2" tersine kötü (−%1,47).
+            if sonuc is None:
+                return "void"
+            return "won" if res in sonuc else "lost"
+
+        if market == "TEK_CIFT":
+            p = (pick or "").strip().upper()
+            if p in ("TEK",):
+                return "won" if total % 2 == 1 else "lost"
+            if p in ("ÇİFT", "CIFT"):
+                return "won" if total % 2 == 0 else "lost"
+            return "void"
+
+        if market == "HANDIKAP":
+            # pick: "1(-1)" · "0(+2)" · "2(-1.5)" — handikap EV SAHİBİNE
+            # uygulanır (iddaa kuralı). Yarım handikapta beraberlik olamaz.
+            h, taraf = _handikap(pick)
+            if h is None or taraf is None:
+                return "void"
+            e = home_score + h
+            r = "1" if e > away_score else ("0" if e == away_score else "2")
+            return "won" if taraf == r else "lost"
+
+        if market in ("EV_ALT_UST", "DEP_ALT_UST", "ALT_UST"):
+            # Çizgi pick içinde: "ALT 3.5" · "ÜST 1.5"
+            yon, cizgi = _cizgi(pick)
+            if yon is None or cizgi is None:
+                return "void"
+            t = (home_score if market == "EV_ALT_UST" else
+                 away_score if market == "DEP_ALT_UST" else total)
+            if t == cizgi:
+                return "void"        # tam çizgi — iade (iddaa'da .0 çizgi)
+            return "won" if ((t > cizgi) == (yon == "UST")) else "lost"
+
         return "void"
 
     @staticmethod
@@ -1677,3 +1773,56 @@ if __name__ == "__main__":
 
     else:
         parser.print_help()
+
+
+def kendi_testi() -> list[str]:
+    """S-A pazarlarının sonuçlandırması — her biri skordan KESİN belirlenir.
+
+    ⚠️ Yanlış sonuçlandırma en sinsi arızadır: bahis kapanır, sayı üretir,
+    ama ajanın karnesi yanlış olur ve bunu hiçbir şey göstermez. Kombine
+    pazarlar bir kez tam bunu yaşadı (KIRMIZI ajanların kazanan bahisleri
+    'void' yazılıyordu, yani ajanlar hiç doğru ölçülemiyordu).
+    """
+    hata = []
+    _o = PaperEngine._determine_outcome
+    D = [
+        # (pazar, pick, ev, dep, beklenen)
+        ("CIFTE_SANS", "1X", 2, 1, "won"), ("CIFTE_SANS", "12", 2, 1, "won"),
+        ("CIFTE_SANS", "X2", 2, 1, "lost"), ("CIFTE_SANS", "1X", 1, 1, "won"),
+        ("CIFTE_SANS", "12", 1, 1, "lost"), ("CIFTE_SANS", "X2", 0, 2, "won"),
+        ("CIFTE_SANS", "saçma", 1, 0, "void"),
+        ("TEK_CIFT", "TEK", 2, 1, "won"), ("TEK_CIFT", "ÇİFT", 2, 1, "lost"),
+        ("TEK_CIFT", "ÇİFT", 1, 1, "won"), ("TEK_CIFT", "TEK", 0, 0, "lost"),
+        # Handikap EV SAHİBİNE uygulanır: 2-1 ve 1(-1) → 1-1 beraberlik
+        ("HANDIKAP", "1(-1)", 2, 1, "lost"), ("HANDIKAP", "0(-1)", 2, 1, "won"),
+        ("HANDIKAP", "1(-1)", 2, 0, "won"),
+        # 1-2 + ev handikabı (+1) → 2-2 BERABERLİK, "2" kaybeder.
+        # (İlk yazımda "won" beklemiştim; test yanlıştı, kod doğruydu.)
+        ("HANDIKAP", "2(+1)", 1, 2, "lost"),
+        ("HANDIKAP", "2(+1)", 0, 2, "won"),
+        # 2-0 + (-1,5) → 0,5-0, ev yine önde: yarım handikapta beraberlik yok.
+        ("HANDIKAP", "1(-1.5)", 2, 0, "won"),
+        ("HANDIKAP", "1(-2.5)", 2, 0, "lost"),
+        ("HANDIKAP", "bozuk", 1, 0, "void"),
+        ("EV_ALT_UST", "ÜST 1.5", 2, 0, "won"),
+        ("EV_ALT_UST", "ALT 1.5", 2, 0, "lost"),
+        ("DEP_ALT_UST", "ALT 1.5", 2, 1, "won"),
+        ("DEP_ALT_UST", "ÜST 1.5", 2, 1, "lost"),
+        ("ALT_UST", "ÜST 2.5", 2, 1, "won"), ("ALT_UST", "ALT 3.5", 2, 1, "won"),
+        ("ALT_UST", "ALT 2.5", 2, 1, "lost"),
+        # Tam çizgi (iddaa'da .0) → İADE, kayıp değil
+        ("ALT_UST", "ALT 3", 2, 1, "void"), ("ALT_UST", "ÜST 3", 2, 1, "void"),
+    ]
+    for pazar, pick, ev, dep, bek in D:
+        g = _o(None, {"market": pazar, "pick": pick}, ev, dep)
+        if g != bek:
+            hata.append(f"{pazar} {pick} {ev}-{dep}: {g} (beklenen {bek})")
+    # Eski pazarlar bozulmamalı
+    for pazar, pick, ev, dep, bek in (
+            ("1X2", "1", 2, 1, "won"), ("1X2", "0", 1, 1, "won"),
+            ("KG_VAR", "VAR", 1, 1, "won"), ("ALT_25", "ALT", 1, 0, "won"),
+            ("UST_25", "UST", 2, 1, "won")):
+        g = _o(None, {"market": pazar, "pick": pick}, ev, dep)
+        if g != bek:
+            hata.append(f"GERİLEME {pazar} {pick} {ev}-{dep}: {g} ≠ {bek}")
+    return hata
