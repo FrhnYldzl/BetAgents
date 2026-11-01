@@ -606,3 +606,86 @@ diğer özelliklerin **kontrolü** olarak gerekli.
 
 **Önerim:** S-A ile başla (onaylandı, bedava, en büyük kullanılmayan veri),
 S-B'yi paralel yürüt, S-C için lisans maliyetini araştır.
+
+---
+
+# ■ S-A ÖLÇÜMÜ — pazar kataloğu ve tutarlılık
+
+## iddaa'nın pazar kataloğu: 835 pazar, 316'sı futbol
+
+`sportsbookv2.iddaa.com/sportsbook/get_market_config` — iddaa'nın KENDİ ucu,
+sitenin kendisi çağırıyor. Futbolda 31 korner, 19 kart, 47 oyuncu,
+37 alt/üst, 21 ilk yarı pazarı tanımlı.
+
+205 maçlık bültende **fiilen açılan 26 pazar türü**:
+
+| Skordan SONUÇLANIR ✅ | kapsam | | İlk yarı skoru gerekir ⚠️ | kapsam |
+|---|---|---|---|---|
+| Alt/Üst (çoklu çizgi) | %179 | | 1. Yarı Alt/Üst | %120 |
+| Maç Sonucu | %100 | | 1. Yarı Sonucu | %92 |
+| Çifte Şans | %98 | | 2. Yarı Sonucu | %89 |
+| Karşılıklı Gol | %95 | | 1Y Çifte Şans · 1Y KG | %89 |
+| Handikaplı MS · Tek/Çift | %93 | | Ev/Dep 1Y Alt/Üst | %89 |
+| Ev/Dep Alt/Üst | %93 | | 1Y/MS | %28 |
+| Toplam Gol · MS&KG · A/Ü&KG · MS&A/Ü | %43 | | **Korner** (veri yok) | %20 |
+
+**Biz bunlardan 2'sini oynuyoruz** (Maç Sonucu, Alt/Üst 2.5).
+
+### ⚠️ Ölçülemeyen pazar oynanmaz
+
+Korner ve kart pazarlarını fiyatlayabiliriz ama **korner/kart sayısı verimiz
+yok** — bahis sonuçlanamaz, ajan ölçülemez. Bunlar Sportradar'a bağlı
+(bkz. Güncelleme 3) ve şimdilik kapalı.
+
+**İlk yarı skoru** (`home_score_ht`/`away_score_ht`, şu an BOŞ) tek başına
+~9 pazar türünü %90 kapsamla açıyor — en yüksek kaldıraçlı eksik alan.
+Ama o da aynı Sportradar bağımlılığında.
+
+## Tutarlılık sınavları — model gerektirmeyen kenar var mı?
+
+### Sınav A · Çifte Şans ile Maç Sonucu (157 maç)
+
+"1 veya 0"a oynamak, 1 ve 0'a orantılı oynamakla **tam eşdeğerdir**:
+sentetik oran = `1/(1/o_a + 1/o_b)`. Tahmin yok, saf aritmetik.
+
+| bacak | n | ort fark | daha iyi olduğu maç |
+|---|---|---|---|
+| 1X | 157 | −0,11% | 85/157 |
+| **12** | 157 | **+0,94%** | **149/157 (%95)** |
+| X2 | 157 | −1,47% | 27/157 |
+
+**Bulgu:** "12" Çifte Şans, 1X2 ikilisinden sistematik olarak daha iyi
+ödüyor (en iyi +%2,42). "X2" ise sistematik olarak kötü.
+
+Bu **arbitraj değil** — marjı yenmiyor. Ama bedava bir iyileştirme: beraberlik
+dışı bir pozisyon isteyen ajan, 1X2 ikilisi yerine Çifte Şans 12 oynamalı.
+Tersine, "X2" isteyen ajan Çifte Şans'a DEĞİL 1X2 ikilisine gitmeli.
+
+### Sınav B · Kombine pazar tutarlılığı (89 maç)
+
+"Maç Sonucu ve Karşılıklı Gol" 6 ayaklı. Korelasyondan bağımsız olarak iki
+**kesin özdeşlik** sağlamalı: kenar toplamları MS ve KG'ye eşit olmalı.
+
+| özdeşlik | ort mutlak sapma | medyan | en büyük |
+|---|---|---|---|
+| MS kenar toplamı = MS | 0,38 puan | 0,33 | 2,21 |
+| "Var" kenar toplamı = KG Var | 0,27 puan | 0,22 | 1,29 |
+
+**Bulgu: tutarlı.** iddaa kombine pazarlarını kendi içinde doğru fiyatlıyor.
+Burada kenar YOK. (Sapmanın küçüklüğü ayak sırası varsayımını da doğruluyor.)
+
+## S-A hükmü
+
+**Model gerektirmeyen arbitraj yok.** İki ucuz fikir de ölçüldü, ikisi de
+olumsuz:
+- fiyat hareketi (Sprint 1): kapanışta tam fiyatlanmış, z=+0,68
+- pazar tutarsızlığı (S-A): kombineler tutarlı, Çifte Şans farkı marjı yenmiyor
+
+Geriye S-A'nın gerçek değeri kalıyor ve küçük değil: **ajanlar 26 pazardan
+2'sini oynuyor.** Skordan sonuçlanabilen ~11 pazar türü açılabilir ve hepsi
+bugünkü verimizle ölçülebilir. Bu kenar yaratmaz ama ajanlara *kenar arayacak
+alan* verir — şu an aradıkları yer bültenin %8'i.
+
+**Sıradaki iş:** skordan sonuçlanabilen pazarları toplamaya ve
+sonuçlandırmaya aç (`paper_engine._determine_outcome` genişletmesi),
+sonra ajanlara ver.
