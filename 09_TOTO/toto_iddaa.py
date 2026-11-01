@@ -74,16 +74,30 @@ def bagimsiz_p(mac: dict, paylar: dict | None) -> list[float] | None:
     return _normalize(out)
 
 
-def adaylar(A: dict, gorus: str = "toto", min_kenar: float = 0.05,
-            min_oran: float = 1.20, max_oran: float = 6.00) -> list[dict]:
-    """Haftanın iddaa adayları.
+def adaylar(A: dict, hedef: str = "isabet", min_kenar: float = 0.03,
+            min_oran: float = 1.20, max_oran: float = 6.00,
+            gorus: str = "toto") -> list[dict]:
+    """Haftanın Toto maçlarında iddaa adayları — MAÇ BAŞINA EN ÇOK BİR seçim.
 
-    gorus = "toto"      → P_toto (piyasaya demirli, muhafazakâr)
-            "bagimsiz"  → PİYASA çıkarılmış (agresif)
+    hedef = "isabet"  → KÂRLI seçenekler arasından EN OLASI olanı
+            "getiri"  → KÂRLI seçenekler arasından beklentisi EN YÜKSEK olanı
+            "rastgele"→ kontrol: maç kimliğinden deterministik taraf
 
-    Kenar = P_bizim − P_iddaa(marjsız). İddaa'nın marjsız olasılığı analizde
-    zaten hesaplı (`iddaa.p`) — ham 1/oran DEĞİL. Ham oranla karşılaştırmak
-    marjı kenar sanmak olurdu; bu projede o hata bir kez yapıldı.
+    `min_kenar` artık "beklenen getiri 1'i ne kadar aşmalı" demektir
+    (0,03 → p×oran ≥ 1,03). Eskiden marjsız olasılığa göre ölçülüyordu ve
+    kaybeden bahisleri geçiriyordu; aşağıdaki nota bak.
+
+    ⚠️ NEDEN "EN ÇOK AYRIŞANI SEÇ" KALDIRILDI
+    İlk sürümde AYKIRI, piyasadan en çok ayrışan tarafı seçiyordu. Bu TOTO
+    mantığıdır: parimutuel oyunda ikramiye paylaşıldığı için kalabalıktan
+    ayrılmak başlı başına değerlidir. iddaa SABİT ORANLIDIR — havuz
+    paylaşılmaz, kimse senin kuponunu seyreltmez. Orada ayrışmanın değeri
+    SIFIRDIR; tek değerli şey İSABETTİR. Kategori hatasıydı, kaldırıldı.
+    (Kullanıcı tespiti, 01.11.2026.)
+
+    İki hedef kasıtlı olarak AYRI ajanlara verildi: "en çok isabet" ile "en
+    çok kazanç" aynı şey değildir ve hangisinin daha iyi olduğunu ancak yan
+    yana ölçerek öğreniriz. İsabet kısa oranı, getiri uzun oranı sever.
     """
     out = []
     P = A.get("P") or []
@@ -93,35 +107,63 @@ def adaylar(A: dict, gorus: str = "toto", min_kenar: float = 0.05,
         oranlar = idd.get("oran")
         if not q or not oranlar:
             continue                       # iddaa'da yok → aday değil
-        if gorus == "bagimsiz":
-            p = bagimsiz_p(m, m.get("pay"))
-        else:
-            p = P[i] if i < len(P) else None
+        p = (bagimsiz_p(m, m.get("pay")) if gorus == "bagimsiz"
+             else (P[i] if i < len(P) else None))
         if not p:
             continue
+
+        secenek = []
         for j in range(3):
             o = float(oranlar[j] or 0)
             if not (min_oran <= o <= max_oran):
                 continue
-            kenar = float(p[j]) - float(q[j])
-            if kenar < min_kenar:
+            secenek.append((j, o, float(p[j]), float(q[j])))
+        if not secenek:
+            continue
+
+        if hedef == "rastgele":
+            ev = idd.get("event_id")
+            h = (int(ev) * 2654435761) % len(secenek) if str(ev).isdigit() else 0
+            sec = secenek[h]
+        else:
+            # ⚠️ KÂRLILIK ŞARTI: p × oran > 1, yani p > 1/oran.
+            #
+            # Önce kenarı MARJSIZ olasılığa göre süzüyordum (p − q ≥ eşik). O
+            # yanlıştı: marjsız q, piyasanın "adil" görüşüdür ama parayı
+            # MARJLI orandan alırsın. Piyasayla aynı fikirde olmamak başka
+            # şey, FİYATI YENMEK başka şey.
+            # Yakalandı (01.11.2026): Kuzey Makedonya-İsviçre beraberlik,
+            # bizim %18,9 · başabaş %21,3 → kendi modelimize göre KAYBEDEN
+            # bir bahis, ama q'ya göre kenarı +0,029 olduğu için süzgeci
+            # geçiyordu. Bek. getirisi 0,888'di; yani oynadıkça eriyecekti.
+            uygun = [x for x in secenek
+                     if x[2] * x[1] >= 1.0 + min_kenar          # p·o > 1
+                     and x[2] > x[3]]                            # piyasadan da yukarı
+            if not uygun:
                 continue
-            out.append({
-                "sira": i + 1,
-                "ev": m.get("ev"), "dep": m.get("dep"),
-                "tarih": m.get("tarih"),
-                "event_id": idd.get("event_id"),
-                "market": PAZAR, "pick": SEC[j],
-                "odds": o,
-                "implied_prob": 1.0 / o if o else 0.0,
-                "model_prob": float(p[j]),
-                "piyasa_prob": float(q[j]),
-                "edge": kenar,
-                "signal_name": f"TOTO_{'BGZ' if gorus == 'bagimsiz' else 'PZR'}",
-                "signal_score": min(1.0, kenar / 0.20),
-                "gorus": gorus,
-            })
-    out.sort(key=lambda x: -x["edge"])
+            if hedef == "getiri":
+                sec = max(uygun, key=lambda x: x[2] * x[1])
+            else:                           # "isabet"
+                sec = max(uygun, key=lambda x: x[2])
+
+        j, o, pj, qj = sec
+        out.append({
+            "sira": i + 1, "ev": m.get("ev"), "dep": m.get("dep"),
+            "tarih": m.get("tarih"), "event_id": idd.get("event_id"),
+            "market": PAZAR, "pick": SEC[j], "odds": o,
+            "implied_prob": 1.0 / o if o else 0.0,
+            "model_prob": pj, "piyasa_prob": qj,
+            "edge": pj - qj,
+            # başabaş için gereken isabet — tek anlamlı eşik
+            "basabas": 1.0 / o if o else 0.0,
+            "bek_getiri": pj * o,
+            "signal_name": f"TOTO_{hedef[:3].upper()}",
+            "signal_score": min(1.0, max(0.0, (pj - qj) / 0.20)),
+            "hedef": hedef,
+        })
+    # İsabet hedefi en olasıyı, getiri hedefi en yüksek beklentiyi öne alır.
+    out.sort(key=lambda x: -(x["model_prob"] if hedef == "isabet"
+                             else x["bek_getiri"]))
     return out
 
 

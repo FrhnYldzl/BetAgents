@@ -515,16 +515,37 @@ PROFILES: dict[str, dict] = {
     # bilmiyoruz; bilmediğimizi bilerek kurmak, birini seçip haklı çıkmayı
     # ummaktan iyidir.
     "TOTOCU_V1": {
-        "name": "TOTOCU (Toto pazar fiyatı × iddaa) · keşif",
+        "name": "TOTOCU (Toto modeli · EN ÇOK İSABET) · keşif",
         "takim": "toto", "mode": "toto", "model": "TOTO-PAZAR",
-        "toto_gorus": "toto", "toto_min_kenar": 0.04,
+        "toto_hedef": "isabet", "toto_min_kenar": 0.03,
         "hipotez":
-            "Toto'nun servet ağırlıklı pazar fiyatı, iddaa fiyatından sonra "
-            "KALAN bilgiyi taşır. Fark küçüktür (ölçüldü: ortalama 0,042) ama "
-            "piyasa çıpasından arta kalan budur ve yönü doğruysa kenardır.",
+            "O haftanın Toto maçlarında, Toto modelinin EN OLASI dediği sonucu "
+            "oyna — kenarı artı olmak şartıyla. Hedef en yüksek isabet. "
+            "Doğru eşik '%70 isabet' değil, İSABET > 1/ORAN: 1,24 oranda "
+            "başabaş için %80,6 gerekir. Bu ajan kısa oranı sever ve o yüzden "
+            "eşiği yüksektir.",
         "emeklilik":
-            "60 bahis sonra: CLV ortalaması sıfırın altındaysa model fiyatı "
-            "öngörmüyor demektir — ajan kapanır.",
+            "60 bahis sonra: isabet, ortalama 1/oran'ı geçmiyorsa model "
+            "fiyattan iyi bilmiyor demektir — ajan kapanır.",
+        "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.20, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "KAZANC_V1": {
+        "name": "KAZANÇ (Toto modeli · EN ÇOK GETİRİ) · keşif",
+        "takim": "toto", "mode": "toto", "model": "TOTO-PAZAR",
+        "toto_hedef": "getiri", "toto_min_kenar": 0.03,
+        "hipotez":
+            "Aynı 15 maç, aynı model — ama en olası sonucu değil, beklenen "
+            "getirisi (p × oran) EN YÜKSEK sonucu oyna. 'En çok isabet' ile "
+            "'en çok kazanç' AYNI ŞEY DEĞİLDİR: isabet kısa oranı, getiri "
+            "uzun oranı sever. Hangisinin daha iyi olduğunu ancak TOTOCU ile "
+            "yan yana ölçerek öğreniriz — bu ajan o karşılaştırmanın öbür ucu.",
+        "emeklilik":
+            "60 bahis sonra: birim getirisi TOTOCU'yu geçmiyorsa uzun orana "
+            "gitmenin karşılığı yok demektir — ajan kapanır.",
         "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 1.20, "max_odds": 6.00,
         "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
@@ -532,18 +553,20 @@ PROFILES: dict[str, dict] = {
         "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
     },
     "AYKIRI_V1": {
-        "name": "AYKIRI (PİYASA'sız Toto görüşü × iddaa) · keşif",
+        "name": "AYKIRI (piyasadan ayrışma) · EMEKLİ",
+        "retired": True,
+        # 🏁 EMEKLİ (01.11.2026) — HİPOTEZ YANLIŞTI, ölçüm değil.
+        # AYKIRI piyasadan EN ÇOK AYRIŞAN tarafı seçiyordu. Bu TOTO mantığı:
+        # parimutuel oyunda ikramiye paylaşıldığı için kalabalıktan ayrılmak
+        # başlı başına değerlidir. iddaa SABİT ORANLIDIR — havuz paylaşılmaz,
+        # kimse senin kuponunu seyreltmez. Orada ayrışmanın değeri SIFIRDIR;
+        # tek değerli şey isabettir. Kategori hatasıydı.
+        # Yerine KAZANC_V1 geldi: aynı maçlar, aynı model, ama hedef beklenen
+        # getiriyi maksimize etmek — ayrışmayı değil.
         "takim": "toto", "mode": "toto", "model": "TOTO-BAGIMSIZ",
-        "toto_gorus": "bagimsiz", "toto_min_kenar": 0.08,
-        "hipotez":
-            "Elo · Form · H2H · Kadro, PİYASA ajanı çıkarıldığında fiyattan "
-            "TAMAMEN bağımsız bir görüş verir (ölçüldü: piyasadan sapma 0,093, "
-            "demirli görüşün 2,2 katı). Piyasanın yanıldığı maçı ancak böyle "
-            "bir görüş bulabilir. Riski açık: cüzdan bu ajanların PİYASA'dan "
-            "daha az isabetli olduğunu söylüyor — hipotez tam da bunu sınıyor.",
-        "emeklilik":
-            "60 bahis sonra: CLV ortalaması TOTOCU'yu geçmiyorsa PİYASA'yı "
-            "çıkarmak bilgi değil gürültü ekliyor demektir — ajan kapanır.",
+        "toto_hedef": "getiri", "toto_min_kenar": 0.08,
+        "hipotez": "(emekli — iddaa'da ayrışmanın değeri yok)",
+        "emeklilik": "Kapandı: hipotez kategori hatasıydı.",
         "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 1.20, "max_odds": 6.00,
         "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
@@ -553,11 +576,11 @@ PROFILES: dict[str, dict] = {
     "TOTO_KONTROL_V1": {
         "name": "TOTO KONTROL (aynı maçlar, rastgele taraf) · kontrol",
         "takim": "toto", "mode": "toto", "model": "TOTO-KONTROL",
-        "toto_gorus": "rastgele", "toto_min_kenar": -9.0,
+        "toto_hedef": "rastgele", "toto_min_kenar": -9.0,
         "hipotez":
             "Hipotez YOK. AYNI Toto maçlarında rastgele taraf oynar. Bu ayrım "
-            "şart: TOTOCU kazanırsa sebebi 'Toto modeli iyi' mi, yoksa 'Toto "
-            "maçları zaten iyi fiyatlı' mı? Kontrol bunu ayırır.",
+            "şart: TOTOCU ya da KAZANÇ kazanırsa sebebi 'Toto modeli iyi' mi, "
+            "yoksa 'Toto maçları zaten iyi fiyatlı' mı? Kontrol bunu ayırır.",
         "emeklilik": "Kapanmaz — kontrol çizgisidir.",
         "markets": {"1X2"}, "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 1.20, "max_odds": 6.00,
@@ -1968,27 +1991,16 @@ def _toto_adaylari(prof: dict, tag: str) -> list[dict]:
         print(f"{tag} ⚪ MEŞRU PAS Toto analizi yok (hafta açılmamış olabilir)")
         return []
 
-    gorus = prof.get("toto_gorus", "toto")
-    if gorus == "rastgele":
-        # Kontrol: AYNI maçlar, taraf maç kimliğinden deterministik rastgele.
-        # Tohum olarak event_id kullanılır — tekrarlanabilir, koşudan koşuya
-        # değişmez (random.random() olsaydı karne gürültülenirdi).
-        ham = TI.adaylar(A, gorus="toto", min_kenar=-9.0,
-                         min_oran=prof["min_odds"], max_oran=prof.get("max_odds", 6.0))
-        secili, gorulen = [], set()
-        for x in sorted(ham, key=lambda y: (y["sira"], y["pick"])):
-            if x["sira"] in gorulen:
-                continue
-            h = (int(x["event_id"]) * 2654435761) % 3 if str(x["event_id"]).isdigit() else 0
-            if SECENEK_SIRA.get(x["pick"], 0) != h:
-                continue
-            gorulen.add(x["sira"])
-            secili.append(x)
-        ham = secili
-    else:
-        ham = TI.adaylar(A, gorus=gorus,
-                         min_kenar=float(prof.get("toto_min_kenar", 0.05)),
-                         min_oran=prof["min_odds"], max_oran=prof.get("max_odds", 6.0))
+    # Hedef seçimi artık üretecin kendi içinde: "isabet" en olası sonucu,
+    # "getiri" beklentisi en yüksek sonucu, "rastgele" kontrolü verir. Maç
+    # başına EN ÇOK BİR seçim orada garanti ediliyor; burada tekrar süzmeye
+    # gerek yok (eskiden kontrol dalı bunu elle yapıyordu ve iki ayrı yerde
+    # aynı kural iki farklı şekilde yazılıydı).
+    hedef = prof.get("toto_hedef", "isabet")
+    ham = TI.adaylar(A, hedef=hedef,
+                     min_kenar=float(prof.get("toto_min_kenar", 0.02)),
+                     min_oran=prof["min_odds"],
+                     max_oran=prof.get("max_odds", 6.0))
     if not ham:
         print(f"{tag} ⚪ MEŞRU PAS Toto maçlarında eşiği geçen kenar yok")
         return []
