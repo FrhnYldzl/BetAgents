@@ -3630,6 +3630,311 @@ def _para(v: float) -> str:
     return ("+" if v >= 0 else "−") + "{:,.0f}".format(abs(v)).replace(",", ".") + " ₺"
 
 
+# ─────────────────────────────────────────────────────────────
+# KUPONLAR FERHAN — "bu kuponun kazanma şansı şu kadar"
+# ─────────────────────────────────────────────────────────────
+# ⚠️ BU SAYFA YATIRIM TAVSİYESİ VERMEZ. Tek yaptığı ölçüm: ajanların açık
+# pozisyonlarını kupon şekillerine sokar ve her şeklin kazanma olasılığını,
+# ödemesini, beklenen getirisini yazar. "Bunu oyna" demez.
+#
+# ⚠️ EN ÖNEMLİ DÜRÜSTLÜK KURALI: kuponun şansı FİYATIN dediğinden yalnız
+# ajanın ÖLÇÜLMÜŞ kenarı kadar sapar. Kenar yoksa ikisi eşit çıkar ve
+# beklenen getiri 1,00'in altında kalır — yani marj kadar kaybedersin.
+# Bu sayfa o durumu saklamaz, yazar. Saklasa kullanıcıya her kuponu
+# "fırsat" diye gösteren bir pazarlama ekranı olurdu.
+try:
+    import ferhan_kupon as _FK_MOD
+    FK_ASGARI = _FK_MOD.ASGARI_KUPON
+except Exception:
+    FK_ASGARI = 20
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def load_kupon_uret() -> dict:
+    """Orkestratörü ÇALIŞTIR ve kuponları döndür — deftere YAZMAZ.
+
+    Önbellekli yükleyici yazma yapmaz: st.cache_data ne zaman çağrılacağı
+    belirsizdir, yazma oraya konursa defter rastgele dolar. Yazma ya saat
+    başı worker'da ya da sayfadaki açık düğmeyle olur.
+    """
+    import kupon_orkestra as KO
+    c = _conn()
+    with _SORGU_KILIDI:
+        try:
+            kr = KO.karne_haritasi(c)
+        except Exception:
+            kr = {}
+        try:
+            normal = KO.uret(KO.gunun_adaylari(c), kr, en_cok=9)
+        except Exception:
+            normal = []
+        try:
+            # Canlıda 3'lü yok: maç içinde üç ayağın birlikte tutma şansı
+            # zaten küçük, üstelik canlı fiyat saniyede değişiyor ve kupon
+            # kurulurken fiyat kayması en çok ayak sayısıyla büyüyor.
+            canli = KO.uret(KO.canli_adaylari(c), kr, sekiller=(1, 2), en_cok=4)
+        except Exception:
+            canli = []
+    return {"normal": normal, "canli": canli, "karne_ajan": len(kr)}
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def load_kupon_defter() -> dict:
+    """Defterdeki kuponlar + kalibrasyon karnesi (salt okuma)."""
+    import ferhan_kupon as FK
+    c = _conn()
+    with _SORGU_KILIDI:
+        try:
+            return {"defter": FK.son_kuponlar(c, 30), "karne": FK.karne(c)}
+        except Exception as e:
+            return {"defter": [], "karne": {"satirlar": [], "acik": 0,
+                                            "sonuclanan": 0},
+                    "hata": f"{type(e).__name__}: {e}"}
+
+
+_KUPON_DURUM = {"acik": ("Açık", "nt"), "kazandi": ("Kazandı", "ps"),
+                "kaybetti": ("Kaybetti", "ng"), "iptal": ("İptal", "nt")}
+
+
+def _kupon_satiri(k: dict) -> str:
+    """Tek kuponu çiz: şans · ödeme · beklenen getiri · ayaklar."""
+    sans = k["sans"]
+    fiy = k.get("fiyat_sansi") or 0.0
+    bg = k.get("bek_getiri") or 0.0
+    # Kenar = bizim şansımız ile fiyatın şansı arasındaki fark. Sıfırsa
+    # kupon yalnız bir ŞEKİL, bir görüş değil.
+    kenar = sans - fiy
+    ayak_html = ""
+    for a in k["ayaklar"]:
+        durum = a.get("durum")
+        rozet = ""
+        if durum in ("won", "lost", "void"):
+            _m = {"won": ("✓", "ps"), "lost": ("✗", "ng"), "void": ("—", "nt")}
+            _i, _c = _m[durum]
+            rozet = f"<span class='{_c}' style='margin-left:6px;'>{_i}</span>"
+        mac = f"{str(a.get('ev') or '')[:18]} – {str(a.get('dep') or '')[:18]}"
+        oran_yaz = _num(float(a.get("oran") or 0), 2)
+        ayak_html += (
+            "<div style='display:flex;justify-content:space-between;gap:8px;"
+            "padding:3px 0;border-top:1px solid var(--line);'>"
+            "<span style='opacity:.85;'>" + mac + rozet + "</span>"
+            "<span><b>" + str(a.get("pick") or "") + "</b> · " + oran_yaz +
+            " <span style='opacity:.55;'>" + _ajan_adi(a.get("ajan")) +
+            "</span></span></div>")
+    ad, cls = _KUPON_DURUM.get(k.get("durum") or "", ("", ""))
+    durum_html = ("<span class='" + cls + "' style='font-size:11px;'>" + ad +
+                  "</span>") if ad else ""
+    sans_yaz = _pct(sans)
+    fiy_yaz = _pct(fiy)
+    bg_yaz = _num(bg, 3)
+    oran_toplam = _num(k["oran"], 2)
+    kenar_yaz = _sgn(kenar)
+    return (
+        "<div class='v2card' style='margin-bottom:var(--s3);'>"
+        "<div class='v2body'>"
+        "<div style='display:flex;gap:var(--s4);flex-wrap:wrap;"
+        "align-items:baseline;'>"
+        "<div class='v2kpi'><span>" + str(k["ayak"]) + " ayak · ödeme</span>"
+        "<b>" + oran_toplam + "</b></div>"
+        "<div class='v2kpi'><span>KAZANMA ŞANSI</span><b>" + sans_yaz +
+        "</b></div>"
+        "<div class='v2kpi'><span>FİYATIN DEDİĞİ</span><b style='opacity:.6;'>"
+        + fiy_yaz + "</b></div>"
+        "<div class='v2kpi'><span>fark</span><b class='" +
+        ("ps" if kenar > 0.0005 else ("ng" if kenar < -0.0005 else "")) +
+        "'>" + kenar_yaz + "</b></div>"
+        "<div class='v2kpi'><span>1₺ karşılığı</span><b class='" +
+        ("ps" if bg >= 1.0 else "ng") + "'>" + bg_yaz + " ₺</b></div>"
+        + durum_html +
+        "</div>" + ayak_html + "</div></div>")
+
+
+def page_kuponlar() -> None:
+    """🎟️ Kuponlar Ferhan — hangi kuponun kazanma şansı ne kadar?
+
+    Kullanıcı isteği (01.11.2026): "Sen ajanların performansını görüyorsun
+    tek maç veya 3'lü ikili veya canlı maç kuponu neyse bana diyeceksin ki
+    bu kuponların kazanma şansı güçlü bu kadar... Yatırım tavsiyesi gibi
+    bir şey demeyeceksin! Ajanların performansına göre yapacaksın bunu."
+    """
+    u = load_kupon_uret()
+    d = load_kupon_defter()
+    kn = d["karne"]
+    # Başlıktaki ölçü KÂR DEĞİL, KALİBRASYON: "%60 dediğimin %60'ı tuttu mu?"
+    # Kâr tek haftayla savrulur, kalibrasyon savrulmaz.
+    tum = [x for x in kn["satirlar"] if x["n"]]
+    n_top = sum(x["n"] for x in tum)
+    kpi = [{"ad": "ÜRETİLEN (ŞU AN)",
+            "deger": str(len(u["normal"]) + len(u["canli"]))},
+           {"ad": "Defterde açık", "deger": str(kn["acik"])},
+           {"ad": "Sonuçlanan", "deger": str(n_top)}]
+    if n_top:
+        _soy = sum(x["soylenen"] * x["n"] for x in tum) / n_top
+        _ger = sum(x["gercek"] * x["n"] for x in tum) / n_top
+        kpi.append({"ad": "Söylenen → gerçek",
+                    "deger": _pct(_soy) + " → " + _pct(_ger),
+                    "cls": ("ps" if _ger >= _soy else "ng")})
+    _sayfa_basligi(
+        "Kuponlar Ferhan",
+        "Ajanların açık pozisyonları kupon şekillerine sokuldu. Her kuponun "
+        "kazanma şansı, ölçülmüş ajan karnesinden gelir — iddiasından değil.",
+        kpi)
+
+    # ── NE OKUDUĞUNU BİLMEK: sayının sınırı burada yazılı
+    st.markdown(
+        "<div class='v2card'><div class='v2body'>"
+        "<div class='dq'><b>Bu sayfa ne söyler, ne söylemez.</b> "
+        "Söyler: bu kuponun kazanma şansı şu kadar, ödemesi şu kadar, "
+        "1₺ karşılığı şu kadar. Söylemez: bunu oyna. Karar senin.</div>"
+        "<div class='vd' style='margin-top:var(--s3);'>"
+        "<b>Şans nereden geliyor</b><br>"
+        "Ayağın olasılığı <code>1/oran + ajanın ölçülmüş kenarı</code>. "
+        "Kenar, ajanın geçmişte fiyattan ne kadar saptığıdır ve az kararda "
+        "sıfıra doğru çekilir — yoksa 20 bahiste yakalanmış gürültü şansı "
+        "şişirir.<br>"
+        "<b>«fark» sıfırsa</b> kuponda görüş yok, yalnız şekil var: "
+        "beklenen getiri 1,00'in altındadır, yani marj kadar kaybedilir. "
+        "Bu sayfa onu saklamaz.<br>"
+        "<b>Ayaklar bağımsız sayılır</b> ve aynı maçtan iki ayak asla aynı "
+        "kupona girmez — aynı maçın sonuçları korelasyonlu olduğu için "
+        "çarpım kuralı orada yalan söyler.</div>"
+        "</div></div>", unsafe_allow_html=True)
+
+    # ── DEFTERE YAZ (elle) — otomatik yazma worker'da, saat başı
+    c1, c2 = st.columns([1.0, 2.2], gap="small")
+    with c1:
+        if st.button("Deftere yaz ve sonuçları tazele",
+                     key="v2_fk_yaz", use_container_width=True):
+            import ferhan_kupon as FK
+            try:
+                with _SORGU_KILIDI:
+                    n1 = FK.kaydet(u["normal"], "normal", _conn())
+                    n2 = FK.kaydet(u["canli"], "canli", _conn())
+                    s = FK.sonuclandir(_conn())
+                load_kupon_defter.clear()
+                st.success(f"{n1 + n2} yeni kupon yazıldı · kapanan: "
+                           f"{s['kazandi']} kazandı, {s['kaybetti']} kaybetti, "
+                           f"{s['iptal']} iptal")
+            except Exception as e:
+                st.error(f"yazılamadı: {type(e).__name__}: {e}")
+    with c2:
+        st.markdown(
+            "<div class='sb' style='margin-top:6px;'>Saat başı worker da "
+            "yazar; bu düğme beklemeden yazar. Aynı kupon iki kez "
+            "yazılmaz — kimliği seçimlerinin kümesidir.</div>",
+            unsafe_allow_html=True)
+
+    sek = st.tabs(["Normal kuponlar", "Canlı kuponlar", "İzleme ve karne"])
+
+    # ── NORMAL
+    with sek[0]:
+        if not u["normal"]:
+            st.markdown(
+                "<div class='v2card'><div class='v2body'><div class='dq'>"
+                "Açık pozisyon yok ya da karnesi olan ajan yok — kupon "
+                "üretilemedi. Ajanlar bahis açtığında burada görünür.</div>"
+                "</div></div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='sb'>Kaynak: ajanların ŞU ANKİ açık "
+                        "pozisyonları (" + str(u["karne_ajan"]) +
+                        " ajanın karnesi okundu). Orkestratör yeni seçim "
+                        "üretmez; var olanı kupon şekline sokar.</div>",
+                        unsafe_allow_html=True)
+            for ayak in (1, 2, 3):
+                g = [x for x in u["normal"] if x["ayak"] == ayak]
+                if not g:
+                    continue
+                st.markdown("<h3 style='margin:var(--s4) 0 var(--s2);'>" +
+                            {1: "Tek maç", 2: "2'li kombine",
+                             3: "3'lü kombine"}[ayak] + "</h3>",
+                            unsafe_allow_html=True)
+                for k in g:
+                    st.markdown(_kupon_satiri(k), unsafe_allow_html=True)
+
+    # ── CANLI
+    with sek[1]:
+        st.markdown(
+            "<div class='v2card'><div class='v2body'><div class='vd'>"
+            "<b>Canlı kupon = aynı görüş, yeni fiyat.</b> Yeni bir canlı "
+            "model kurulmadı: ölçüldü (1.688 maç) ki canlı modelimiz "
+            "piyasadan her dakika diliminde daha kötü kalibre. O yüzden "
+            "ajanın maç öncesi görüşü, maçın O ANKİ canlı fiyatıyla "
+            "fiyatlanır.<br>"
+            "<b>Yükselen oran iyi haber değildir</b> — oran yükseldiyse maç "
+            "o seçimin aleyhine gidiyordur ve canlı fiyat skoru zaten "
+            "içerir. Şans her zaman güncel fiyattan hesaplanır.<br>"
+            "<b>Açık varsayım:</b> ajanın kenarı maç ÖNCESİ fiyatlarda "
+            "ölçüldü; canlıda da geçerli olduğu varsayılıyor, ölçülmedi. "
+            "Karne canlıyı ayrı tip tuttuğu için bu zamanla sınanacak."
+            "</div></div></div>", unsafe_allow_html=True)
+        if not u["canli"]:
+            st.markdown(
+                "<div class='v2card'><div class='v2body'><div class='dq'>"
+                "Şu an canlı kupon yok. Bir ayağın canlı sayılması için "
+                "maçın oynanıyor olması ve canlı fiyat kaydının <b>10 "
+                "dakikadan yeni</b> olması gerekir. Bitmiş maçın son "
+                "fiyatını canlı diye göstermemek için bu şart var.</div>"
+                "</div></div>", unsafe_allow_html=True)
+        else:
+            for k in u["canli"]:
+                st.markdown(_kupon_satiri(k), unsafe_allow_html=True)
+
+    # ── İZLEME + KARNE
+    with sek[2]:
+        if d.get("hata"):
+            st.markdown("<div class='sb'>defter okunamadı: " +
+                        d["hata"] + "</div>", unsafe_allow_html=True)
+        satir = kn["satirlar"]
+        if not satir:
+            st.markdown(
+                "<div class='v2card'><div class='v2body'><div class='dq'>"
+                "Henüz sonuçlanmış kupon yok. Kalibrasyon karnesi, "
+                "söylenen şans ile gerçekleşen isabeti karşılaştırır; "
+                "sonuç gelmeden yazılacak bir şey yok.</div>"
+                "</div></div>", unsafe_allow_html=True)
+        else:
+            gov = ("<table class='v2tbl'><thead><tr><th>TİP</th><th>ayak</th>"
+                   "<th>kupon</th><th>söylenen şans</th><th>gerçekleşen</th>"
+                   "<th>fark</th><th>z</th><th>BİRİM GETİRİ</th></tr></thead>"
+                   "<tbody>")
+            for x in satir:
+                z = x["z"]
+                # z yalnız yeterli örneklemde anlamlı; altında sayı
+                # gösterilir ama YORUMLANMAZ.
+                z_cls = ""
+                if x["yeterli"]:
+                    z_cls = "ps" if z >= 2 else ("ng" if z <= -2 else "")
+                getiri_yaz = _sgn(x["getiri"])
+                gov += ("<tr><td>" + x["tip"] + "</td><td>" +
+                        str(x["ayak"]) + "</td><td>" + str(x["n"]) +
+                        ("" if x["yeterli"] else " <span style='opacity:.5;'>"
+                         "(az)</span>") + "</td><td>" + _pct(x["soylenen"]) +
+                        "</td><td>" + _pct(x["gercek"]) + "</td><td>" +
+                        _sgn(x["fark"]) + "</td><td class='" + z_cls + "'>" +
+                        _num(z, 2) + "</td><td class='" +
+                        ("ps" if x["getiri"] >= 0 else "ng") + "'>" +
+                        getiri_yaz + "</td></tr>")
+            gov += "</tbody></table>"
+            st.markdown(
+                "<div class='v2card'><div class='v2head'>"
+                "<h2>Kalibrasyon karnesi</h2><div class='hint'>"
+                "söylenen şans gerçekleşti mi?</div></div>"
+                "<div class='v2body'>" + gov +
+                "<div class='sb' style='margin-top:var(--s3);'>"
+                "z, söylenen ile gerçekleşen arasındaki farkın Poisson-binom "
+                "standart hatasına bölümü (her kuponun kendi olasılığı "
+                "farklı olduğu için düz binom yanlış olurdu). |z| &lt; 2 ise "
+                "fark gürültüden ayırt edilemez. " + str(FK_ASGARI) +
+                " kupondan az örneklemde z yorumlanmaz.</div>"
+                "</div></div>", unsafe_allow_html=True)
+
+        if d["defter"]:
+            st.markdown("<h3 style='margin:var(--s5) 0 var(--s2);'>"
+                        "Defterdeki kuponlar</h3>", unsafe_allow_html=True)
+            for k in d["defter"]:
+                st.markdown(_kupon_satiri(k), unsafe_allow_html=True)
+
+
 def page_lig() -> None:
     """🏆 Lig Tablosu — üç takım yan yana, bütün ajanlar TEK sıralamada.
     Kullanıcının istediği rekabet burada görünür: takım rengi rozette."""
@@ -4940,7 +5245,11 @@ SAYFA_TANIM = [
         ("Karar Masası", page_desk, ":material/space_dashboard:", "masa",
          "Kime güvenirim, bugün ne var?"),
         ("Sepet", page_sepet, ":material/shopping_basket:", "sepet",
-         "Ne kuruyorum, kaça mal oluyor?")]),
+         "Ne kuruyorum, kaça mal oluyor?"),
+        # Orkestratör: ajanların açık pozisyonlarını kupon şekillerine sokar
+        # ve her şeklin KAZANMA ŞANSINI yazar. Tavsiye vermez — ölçüm verir.
+        ("Kuponlar Ferhan", page_kuponlar, ":material/confirmation_number:",
+         "kuponlar", "Hangi kuponun kazanma şansı ne kadar?")]),
     ("TAKIMLAR", [
         ("Lig Tablosu", page_lig, ":material/leaderboard:", "lig",
          "Kim önde, kim geride?"),

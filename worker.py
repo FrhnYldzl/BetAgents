@@ -168,6 +168,49 @@ def job_kapanis():
         print(f"[{_ts()}] KAPANIŞ HATA: {type(e).__name__}: {e}")
 
 
+def job_kupon_orkestra():
+    """🎟️ KUPONLAR FERHAN — saat başı kupon üret, deftere yaz, sonuçları kapat.
+
+    Kullanıcı isteği (01.11.2026): "saat başı ya da auto ile aynı zamanda bu
+    kuponların kazanma şansı bu kadar diyeceksin".
+
+    Yeni SEÇİM üretmez — ajanların zaten açtığı pozisyonları kupon şekline
+    sokar. Bahis de yerleştirmez; yalnız kendi defterine (ferhan_kupon) yazar.
+
+    ⚠️ YAZMAK ŞART, göstermek yetmez: kaydedilmeyen "şans %60" iddiası
+    hiçbir zaman yanlış çıkmaz. Defter, söylenen şans ile gerçekleşen
+    isabeti karşılaştırılabilir kılan tek şey.
+    """
+    print(f"[{_ts()}] >>> KUPON ORKESTRA tetiklendi")
+    try:
+        import db
+        import ferhan_kupon
+        import kupon_orkestra as KO
+        c = db.connect()
+        try:
+            kr = KO.karne_haritasi(c)
+            normal = KO.uret(KO.gunun_adaylari(c), kr, en_cok=9)
+            n1 = ferhan_kupon.kaydet(normal, "normal", c)
+            # Canlıda 3'lü yok: canlı fiyat saniyede değişiyor, fiyat kayması
+            # ayak sayısıyla büyüyor.
+            try:
+                canli = KO.uret(KO.canli_adaylari(c), kr, sekiller=(1, 2),
+                                en_cok=4)
+            except Exception as e:
+                canli, n2 = [], 0
+                print(f"[{_ts()}] KUPON CANLI HATA: {e}")
+            else:
+                n2 = ferhan_kupon.kaydet(canli, "canli", c)
+            sn = ferhan_kupon.sonuclandir(c)
+            print(f"[{_ts()}] KUPON: {n1} normal + {n2} canlı yazıldı · "
+                  f"kapanan {sn['kazandi']}K/{sn['kaybetti']}Y/"
+                  f"{sn['iptal']}İ · açık {sn['acik']}", flush=True)
+        finally:
+            c.close()
+    except Exception as e:
+        print(f"[{_ts()}] KUPON ORKESTRA HATA: {e}", flush=True)
+
+
 def job_auto_settle():
     print(f"[{_ts()}] >>> AUTO_SETTLE tetiklendi")
     try:
@@ -228,30 +271,29 @@ def main():
     # sistem dakikalar içinde güncel olsun)
     # 🛡 AÇILIŞ KALKANI: deploy sonrası ilk iş — ajanlar çöküyor mu?
     # (Bir bağımlılık/şema kırılması haftalarca 'pasiflik' sanılmasın.)
-    # 📡 GENİŞ PENCERE DENEMESİ — 7 gün, bir kez başlatılır.
-    # Kullanıcı: "1 hafta boyunca sadece". Maliyeti bant genişliği; API
-    # kotası HARCANMAZ (fiyat iddaa'dan ücretsiz, API-Football'un ayrı
-    # rezervi var — zaten kayıtların %2,8'inde durum geliyor).
-    # Amaç CLV kapsamını büyütmek: 997 bahsin 554'ü ölçülebiliyor, dar
-    # pencere yüzünden maçların canlı serisi yok.
+    # 📡 GENİŞ TOPLAMA PENCERESİ — kalıcı.
+    # Önce 7 günlük deneme olarak açılmıştı; kullanıcı 01.11.2026'da sınırı
+    # kaldırdı ("ücrete bant genişliğine bakarız"). Eski denemeden kalan
+    # bitiş tarihi varsa temizlenir ki süreli mantık devreye girmesin.
+    # Maliyet: API kotası HARCANMAZ (fiyat iddaa'dan ücretsiz, 45 sn);
+    # kotayı yakan API-Football'un ayrı rezervi var.
     try:
         import os as _os
         import sys as _sys
-        from datetime import date as _date, timedelta as _td2
         _c = _os.path.join(str(THIS_DIR), "10_CANLI")
         if _c not in _sys.path:
             _sys.path.append(_c)
         import canli_db as _cdb
         _cdb.kur()
-        if not _cdb.ayar_oku("genis_pencere_bitis", "") \
-                and _cdb.ayar_oku("genis_pencere_baslatildi", "") != "1":
-            _son = (_date.today() + _td2(days=7)).isoformat()
-            _cdb.ayar_yaz("genis_pencere_bitis", _son)
-            _cdb.ayar_yaz("genis_pencere_baslatildi", "1")
-            print(f"[{_ts()}] 📡 geniş pencere açıldı — {_son} tarihinde "
-                  f"kendiliğinden dar pencereye döner", flush=True)
+        for _a, _v in (("pencere_hafta_ici", "12:00-24:00"),
+                       ("pencere_hafta_sonu", "10:00-24:00"),
+                       ("genis_pencere_bitis", "")):
+            if _cdb.ayar_oku(_a, "__yok__") != _v:
+                _cdb.ayar_yaz(_a, _v)
+        print(f"[{_ts()}] 📡 toplama penceresi: hafta içi 12:00-24:00 · "
+              f"hafta sonu 10:00-24:00 (kalıcı)", flush=True)
     except Exception as e:
-        print(f"[{_ts()}] GENİŞ PENCERE HATA: {e}", flush=True)
+        print(f"[{_ts()}] PENCERE HATA: {e}", flush=True)
 
     # 🗓 ERA-4 — bir kez, kendiliğinden. Üretime elle müdahale edilmediği için
     # geçiş buradan yapılır: era_no < 4 ise kurulur, sonraki açılışlarda atlanır.
@@ -318,6 +360,7 @@ def main():
         print(f"[{_ts()}] PREFLIGHT HATA: {e}")
 
     job_auto_settle()
+    job_kupon_orkestra()
     job_fetch_program()
 
     sched = BlockingScheduler(timezone="UTC")
@@ -325,6 +368,11 @@ def main():
                   id="auto_play", misfire_grace_time=3600, coalesce=True)
     sched.add_job(job_auto_settle, "interval", minutes=90,
                   id="auto_settle", misfire_grace_time=900, coalesce=True)
+    # 🎟️ Kupon orkestratörü — saat başı. Ucuz: yalnız açık pozisyonları
+    # okur, API çağırmaz.
+    sched.add_job(job_kupon_orkestra, "interval", hours=1,
+                  id="kupon_orkestra", misfire_grace_time=1800, coalesce=True,
+                  max_instances=1)
     sched.add_job(job_fetch_program, "interval", hours=3,
                   id="fetch_program", misfire_grace_time=1800, coalesce=True)
     sched.add_job(job_kapanis, "interval", minutes=15,

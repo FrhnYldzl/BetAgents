@@ -42,7 +42,10 @@ SEMA = [
 # mod: kapali · otomatik (saat penceresinde) · acik (elle, sürekli)
 # Pencereler TR saatiyle; bitiş başlangıçtan küçükse gece yarısını aşar (21:00-02:00).
 VARSAYILAN_AYAR = {"toplayici": "otomatik", "kapsam": "hepsi",
-                   "pencere_hafta_ici": "19:00-24:00", "pencere_hafta_sonu": "13:00-24:00",
+                   # Geniş pencere KALICI (01.11.2026 kullanıcı kararı: "1 haftalık
+                   # sınırı kaldır, ücrete bant genişliğine bakarız"). API kotası
+                   # harcanmıyor; fiyat iddaa'dan ücretsiz.
+                   "pencere_hafta_ici": "12:00-24:00", "pencere_hafta_sonu": "10:00-24:00",
                    # Süreli geniş pencere: bitiş boşsa devre dışı.
                    "genis_hafta_ici": "12:00-24:00", "genis_hafta_sonu": "10:00-24:00",
                    "genis_pencere_bitis": ""}

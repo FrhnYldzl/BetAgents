@@ -101,7 +101,8 @@ MODULLER = [
     ("02_VERI", ["db", "agents", "paper_engine", "auto_play", "auto_settle",
                  "sistem", "surekli_puan", "iddia_defteri", "clv",
                  "multiplier_agent", "turuncu_agent", "combo_tables",
-                 "recompute_portfolio", "fetch_results"]),
+                 "recompute_portfolio", "fetch_results",
+                 "kasa", "kupon_orkestra", "ferhan_kupon"]),
     ("09_TOTO", ["toto_db", "toto_takim", "deger", "kalabalik", "pazar",
                  "geri_test", "canli", "sportoto", "kadro", "vibe_db"]),
     ("10_CANLI", ["canli_db", "canli_kaynak", "canli_model"]),
@@ -144,7 +145,10 @@ def asama_sayfa() -> None:
 # ----------------------------------------------------------------------
 def asama_kendi_testi() -> None:
     import importlib
-    for ad in ("toto_takim", "sistem"):
+    # ⚠️ Yeni modülün kendi testi buraya YAZILMAZSA denetimden geçmiş
+    # sayılır ama hiç koşmaz — sessiz bir boşluk. Liste elle tutuluyor.
+    for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
+               "kasa", "vibe_studyo"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:
