@@ -174,6 +174,27 @@ def job_auto_settle():
         auto_settle.run()
     except Exception as e:
         print(f"[{_ts()}] AUTO_SETTLE HATA: {e}")
+    # 📡 CANLI sonuç bağlantısı — maç içi fiyat serisi ancak sonuç varsa
+    # ölçülebilir. Toplayıcı sonucu kendi başına YAZAMIYOR: kaynağı
+    # fixtures?live=all yalnız CANLI maçları döndürüyor, maç bitince akıştan
+    # düşüyor ve "bitti" anı hiç görülmüyor. Sonuç buradan, matches_v2'den
+    # bağlanır (BetAgents yalnız OKUNUR, yazma cl_mac'e).
+    try:
+        import os as _os
+        import sys as _sys
+        _c = _os.path.join(str(THIS_DIR), "10_CANLI")
+        if _c not in _sys.path:
+            _sys.path.append(_c)
+        import canli_db as _cdb
+        _r = _cdb.sonuc_baglan()
+        if _r.get("yazilan"):
+            print(f"[{_ts()}] CANLI sonuç bağlandı: {_r['yazilan']} maç "
+                  f"· ölçülebilir toplam {_cdb.olculebilir()}", flush=True)
+        elif _r.get("hata"):
+            print(f"[{_ts()}] CANLI SONUÇ HATA: {_r['hata']}", flush=True)
+    except Exception as e:
+        print(f"[{_ts()}] CANLI SONUÇ HATA: {e}", flush=True)
+
     # 📝 İddia defterini derecelendir — sonucu gelen iddialar kapanır.
     # Settle ile aynı ritimde: skor buraya düştüğü an iddia da puanlanabilir.
     try:

@@ -347,3 +347,66 @@ def sayim() -> dict:
     finally:
         c.close()
     return {"mac": m, "anlik": a, "canli": cl}
+
+
+# ── sonuç bağlantısı ──────────────────────────────────────────────
+def sonuc_baglan(gun: int = 45) -> dict:
+    """cl_mac.sonuc_ev/dep'i BetAgents'ın matches_v2'sinden doldur.
+
+    ⚠️ NEDEN GEREKTİ — YAPISAL BİR KÖRLÜK
+    Toplayıcı sonucu yalnız maçın safhası BITTI kümesinde (FT/AET/…)
+    göründüğünde yazıyordu. Ama kaynak `fixtures?live=all` YALNIZ CANLI
+    maçları döndürüyor: maç bitince akıştan düşüyor ve "bitti" anı HİÇ
+    görülmüyor. Canlı akıştan son durum yakalanamaz.
+
+    Sonuç: 01.11.2026'da 15.052 maçın 15.052'sinde sonuç boştu. 751.445
+    anlık fiyat kaydı birikmişti ve hiçbiri derecelendirilemiyordu —
+    ölçülemeyen veri, toplanmamış veriyle aynı kapıya çıkar.
+
+    Çözüm: maçı iddaa kimliğinden matches_v2'ye bağla. O tablo sonuçları
+    ana sonuçlandırma hattından zaten alıyor. BetAgents YALNIZ OKUNUR;
+    yazma kendi tablomuza (cl_mac) olur — iki ürünün birbirini
+    etkilememesi şartı korunur.
+    """
+    c = db.connect()
+    try:
+        kesim = (datetime.now(timezone.utc) - timedelta(days=gun)).isoformat()
+        try:
+            r = c.execute(
+                "SELECT m.mac_id, mv.home_score, mv.away_score "
+                "FROM cl_mac m "
+                "JOIN matches_v2 mv "
+                "  ON CAST(mv.external_id_iddaa AS TEXT) = CAST(m.iddaa_id AS TEXT) "
+                "WHERE m.sonuc_ev IS NULL AND mv.home_score IS NOT NULL "
+                "  AND mv.away_score IS NOT NULL AND m.son_gorulme >= ?",
+                (kesim,)).fetchall()
+        except Exception as e:
+            try:
+                c.rollback()      # PG: patlayan deyim işlemi iptal eder
+            except Exception:
+                pass
+            return {"hata": f"{type(e).__name__}: {str(e)[:90]}", "yazilan": 0}
+        n = 0
+        for mac_id, h, a in r:
+            c.execute(
+                "UPDATE cl_mac SET sonuc_ev = ?, sonuc_dep = ?, "
+                "durum = 'bitti' WHERE mac_id = ?", (int(h), int(a), mac_id))
+            n += 1
+        c.commit()
+    finally:
+        c.close()
+    return {"yazilan": n}
+
+
+def olculebilir(asgari_anlik: int = 20) -> int:
+    """Hem sonucu hem yeterli fiyat serisi olan maç sayısı — ölçümün tabanı."""
+    c = db.connect()
+    try:
+        return c.execute(
+            "SELECT COUNT(*) FROM cl_mac m WHERE m.sonuc_ev IS NOT NULL AND "
+            "(SELECT COUNT(*) FROM cl_anlik a WHERE a.mac_id = m.mac_id) >= ?",
+            (asgari_anlik,)).fetchone()[0]
+    except Exception:
+        return 0
+    finally:
+        c.close()
