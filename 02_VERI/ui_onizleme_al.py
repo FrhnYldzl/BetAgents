@@ -54,6 +54,12 @@ def al() -> None:
         # anlık görüntüde yok demekti, üretim hakkında hiçbir şey söylemiyordu.
         # Ölçemediğin şeyin sessizce durduğunu da fark edemezsin.
         ("ajan_iddia", "SELECT * FROM ajan_iddia WHERE kayit_ts >= ?", (once(30),)),
+        # CANLI tabloları: maç içi fiyat serisi burada. Çekilmediği sürece
+        # toplayıcının ÇALIŞIP ÇALIŞMADIĞI yerelden görülemiyordu — elimizdeki
+        # 123 satır 20 Eylül'den kalma bir artıktı ve güncel sanılabilirdi.
+        ("cl_mac", "SELECT * FROM cl_mac WHERE son_gorulme >= ?", (once(45),)),
+        ("cl_anlik", "SELECT * FROM cl_anlik WHERE ts >= ?", (once(45),)),
+        ("cl_kayit", "SELECT * FROM cl_kayit WHERE ts >= ?", (once(14),)),
     ]
     src = db.connect()
     dst = sqlite3.connect(HEDEF)
