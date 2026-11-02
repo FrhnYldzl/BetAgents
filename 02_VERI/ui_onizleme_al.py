@@ -60,6 +60,15 @@ def al() -> None:
         ("cl_mac", "SELECT * FROM cl_mac WHERE son_gorulme >= ?", (once(45),)),
         ("cl_anlik", "SELECT * FROM cl_anlik WHERE ts >= ?", (once(45),)),
         ("cl_kayit", "SELECT * FROM cl_kayit WHERE ts >= ?", (once(14),)),
+        # ⚠️ market_odds olmadan PAZAR DEFTERİNİN dolup dolmadığı yerelden
+        # görülemiyordu. market_book.capture() fetch_iddaa_live'dan
+        # çağrılıyor, yani üretimde yazılıyor olmalı — ama "olmalı" ölçüm
+        # değildir. ajan_iddia'da aynı boşluk yaşandı: tablo yereldeyoktu,
+        # bu üretim hakkında hiçbir şey söylemiyordu.
+        ("market_odds", "SELECT * FROM market_odds WHERE ts >= ?", (once(30),)),
+        ("cl_onmac_yol", "SELECT * FROM cl_onmac_yol WHERE ts >= ?", (once(30),)),
+        ("ferhan_kupon", "SELECT * FROM ferhan_kupon", ()),
+        ("ferhan_kupon_ayak", "SELECT * FROM ferhan_kupon_ayak", ()),
     ]
     src = db.connect()
     dst = sqlite3.connect(HEDEF)
@@ -83,6 +92,25 @@ def al() -> None:
                 [tuple(_cevir(r.get(c)) for c in cols) for r in rows])
             dst.commit()
             print(f"  {tablo}: {len(rows)} satır")
+        # ⚠️ İNDEKS: üretimde var (market_book.ensure kuruyor) ama anlık
+        # görüntü CREATE TABLE ile kuruluyor ve indeksleri taşımıyor.
+        # Sonuç: market_odds 767 bin satırda her sorgu tam tarama, denetim
+        # 10 dakikayı aşıyor. Üretim etkilenmiyor — ama yerelde ölçüm
+        # yapamamak, ölçmemekle aynı kapıya çıkar.
+        for ix in (
+            'CREATE INDEX IF NOT EXISTS ix_mo_mk ON market_odds (market)',
+            'CREATE INDEX IF NOT EXISTS ix_mo_ev ON market_odds '
+            '(iddaa_event_id)',
+            'CREATE INDEX IF NOT EXISTS ix_ca_mac ON cl_anlik (mac_id, ts)',
+            'CREATE INDEX IF NOT EXISTS ix_mv_idd ON matches_v2 '
+            '(external_id_iddaa)',
+            'CREATE INDEX IF NOT EXISTS ix_pb_mac ON paper_bets (match_id)',
+        ):
+            try:
+                dst.execute(ix)
+            except Exception:
+                pass
+        dst.commit()
     finally:
         src.close()
         dst.close()

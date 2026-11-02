@@ -148,7 +148,8 @@ def asama_kendi_testi() -> None:
     # ⚠️ Yeni modülün kendi testi buraya YAZILMAZSA denetimden geçmiş
     # sayılır ama hiç koşmaz — sessiz bir boşluk. Liste elle tutuluyor.
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
-               "kasa", "vibe_studyo", "canli_db", "paper_engine"):
+               "kasa", "vibe_studyo", "canli_db", "paper_engine",
+               "agents"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:
@@ -205,7 +206,9 @@ def asama_uretec() -> None:
         # DÜŞMEZ. Düşüyordu: 'toto' modu motor üretecine gidip 65 aday
         # raporladı (gerçek Toto üreteci 3 veriyor) — yani o satır Toto'yu hiç
         # sınamadan YEŞİL yazdı. Denetimin yanlış yeşili, kırmızısından beterdir.
-        if mode == "toto":
+        if mode == "pazar":
+            fn, args = A._pazar_adaylari, (p, pid)
+        elif mode == "toto":
             fn, args = A._toto_adaylari, (p, pid)
         elif mode == "sistem":
             fn, args = A._sistem_adaylari, (p, pid, M, eng)

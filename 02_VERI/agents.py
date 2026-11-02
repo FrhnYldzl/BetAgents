@@ -655,6 +655,131 @@ PROFILES: dict[str, dict] = {
         "sort": "score", "stop_pct": -0.99, "pas_tolerance_days": 14,
     },
 
+    # 🟡 SARI TAKIM — ÇİFTE ŞANS (kullanıcı kararı 01.11.2026)
+    # ══════════════════════════════════════════════════════════════
+    # Kullanıcı: "Elimizdeki ajanlara değil farklı bir pazar kuralım,
+    # SARI takım YEŞİL takım gibi takımlar kurarak dağıtabilirsin."
+    #
+    # NEDEN ÇİFTE ŞANS — ÖLÇÜLDÜ (01.11.2026, 157 maç):
+    # "1 veya 2"ye oynamak, 1 ve 2'ye orantılı oynamakla TAM eşdeğerdir
+    # (sentetik oran = 1/(1/o1 + 1/o2)). İkisi arasındaki fark tahmin
+    # değil, aritmetiktir. Ölçüm:
+    #     "12" bacağı  : 149/157 maçta (%95) DAHA İYİ · ort +%0,94 · en iyi +%2,42
+    #     "1X" bacağı  :  85/157 · ort −%0,11 (fark yok)
+    #     "X2" bacağı  :  27/157 · ort −%1,47 (DAHA KÖTÜ)
+    # Bu arbitraj DEĞİL — marjı yenmiyor. Ama bedava bir iyileştirme:
+    # beraberlik dışı pozisyon Çifte Şans'tan alınmalı, 1X2 ikilisinden
+    # değil. "X2" ise tersine Çifte Şans'tan ALINMAMALI.
+    # Fiyat kaynağı market_odds (pazar defteri) — 4.514 maçta DC var.
+    "KALKAN_V1": {
+        "name": "KALKAN (Çifte Şans · sentetikten ucuz olanı)",
+        "takim": "sari", "mode": "pazar", "model": "PAZAR-DEFTERI",
+        "pazar_kod": "DC", "pazar_bacak": ("1 ve 0", "1 ve 2"),
+        "pazar_min_fark": 0.002,
+        "hipotez":
+            "Çifte Şans, aynı maçın 1X2 ikilisinden daha iyi ödüyorsa oyna. "
+            "Karşılaştırma modelle değil ARİTMETİKLE yapılır: sentetik oran "
+            "1/(1/o_a + 1/o_b). Ölçüldü: '12' bacağı 157 maçın 149'unda "
+            "sentetikten iyi (+%0,94). '0 ve 2' bacağı OYNANMAZ — ölçümde "
+            "sistematik olarak kötü (−%1,47), onu almak gerekirse 1X2 "
+            "ikilisinden alınır.",
+        "emeklilik":
+            "60 bahis sonra: birim getirisi SARI JOKER'i geçmiyorsa, "
+            "sentetikten ucuz olanı seçmek bir şey katmıyor demektir.",
+        "markets": {"CIFTE_SANS"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 3.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "SARI_JOKER_V1": {
+        "name": "SARI JOKER (Çifte Şans · RASTGELE kontrol)",
+        "takim": "sari", "mode": "pazar", "model": "KONTROL",
+        "pazar_kod": "DC", "pazar_bacak": ("1 ve 0", "1 ve 2", "0 ve 2"),
+        "pazar_rastgele": True,
+        "hipotez":
+            "Ajan DEĞİL, TABAN ÇİZGİSİ. Aynı havuzdan RASTGELE seçer. "
+            "KALKAN bunu geçemiyorsa 'sentetikten ucuzu seç' kuralının "
+            "hiçbir değeri yok demektir — sıralamada kaçıncı olduğu "
+            "önemli değil. Her takımın kendi kontrolü olmalı; JOKER'i "
+            "başka pazardan ödünç almak farklı marjları karşılaştırmak "
+            "olurdu.",
+        "emeklilik": "Kontrol çizgisi emekli edilmez.",
+        "markets": {"CIFTE_SANS"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 3.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+
+    # 🟢 YEŞİL TAKIM — UCUZ ÇİZGİ (A/Ü 1.5 ve 3.5)
+    # ══════════════════════════════════════════════════════════════
+    # NEDEN BU İKİ ÇİZGİ — ÖLÇÜLDÜ (01.11.2026, market_odds):
+    #     A/Ü 1.5   %15,9 marj   (en ucuz sonuçlanabilir pazar)
+    #     A/Ü 3.5   %16,1
+    #     A/Ü 2.5   %16,6        ← ajanların hâlihazırda oynadığı çizgi
+    #     1X2       %16,8
+    #     Handikap  %22,4        ← bu yüzden handikap takımı KURULMADI:
+    #                              ajanı baştan 5,6 puan geride başlatırdı
+    # Hipotez AÇIKÇA bir "beceri" iddiası değil, BEDEL iddiasıdır: ajanlar
+    # ölçülen hâliyle fiyatı yenmiyor, yalnız marjı ödüyor. Marj 0,7 puan
+    # ucuzsa getiri 0,7 puan iyi olmalı. Bu, 2.5 çizgisini oynayan ajanlara
+    # karşı KONTROLLÜ bir karşılaştırmadır.
+    "CIZGI_V1": {
+        "name": "ÇİZGİ (A/Ü 1.5 · en ucuz pazar)",
+        "takim": "yesil", "mode": "pazar", "model": "PAZAR-DEFTERI",
+        "pazar_kod": "OU1.5", "pazar_bacak": ("Alt", "Üst"),
+        "hipotez":
+            "A/Ü 1.5 çizgisi ölçülen EN UCUZ sonuçlanabilir pazar (%15,9 "
+            "marj, 2.5 çizgisi %16,6). Aynı yaklaşım, daha düşük bedel. "
+            "Bu bir beceri iddiası değil: eğer ajanlar yalnız marjı "
+            "ödüyorsa, 0,7 puan ucuz pazarda getiri 0,7 puan iyi olmalı.",
+        "emeklilik":
+            "60 bahis sonra: birim getirisi A/Ü 2.5 oynayan ajanlardan "
+            "ucuzluk kadar bile iyi değilse, pazar seçiminin karşılığı yok.",
+        "markets": {"ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "ESIK_V1": {
+        "name": "EŞİK (A/Ü 3.5 · uzak çizgi)",
+        "takim": "yesil", "mode": "pazar", "model": "PAZAR-DEFTERI",
+        "pazar_kod": "OU3.5", "pazar_bacak": ("Alt", "Üst"),
+        "hipotez":
+            "A/Ü 3.5 (%16,1 marj) — 1.5 ile aynı ucuzluk mantığı ama ZIT "
+            "rejim: 1.5'te 'Üst', 3.5'te 'Alt' kısa taraftır. İkisini ayrı "
+            "ajanlara vermek, ucuzluğun mu yoksa belirli bir tarafın mı "
+            "işe yaradığını ayırt etmeyi sağlar.",
+        "emeklilik":
+            "60 bahis sonra: ÇİZGİ ile arasında fark yoksa iki ajan tek "
+            "ajandır, biri kapanır.",
+        "markets": {"ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "YESIL_JOKER_V1": {
+        "name": "YEŞİL JOKER (ucuz çizgi · RASTGELE kontrol)",
+        "takim": "yesil", "mode": "pazar", "model": "KONTROL",
+        "pazar_kod": "OU1.5", "pazar_bacak": ("Alt", "Üst"),
+        "pazar_rastgele": True,
+        "hipotez":
+            "Ajan DEĞİL, TABAN ÇİZGİSİ. Aynı ucuz pazarda rastgele seçer. "
+            "Ucuzluk iddiası doğruysa BU AJAN DA kazanmalı — çünkü iddia "
+            "beceri değil bedel iddiasıdır. Yeşil takımın gerçek sınavı "
+            "ÇİZGİ'nin JOKER'i geçmesi değil, JOKER'in 2.5 oynayan "
+            "ajanlardan iyi olmasıdır.",
+        "emeklilik": "Kontrol çizgisi emekli edilmez.",
+        "markets": {"ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 10, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+
     # 🟠 TURUNCU TAKIM — bağımsız skor modeli (kullanıcı kararı 19.09)
     # ══════════════════════════════════════════════════════════════
     # Kaynak: kullanıcının "Kombine Market Fiyatlama" eki. DATA → MODEL →
@@ -1886,6 +2011,14 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # 🟢 TOTO modu: haftanın Toto maçlarını iddaa'da oynar. Montaj diğer
     # takımlarla AYNI (_assemble_coupons) — kullanıcı şartı: "aynı diğer
     # takımlar gibi oynasın".
+    # 🟡🟢 PAZAR modu: SARI (Çifte Şans) ve YEŞİL (ucuz A/Ü çizgisi).
+    # Montaj diğer takımlarla AYNI — ayrı bir kupon mantığı yok.
+    if mode == "pazar":
+        picks = _pazar_adaylari(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks, unit)
+
     if mode == "toto":
         picks = _toto_adaylari(prof, tag)
         picks = _lock_open(picks, open_matches, open_keys, tag)
@@ -1957,6 +2090,190 @@ def _lock_open(picks: list[dict], open_matches: set, open_keys: set,
     if tag and len(out) != len(picks):
         print(f"{tag} 🔒 {len(picks)-len(out)} aday elendi (zaten açık pozisyon)")
     return out
+
+
+# ─────────────────────────────────────────────────────────────
+# 🟡🟢 PAZAR DEFTERİ MODU — SARI ve YEŞİL takım aday üreteci
+# ─────────────────────────────────────────────────────────────
+# Fiyat kaynağı matches_v2'nin 7 kapanış sütunu DEĞİL, `market_odds`
+# (pazar defteri). Orada 20 pazar × 4.688 maç var ve bugüne dek yalnız
+# ÇARPAN ajanı okuyordu. Toplama zaten çalışıyordu (market_book.capture,
+# fetch_iddaa_live'dan çağrılıyor); eksik olan tek şey okuyan ajandı.
+#
+# ⚠️ YALNIZ SONUÇLANABİLEN PAZAR: defterde İlk Yarı 1X2 (3.635 maç),
+# İY/MS (1.041) ve handikap fiyatları da var ama buraya KONMADI. İY
+# pazarları ilk yarı skoru olmadan sonuçlanamaz (matches_v2'de %0) ve
+# sonucu belli olmayan bahis ajanı ölçülemez kılar. Handikap ise ölçülen
+# en pahalı pazar (%22,4 marj; 1X2 %16,8).
+_PAZAR_ESLEME = {
+    "DC": {"1 ve 0": ("CIFTE_SANS", "1X"), "1 ve 2": ("CIFTE_SANS", "12"),
+           "0 ve 2": ("CIFTE_SANS", "X2")},
+    "OU1.5": {"Alt": ("ALT_UST", "ALT 1.5"), "Üst": ("ALT_UST", "ÜST 1.5")},
+    "OU3.5": {"Alt": ("ALT_UST", "ALT 3.5"), "Üst": ("ALT_UST", "ÜST 3.5")},
+}
+# Çifte Şans'ın üç seçimi birbirini DIŞLAMAZ (her biri 3 sonucun 2'sini
+# kapsar), olasılıkları 2,0'a toplanır. 1,0'a normalize etmek marjı %134
+# gösterirdi — ölçümde tam bu çıktı ve hata sanılabilirdi.
+_PAZAR_TOPLAM = {"DC": 2.0}
+
+
+def _poisson_ust(lam: float, k: int) -> float:
+    """P(X >= k), X ~ Poisson(lam) — toplam gol dağılımı için."""
+    import math
+    if lam <= 0:
+        return 0.0
+    alt = 0.0
+    for i in range(k):
+        alt += math.exp(-lam) * lam ** i / math.factorial(i)
+    return max(0.0, min(1.0, 1.0 - alt))
+
+
+def _lambda_coz(p_ust25: float):
+    """2.5 çizgisinin marjsız olasılığından toplam gol beklentisi.
+
+    P(X >= 3) = p ise lam'ı ikiye bölme ile bul. Tek parametreli Poisson
+    gerçek gol dağılımını TAM vermez (hafif aşırı yayılım var); bu yüzden
+    buradan çıkan sapma "kenar" SAYILAMAZ, yalnız aday sıralama ölçütüdür.
+    Gerçek sınav YEŞİL JOKER'dir: kural model hatasından ibaretse rastgele
+    kontrolü geçemez.
+    """
+    if not (0.01 < p_ust25 < 0.99):
+        return None
+    a, b = 0.05, 8.0
+    for _ in range(60):
+        o = (a + b) / 2.0
+        if _poisson_ust(o, 3) < p_ust25:
+            a = o
+        else:
+            b = o
+    return (a + b) / 2.0
+
+
+def _pazar_adaylari(prof: dict, tag: str) -> list[dict]:
+    """market_odds (pazar defteri) üzerinden aday üret — SARI ve YEŞİL."""
+    import random as _rnd
+    from datetime import datetime as _dt, timezone as _tz
+    kod = prof["pazar_kod"]
+    esle = _PAZAR_ESLEME.get(kod)
+    if not esle:
+        print(f"{tag} 🔴 TIKANIKLIK bilinmeyen pazar kodu: {kod}")
+        return []
+    bacak = set(prof.get("pazar_bacak") or esle.keys())
+    simdi = _dt.now(_tz.utc).isoformat()
+    conn = db.connect()
+    try:
+        r = conn.execute(
+            "SELECT mo.iddaa_event_id, mo.selection, mo.odd "
+            "FROM market_odds mo JOIN matches_v2 mv "
+            "  ON CAST(mv.external_id_iddaa AS TEXT) "
+            "   = CAST(mo.iddaa_event_id AS TEXT) "
+            "WHERE mo.market = ? AND mo.odd > 1.01 "
+            "  AND COALESCE(mv.is_settled,0) = 0 AND mv.kickoff_utc > ? "
+            "ORDER BY mo.ts", (kod, simdi)).fetchall()
+        if not r:
+            print(f"{tag} ⚪ MEŞRU PAS pazar defterinde {kod} için "
+                  f"başlamamış maç yok")
+            return []
+        # ts'e göre sıralı okundu: sonraki yazım öncekini ezer → EN SON fiyat
+        son: dict = {}
+        for ev, sec, odd in r:
+            son.setdefault(str(ev), {})[str(sec)] = float(odd)
+        # ⚠️ YALNIZ fiyatı olan maçlar çekilir. İlk yazımda bütün
+        # başlamamış maçlar (112 sütun × binlerce satır) her ajan için
+        # yeniden okunuyordu — beş ajan, beş tam tarama. Pazar defterinde
+        # fiyatı olmayan maçın burada zaten işi yok.
+        ids = list(son.keys())
+        maclar = {}
+        for i in range(0, len(ids), 400):          # SQLite parametre sınırı
+            parca = ids[i:i + 400]
+            q = ("SELECT * FROM matches_v2 WHERE COALESCE(is_settled,0)=0 "
+                 "AND kickoff_utc > ? AND CAST(external_id_iddaa AS TEXT) IN ("
+                 + ",".join("?" * len(parca)) + ")")
+            for mr in conn.execute(q, tuple([simdi] + parca)).fetchall():
+                m = dict(mr)
+                maclar[str(m.get("external_id_iddaa"))] = m
+    finally:
+        conn.close()
+
+    picks, eksik = [], 0
+    for ev, secimler in son.items():
+        m = maclar.get(ev)
+        if not m:
+            eksik += 1
+            continue
+        tam = _PAZAR_TOPLAM.get(kod, 1.0)
+        toplam = sum(1.0 / o for o in secimler.values())
+        if toplam <= 0:
+            continue
+        aday = []
+        for sec, o in secimler.items():
+            if sec not in bacak or sec not in esle:
+                continue
+            if not (prof["min_odds"] <= o <= prof.get("max_odds", 99)):
+                continue
+            mkt, pick = esle[sec]
+            aday.append({"market": mkt, "pick": pick, "odds": o,
+                         "model_prob": (1.0 / o) / toplam * tam,
+                         "sec": sec})
+        if not aday:
+            continue
+        sec_ = None
+        if prof.get("pazar_rastgele"):
+            sec_ = _rnd.choice(aday)
+            sec_["skor"], sec_["ad"] = 0.0, "RASTGELE"
+        elif kod == "DC":
+            # ARİTMETİK: Çifte Şans mı, aynı maçın 1X2 ikilisi mi ucuz?
+            try:
+                o1 = float(m.get("closing_1") or 0)
+                ox = float(m.get("closing_X") or 0)
+                o2 = float(m.get("closing_2") or 0)
+            except (TypeError, ValueError):
+                continue
+            if min(o1, ox, o2) <= 1.01:
+                continue
+            ikili = {"1 ve 0": (o1, ox), "1 ve 2": (o1, o2),
+                     "0 ve 2": (ox, o2)}
+            for a in aday:
+                p = ikili.get(a["sec"])
+                if not p:
+                    continue
+                sentetik = 1.0 / (1.0 / p[0] + 1.0 / p[1])
+                a["skor"], a["ad"] = (a["odds"] - sentetik) / sentetik, "DC-SENTETIK"
+                if a["skor"] >= float(prof.get("pazar_min_fark", 0.0)) and (
+                        sec_ is None or a["skor"] > sec_["skor"]):
+                    sec_ = a
+        else:
+            # ÇİZGİ: aynı maçın 2.5 çizgisinden ima edilen Poisson dağılımı
+            # bu çizgide ne diyor?
+            try:
+                ou = float(m.get("closing_over25") or 0)
+                uu = float(m.get("closing_under25") or 0)
+            except (TypeError, ValueError):
+                continue
+            if min(ou, uu) <= 1.01:
+                continue
+            lam = _lambda_coz((1.0 / ou) / (1.0 / ou + 1.0 / uu))
+            if lam is None:
+                continue
+            k = 2 if kod == "OU1.5" else 4   # Üst 1.5 → X>=2 · Üst 3.5 → X>=4
+            p_ust = _poisson_ust(lam, k)
+            for a in aday:
+                bek = p_ust if a["sec"] == "Üst" else (1.0 - p_ust)
+                a["skor"], a["ad"] = bek - a["model_prob"], "CIZGI-POISSON"
+                if a["skor"] > 0 and (sec_ is None or a["skor"] > sec_["skor"]):
+                    sec_ = a
+        if not sec_:
+            continue
+        picks.append({
+            "market": sec_["market"], "pick": sec_["pick"],
+            "odds": sec_["odds"], "implied_prob": 1.0 / sec_["odds"],
+            "model_prob": sec_["model_prob"], "edge": sec_["skor"],
+            "signal_name": sec_["ad"], "signal_score": sec_["skor"],
+            "_match": m,
+        })
+    print(f"{tag} 🟡 pazar defteri ({kod}) aday: {len(picks)}"
+          + (f" · {eksik} maç matches_v2'de yok" if eksik else ""))
+    return picks
 
 
 def _toto_adaylari(prof: dict, tag: str) -> list[dict]:
@@ -2640,3 +2957,68 @@ def run_all(place: bool = True) -> dict:
 
 if __name__ == "__main__":
     run_all(place="--place" in sys.argv)
+
+
+def kendi_testi() -> list[str]:
+    """SARI/YEŞİL pazar modunun VERİTABANISIZ parçaları.
+
+    Burada sınanan şey aday sayısı değil (o denetimin üreteç aşamasında),
+    saf matematiktir: Poisson çözücü, Çifte Şans normalizasyonu ve pazar
+    eşlemesinin sonuçlandırmayla UYUMU.
+
+    ⚠️ Eşleme uyumu şart: _PAZAR_ESLEME bir pick üretir ve onu
+    paper_engine sonuçlandırır. İkisi ayrışırsa bahis açılır, kapanmaz ve
+    ajan sonsuza dek ölçülemez kalır — sessiz arıza.
+    """
+    hata = []
+    # 1) Poisson: lam büyüdükçe P(X>=k) artmalı; sınırlar [0,1]
+    a = _poisson_ust(1.0, 3)
+    b = _poisson_ust(3.0, 3)
+    if not (0.0 < a < b < 1.0):
+        hata.append(f"Poisson monoton değil: lam=1 {a:.4f} · lam=3 {b:.4f}")
+    if _poisson_ust(2.0, 0) != 1.0:
+        hata.append("P(X>=0) 1,0 olmalı")
+
+    # 2) lam çözücü: çözdüğü lam, verilen olasılığı geri vermeli
+    for p in (0.35, 0.50, 0.65):
+        lam = _lambda_coz(p)
+        if lam is None:
+            hata.append(f"lam çözülemedi p={p}")
+            continue
+        geri = _poisson_ust(lam, 3)
+        if abs(geri - p) > 1e-3:
+            hata.append(f"lam çözücü tutarsız: p={p} → {geri:.4f}")
+    if _lambda_coz(0.0) is not None or _lambda_coz(1.0) is not None:
+        hata.append("sınır olasılıkta lam None dönmeli")
+
+    # 3) Çifte Şans 2,0'a normalize olmalı (seçimler birbirini DIŞLAMAZ).
+    #    1,0 alınsaydı marj %134 görünürdü — ölçümde tam bu çıkmıştı.
+    if _PAZAR_TOPLAM.get("DC") != 2.0:
+        hata.append("DC toplamı 2,0 olmalı")
+    if _PAZAR_TOPLAM.get("OU1.5", 1.0) != 1.0:
+        hata.append("iki yollu pazar 1,0'a normalize olmalı")
+
+    # 4) EŞLEME ↔ SONUÇLANDIRMA uyumu: üretilen her pick gerçekten
+    #    sonuçlanabilmeli ('void' dönerse bahis asla kapanmaz)
+    try:
+        import paper_engine as _pe
+        for kod, harita in _PAZAR_ESLEME.items():
+            for sec, (mkt, pick) in harita.items():
+                r = _pe.PaperEngine._determine_outcome(
+                    None, {"market": mkt, "pick": pick}, 2, 1)
+                if r not in ("won", "lost"):
+                    hata.append(f"{kod}/{sec} → {mkt}/{pick} "
+                                f"sonuçlanmıyor ({r})")
+    except Exception as e:
+        hata.append(f"eşleme sınavı: {type(e).__name__}: {e}")
+
+    # 5) Her yeni takımın RASTGELE kontrolü olmalı — bu projenin standardı
+    for takim in ("sari", "yesil"):
+        uye = [p for p, v in PROFILES.items() if v.get("takim") == takim]
+        if not uye:
+            hata.append(f"{takim} takımı boş")
+            continue
+        if not any(PROFILES[p].get("pazar_rastgele") for p in uye):
+            hata.append(f"{takim} takımının rastgele kontrolü YOK — "
+                        f"ajanları neye karşı ölçeceğiz?")
+    return hata

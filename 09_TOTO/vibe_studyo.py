@@ -28,6 +28,14 @@ KAPSAM = {
     "turuncu": "Turuncu (bağımsız skor modeli)",
     "toto": "Toto (Süper Toto modeli × iddaa)",
     "sistem": "Sistem (N/M kuponları)",
+    # 🟡🟢 Pazar defteri takımları (01.11.2026). Bu liste agents.PROFILES'ın
+    # DÖRDÜNCÜ kopyasıydı (agents · app_v2 TAKIM_TANIM · app_v2 load_lig ·
+    # burası) ve yeni takım eklenince kendi testi haklı olarak kaldı.
+    # app_v2 tarafı _SETLER'den türetilecek şekilde genelleştirildi; burası
+    # İNSAN OKUNUR AÇIKLAMA tuttuğu için elle kalıyor, ama kendi testi
+    # eksikliği yakalıyor — sessiz kalmıyor.
+    "sari": "Sarı (Çifte Şans · pazar defteri)",
+    "yesil": "Yeşil (ucuz çizgi · A/Ü 1.5-3.5)",
     "canli": "Canlı",
     "supertoto": "Süper Toto (kolon oyunu)",
 }

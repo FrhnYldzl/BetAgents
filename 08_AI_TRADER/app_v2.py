@@ -1416,6 +1416,12 @@ def _takim_setleri() -> dict:
 
 
 _SETLER = _takim_setleri()
+# ⚠️ Takım adlarını SAYMAYIN. Üyelik agents.PROFILES'tan türetiliyor ama
+# tüketiciler yine "KIRMIZI | TURUNCU | TOTO | SISTEM" diye elle sayıyordu
+# ve yeni takım eklenince (SARI, YEŞİL) sayfa KeyError ile düştü —
+# denetim yakaladı. Artık mavi dışı her takım buradan gelir.
+_TAKIM_DIGER = {k: v for k, v in _SETLER.items() if k != "mavi"}
+_TAKIM_DISI = set().union(*_TAKIM_DIGER.values()) if _TAKIM_DIGER else set()
 KIRMIZI = _SETLER.get("kirmizi", set())
 TURUNCU = _SETLER.get("turuncu", set())
 TOTO = _SETLER.get("toto", set())
@@ -1507,8 +1513,7 @@ def load_lig() -> dict:
     except Exception:
         pass
     for p in kasa:
-        if p not in by and (p in _aktif or p in KIRMIZI or p in TURUNCU
-                            or p in TOTO or p in SISTEM or p in acik):
+        if p not in by and (p in _aktif or p in _TAKIM_DISI or p in acik):
             tum.append(kur(p, []))
 
     # ⚠️ EMEKLILER ARSIVE — kullanici "listeyi kalabalik gosteriyor" dedi.
@@ -1521,18 +1526,14 @@ def load_lig() -> dict:
     # ⚠️ AJAN OLMAYAN PORTFOYLER: PAPER_V1 (arsiv), OPUS5_V1 (gercek
     # para defteri), KURUCU_V2 (kurucu portfoyu). KURUCU listede yoktu
     # ve Mavi Takim'da n=80 ile "KADRO DISI" olarak goruunuyordu.
-    _ayri = KIRMIZI | TURUNCU | TOTO | SISTEM
-    mavi = [x for x in tum if x["pid"] not in _ayri
+    mavi = [x for x in tum if x["pid"] not in _TAKIM_DISI
             and x["pid"] not in ("PAPER_V1", "OPUS5_V1", "KURUCU_V2")]
-    kirmizi = [x for x in tum if x["pid"] in KIRMIZI]
-    turuncu = [x for x in tum if x["pid"] in TURUNCU]
-    toto = [x for x in tum if x["pid"] in TOTO]
-    sistem = [x for x in tum if x["pid"] in SISTEM]
-    for g in (mavi, kirmizi, turuncu, toto, sistem):
+    gruplar = {k: [x for x in tum if x["pid"] in v]
+               for k, v in _TAKIM_DIGER.items()}
+    for g in [mavi] + list(gruplar.values()):
         g.sort(key=lambda z: (z["n"] == 0, -z["edge"]))
     arsiv.sort(key=lambda z: -z["edge"])
-    return {"mavi": mavi, "kirmizi": kirmizi, "turuncu": turuncu,
-            "toto": toto, "sistem": sistem, "arsiv": arsiv}
+    return {"mavi": mavi, "arsiv": arsiv, **gruplar}
 
 
 # Para piyasası yıllık getirisi — belge §2.3'te 35/40/45 senaryoları
@@ -3581,8 +3582,35 @@ TAKIM_TANIM = {
              "alt": "Süper Toto modeli × iddaa · keşif", "renk": "#1f7a4d"},
     "sistem": {"ad": "Sistem Takım",
                "alt": "N/M sistem kuponları · keşif", "renk": "#4b4b57"},
+    "sari": {"ad": "Sarı Takım",
+             "alt": "Çifte Şans · pazar defteri · keşif", "renk": "#b8860b"},
+    "yesil": {"ad": "Yeşil Takım",
+              "alt": "ucuz çizgi (A/Ü 1.5 · 3.5) · keşif", "renk": "#2e8b57"},
 }
 TAKIM_NOTU = {
+    "sari": (
+        "<div class='dq'><b>Sarı takım keşif statüsünde.</b> Seçim ölçütü "
+        "model değil <b>aritmetik</b>: «1 veya 2»ye oynamak, 1 ve 2'ye "
+        "orantılı oynamakla tam eşdeğerdir (sentetik oran "
+        "<code>1/(1/o_a + 1/o_b)</code>). Ölçüldü (01.11.2026, 157 maç): "
+        "«12» bacağı 149 maçta sentetikten <b>iyi</b> (+%0,94, en iyi "
+        "+%2,42); «X2» ise 27 maçta iyi, ortalama <b>−%1,47</b> — bu yüzden "
+        "KALKAN «X2» <b>oynamaz</b>. Bu arbitraj değildir, marjı yenmez; "
+        "bedava bir iyileştirmedir. <b>Karar kuralı:</b> 60 bahiste birim "
+        "getirisi SARI JOKER'i geçmiyorsa kural bir şey katmıyor "
+        "demektir.</div>"),
+    "yesil": (
+        "<div class='dq'><b>Yeşil takım keşif statüsünde.</b> İddia açıkça "
+        "beceri değil <b>bedel</b> iddiasıdır. Ölçülen marjlar: A/Ü 1.5 "
+        "<b>%15,9</b> · A/Ü 3.5 <b>%16,1</b> · A/Ü 2.5 %16,6 · 1X2 %16,8 · "
+        "handikap %22,4 (bu yüzden handikap takımı kurulmadı). Ajanlar "
+        "ölçülen hâliyle fiyatı yenmiyor, yalnız marjı ödüyor; 0,7 puan "
+        "ucuz pazarda getiri 0,7 puan iyi olmalı. Taraf seçimi aynı maçın "
+        "2.5 çizgisinden ima edilen Poisson'a dayanır — tek parametreli "
+        "Poisson gerçek gol dağılımını tam vermez, bu yüzden sapma "
+        "<b>kenar sayılmaz</b>. <b>Asıl sınav:</b> YEŞİL JOKER'in (rastgele) "
+        "A/Ü 2.5 oynayan ajanlardan iyi olması — iddia bedel iddiası "
+        "olduğu için rastgele kontrol de kazanmalı.</div>"),
     "turuncu": (
         "<div class='dq'><b>Turuncu takım keşif statüsünde.</b> Takımların "
         "geçmiş gollerinden iddaa'ya bakmadan skor dağılımı kurar (Dixon-Coles) "
@@ -4112,6 +4140,19 @@ def page_sistem_takim() -> None:
     """⚫ SİSTEM TAKIM — N/M sistem kuponları.
     ⚠️ Ad dikkat: page_sistem zaten 'Sağlık' sayfası."""
     _takim_sayfasi("sistem")
+
+
+def page_sari_takim() -> None:
+    """🟡 SARI TAKIM — Çifte Şans. Pazar defterinden (market_odds) besleniyor.
+    Seçim ölçütü model değil ARİTMETİK: Çifte Şans mı, aynı maçın 1X2
+    ikilisi mi daha iyi ödüyor?"""
+    _takim_sayfasi("sari")
+
+
+def page_yesil_takim() -> None:
+    """🟢 YEŞİL TAKIM — ucuz çizgi (A/Ü 1.5 ve 3.5). Ölçülen en düşük marjlı
+    sonuçlanabilir pazarlar; iddia beceri değil BEDEL iddiasıdır."""
+    _takim_sayfasi("yesil")
 
 
 def page_ajan() -> None:
@@ -5327,6 +5368,12 @@ SAYFA_TANIM = [
          "Toto modeli iddaa'da ne buluyor?"),
         ("Sistem Takım", page_sistem_takim, ":material/account_tree:",
          "sistem-takim", "Sistem kuponu kenarı büyütüyor mu?"),
+        # 🟡🟢 Pazar defteri takımları (01.11.2026): mevcut ajanlara yeni
+        # pazar VERİLMEDİ, ayrı takımlar kuruldu — kullanıcı kararı.
+        ("Sarı Takım", page_sari_takim, ":material/shield_moon:",
+         "sari-takim", "Çifte Şans, 1X2 ikilisinden ucuz mu?"),
+        ("Yeşil Takım", page_yesil_takim, ":material/trending_down:",
+         "yesil-takim", "Ucuz pazar daha iyi getiri veriyor mu?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
     ("PORTFÖY", [

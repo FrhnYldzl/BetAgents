@@ -689,3 +689,102 @@ alan* verir — şu an aradıkları yer bültenin %8'i.
 **Sıradaki iş:** skordan sonuçlanabilen pazarları toplamaya ve
 sonuçlandırmaya aç (`paper_engine._determine_outcome` genişletmesi),
 sonra ajanlara ver.
+
+---
+
+# ■ SARI ve YEŞİL TAKIM — pazar defterinden beslenen yeni takımlar
+
+**Kullanıcı kararı (01.11.2026):** *"Elimizdeki ajanlara değil farklı bir
+pazar kuralım, örnek SARI takım YEŞİL takım gibi takımlar kurarak
+dağıtabilirsin."*
+
+## Önce bir düzeltme
+
+Önceki raporumda "ajanlar 26 pazardan 2'sini oynuyor" demiştim — **yanlıştı.**
+O "2", canlı toplayıcının pazar alanıydı. Ajanlar fiilen **9 pazar türü**
+oynuyor: 1X2, KG_VAR, KG_YOK, ALT_25, UST_25, 1X2_BTTS, TOTAL_GOALS,
+1X2_OU, OU_BTTS.
+
+## Beklenmedik bulgu: pazar defteri zaten doluymuş
+
+`market_odds` tablosu **767.214 satır · 4.688 maç · 20 pazar** içeriyor ve
+`market_book.capture()` tarafından `fetch_iddaa_live`'dan çağrılarak
+toplanıyor — yani **aylardır çalışıyormuş**. Göremiyorduk çünkü anlık
+görüntü planında yoktu (`ajan_iddia`'da yaşanan görünmezlik arızasının
+aynısı; plan düzeltildi).
+
+İçinde: DC 4.514 maç · Tek/Çift 4.499 · Handikap−1 2.879 · A/Ü 3.5 2.525 ·
+A/Ü 1.5 1.973 · İY 1X2 3.635 · İY/MS 1.041 · kombineler.
+
+**Toplama kurmaya gerek yoktu; eksik olan tek şey okuyan ajandı.**
+
+## Pazar başına marj — takım seçiminin temeli
+
+Ölçüldü (market_odds, maç+pazar+zaman başına ima toplamı):
+
+| pazar | marj | not |
+|---|---|---|
+| A/Ü 1.5 | **%15,9** | en ucuz sonuçlanabilir pazar |
+| A/Ü 3.5 | **%16,1** | |
+| İY A/Ü 1.5 | %16,4 | İY skoru yok, oynanamaz |
+| A/Ü 2.5 | %16,6 | ajanların hâlihazırda oynadığı çizgi |
+| 1X2 | %16,8 | |
+| Tek/Çift | %17,1 | |
+| Çifte Şans | ~%17,3 | (üç seçim 2,0'a toplanır) |
+| kombineler | %19-21 | |
+| **Handikap** | **%22,4** | |
+| İY/MS | %26,4 | |
+
+⚠️ **Handikap takımı KURULMADI.** %22,4 marj, ajanı 1X2'den 5,6 puan geride
+başlatırdı. "Pazar var" ile "pazar oynanmalı" aynı şey değil.
+
+⚠️ Çifte Şans ölçümde **%134** çıktı — hata değil: üç seçim birbirini
+dışlamaz, olasılıkları 2,0'a toplanır. 1,0'a normalize etmek bu sahte
+sayıyı üretir ve kod buna karşı korunmuştur (`_PAZAR_TOPLAM`).
+
+## 🟡 SARI TAKIM — Çifte Şans
+
+**Temel (ölçüldü, 157 maç):** "1 veya 2"ye oynamak, 1 ve 2'ye orantılı
+oynamakla **tam eşdeğerdir** (sentetik oran `1/(1/o_a + 1/o_b)`). Fark
+tahmin değil aritmetiktir.
+
+| bacak | sentetikten iyi olduğu maç | ort fark |
+|---|---|---|
+| **12** | **149/157 (%95)** | **+%0,94** (en iyi +%2,42) |
+| 1X | 85/157 | −%0,11 |
+| X2 | 27/157 | −%1,47 |
+
+- **KALKAN_V1** — yalnız "1X" ve "12" oynar; "X2" **oynamaz** (ölçümde
+  sistematik kötü, onu almak gerekirse 1X2 ikilisinden alınır).
+- **SARI_JOKER_V1** — aynı havuzdan rastgele seçen kontrol çizgisi.
+
+## 🟢 YEŞİL TAKIM — ucuz çizgi
+
+**Temel:** A/Ü 1.5 (%15,9) ve 3.5 (%16,1), 2.5 çizgisinden (%16,6) ucuz.
+İddia açıkça **beceri değil BEDEL** iddiasıdır: ajanlar ölçülen hâliyle
+fiyatı yenmiyor, yalnız marjı ödüyor; 0,7 puan ucuz pazarda getiri 0,7
+puan iyi olmalı.
+
+- **CIZGI_V1** — A/Ü 1.5
+- **ESIK_V1** — A/Ü 3.5 (zıt rejim: 1.5'te "Üst", 3.5'te "Alt" kısa taraf;
+  ayrı ajan olması ucuzluğun mu tarafın mı işe yaradığını ayırır)
+- **YESIL_JOKER_V1** — rastgele kontrol
+
+Seçim ölçütü: aynı maçın **2.5 çizgisinden** ima edilen Poisson dağılımı bu
+çizgide ne diyor? ⚠️ Tek parametreli Poisson gerçek gol dağılımını tam
+vermez; bu yüzden sapma **kenar sayılmaz**, yalnız sıralama ölçütüdür.
+Gerçek sınav JOKER'dir — kural model hatasından ibaretse rastgeleyi geçemez.
+
+**Yeşil takımın asıl sınavı** KALKAN'ın JOKER'i geçmesi değil: **JOKER'in
+A/Ü 2.5 oynayan ajanlardan iyi olmasıdır.** İddia bedel iddiası olduğu için
+rastgele kontrol de kazanmalı.
+
+## Ne oynanmıyor ve neden
+
+| pazar | defterde | neden oynanmıyor |
+|---|---|---|
+| İY 1X2 · İY A/Ü · İY/MS | 3.635 · 2.958 · 1.041 maç | **İlk yarı skoru yok** — bahis kapanamaz, ajan ölçülemez |
+| Handikap ±1/2/3 | 2.879 maç | %22,4 marj — ölçülen en pahalı |
+| Korner · kart | bültende %20 | korner/kart sayısı verimiz yok |
+
+Hepsinin tek ortak sebebi: **ölçülemeyen pazar oynanmaz.**
