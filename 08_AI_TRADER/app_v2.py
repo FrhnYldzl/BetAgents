@@ -3162,7 +3162,16 @@ def page_opus() -> None:
                 st.error(res.get("msg", "kaydedilemedi"))
 
 
-TAKIM_SIRA = ("mavi", "kirmizi", "turuncu", "toto", "sistem")
+# ⚠️ ELLE SAYILMAZ. Bu satır bir zamanlar ("mavi","kirmizi","turuncu",
+# "toto","sistem") diye sabitti ve SARI/YEŞİL eklenince ajan dosyası
+# onları bulamadı: kullanıcı ajanın içine girince kendi sayfasına
+# gidemiyordu. Tam da _tum_ajanlar'ın önlemek için yazıldığı hata, ama
+# bir kat aşağıda tekrarlanmıştı — yardımcı tek kaynaktan besleniyor
+# sanılıyordu, oysa kendisi ikinci bir elle listeyi dolaşıyordu.
+# Bilinen sıra korunur (okuma sırası anlamlı), yeni takım sonuna eklenir.
+_SIRA_ONCELIK = ("mavi", "kirmizi", "turuncu", "toto", "sistem")
+TAKIM_SIRA = _SIRA_ONCELIK + tuple(
+    sorted(k for k in _SETLER if k not in _SIRA_ONCELIK))
 
 
 def _tum_ajanlar(lig: dict) -> list:

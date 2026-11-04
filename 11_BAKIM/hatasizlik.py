@@ -130,6 +130,7 @@ def asama_sayfa() -> None:
     except Exception as e:
         _ekle("2 SAYFA", "app_v2 içe aktarma", KALDI, _kisa(e))
         return
+    _takim_kapsama(APP)
     for bolum, sayfalar in APP.SAYFA_TANIM:
         for giris in sayfalar:
             ad, fn = giris[0], giris[1]
@@ -143,6 +144,52 @@ def asama_sayfa() -> None:
 # ----------------------------------------------------------------------
 # 3 · KENDİ TESTLERİ
 # ----------------------------------------------------------------------
+def _takim_kapsama(APP) -> None:
+    """Her takım, kendisini gösteren HER YERDE tanımlı mı?
+
+    ⚠️ Bu kontrol beş kez tekrarlanan bir hatanın üstüne yazıldı. Takım
+    üyeliği agents.PROFILES'tan türetiliyor ama onu TÜKETEN yerler kendi
+    listelerini tutuyordu ve yeni takım eklenince her seferinde biri
+    unutuldu:
+      1 app_v2.load_lig          → KIRMIZI | TURUNCU | TOTO | SISTEM
+      2 app_v2.TAKIM_TANIM       → sayfa başlığı/renk (KeyError'la düştü)
+      3 app_v2.TAKIM_SIRA        → ajan dosyası ajanı BULAMADI, kullanıcı
+                                   ajanın sayfasına gidemiyordu
+      4 vibe_studyo.KAPSAM       → kendi testi yakaladı
+      5 app_v2 kasa döngüsü      → ajan listede hiç görünmüyordu
+    Üçü koddan kaldırıldı (artık türetiliyor), ikisi insan okunur metin
+    tuttuğu için elle kalıyor — ama artık SESSİZ kalmıyorlar.
+    """
+    try:
+        import agents as A
+        takimlar = {p.get("takim", "mavi") for p in A.PROFILES.values()}
+    except Exception as e:
+        _ekle("2 SAYFA", "takım kapsaması", KALDI, _kisa(e))
+        return
+    for ad, kaynak in (
+            ("TAKIM_SIRA", set(getattr(APP, "TAKIM_SIRA", ()))),
+            ("TAKIM_TANIM", set(getattr(APP, "TAKIM_TANIM", {}))),
+    ):
+        eksik = sorted(takimlar - kaynak)
+        if eksik:
+            _ekle("2 SAYFA", f"takım kapsaması · {ad}", KALDI,
+                  f"PROFILES'ta olup {ad}'da olmayan: {', '.join(eksik)}")
+        else:
+            _ekle("2 SAYFA", f"takım kapsaması · {ad}", GECTI,
+                  f"{len(takimlar)} takım")
+    try:
+        lig = APP.load_lig()
+        eksik = sorted(takimlar - set(lig))
+        if eksik:
+            _ekle("2 SAYFA", "takım kapsaması · load_lig", KALDI,
+                  f"grup döndürmeyen takım: {', '.join(eksik)}")
+        else:
+            _ekle("2 SAYFA", "takım kapsaması · load_lig", GECTI,
+                  f"{len(lig)} grup")
+    except Exception as e:
+        _ekle("2 SAYFA", "takım kapsaması · load_lig", KALDI, _kisa(e))
+
+
 def asama_kendi_testi() -> None:
     import importlib
     # ⚠️ Yeni modülün kendi testi buraya YAZILMAZSA denetimden geçmiş
