@@ -48,6 +48,14 @@ def _uretim_korumasi() -> None:
 # Başlangıç kadrosu: bültende sık geçen ve kimliğini doğrulayabildiğimiz
 # ligler. Genişletmeden önce doluluk raporuna bakılmalı — kapsam iddiası
 # değil, ÖLÇÜLEN doluluk karar versin.
+#
+# ⚠️ ÜCRETSİZ PLAN BU LİSTEYİ ÇALIŞTIRAMAZ — ölçüldü (08.11.2026):
+#     "Free plans do not have access to this season, try from 2022 to 2024."
+# Bizim maçlarımızın TAMAMI 2026 (13.08 – 03.11, 10.586 maç); 2022-2024'te
+# tek maçımız yok ve fiyat geçmişimiz de 02.10.2026'da başlıyor. Yani
+# ücretsiz planla örtüşme SIFIR: ne sonuçlandırma, ne geri test.
+# Güncel sezon için ücretli plan gerekiyor (ya da sezon sınırı olmayan
+# başka bir sağlayıcı). O gelene kadar SWAT ajanları MEŞRU PAS geçer.
 LIGLER = [
     (203, 2026, "Türkiye Süper Lig"),
     (204, 2026, "Türkiye 1. Lig"),

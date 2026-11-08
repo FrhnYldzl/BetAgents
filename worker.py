@@ -389,6 +389,10 @@ def main():
 
     job_auto_settle()
     job_kupon_orkestra()
+    # 🔫 SWAT açılışta da bir kez: yeni anahtar/lig yapılandırması
+    # deploy edilince sonucu 12 saat beklemeden görülsün. Ucuz (5 istek)
+    # ve kaynak kapalıysa yalnız hata yazıp geçer.
+    job_swat()
     job_fetch_program()
 
     sched = BlockingScheduler(timezone="UTC")

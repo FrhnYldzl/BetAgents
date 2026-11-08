@@ -4181,10 +4181,71 @@ def page_sari_takim() -> None:
     _takim_sayfasi("sari")
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_swat_durum() -> dict:
+    """SWAT veri hattı ayakta mı — sayfa KENDİ söylesin.
+
+    ⚠️ Neden sayfada: bu hat dış bir sağlayıcıya bağlı ve sağlayıcı
+    sessizce düşebiliyor (hesap askıya alındı, anahtar resetlendi,
+    kota doldu). Ajanlar o durumda MEŞRU PAS geçiyor — yani ekranda
+    "0 bahis" görünüyor ve bu, ajanın kötü olmasıyla KARIŞABİLİR.
+    Sayfa farkı yazmazsa, çalışmayan bir hat 'başarısız ajan' sanılır.
+    """
+    try:
+        import swat_db as _sw
+        return {"doluluk": _sw.doluluk(), "hata": None}
+    except Exception as e:
+        return {"doluluk": [], "hata": f"{type(e).__name__}: {e}"}
+
+
 def page_swat() -> None:
     """🔫 SWAT — ilk yarı pazarları. Veri hattı izole (12_SWAT), diğer
     takımlar ilk yarı skorunu görmez."""
     _takim_sayfasi("swat")
+    d = load_swat_durum()
+    sat = d.get("doluluk") or []
+    oyn = [x for x in sat if x.get("oynanabilir")]
+    if not sat:
+        st.markdown(
+            "<div class='v2card'><div class='v2head'><h2>Veri hattı</h2>"
+            "<div class='hint'>henüz veri yok</div></div><div class='v2body'>"
+            "<div class='dq'><b>SWAT veri hattı boş — ajanlar bu yüzden "
+            "oynamıyor.</b> Bu bir ajan başarısızlığı DEĞİL; kaynak "
+            "bağlanmadan SWAT bilerek pas geçer, çünkü ilk yarı skoru "
+            "olmadan bahis sonuçlanamaz ve ölçülemeyen bahis ajanı "
+            "ölçülemez kılar.</div>"
+            "<div class='vd' style='margin-top:var(--s3);'>"
+            "<b>Ne gerekiyor</b><br>"
+            "1 · <code>API_FOOTBALL_KEY</code> hem yerel <code>.env</code>'de "
+            "hem Railway değişkenlerinde güncel olmalı<br>"
+            "2 · Worker'ın SWAT işi (05:30 ve 17:30 UTC, bir de her "
+            "açılışta) lig-sezon başına tek çağrıyla fikstürü çeker<br>"
+            "3 · Bir lig oynanabilir sayılmak için en az <b>30 bitmiş "
+            "maç</b> ve <b>%90 ilk yarı doluluğu</b> göstermeli — "
+            "sağlayıcının kapsam iddiası değil, bizim ölçümümüz karar "
+            "verir</div></div></div>", unsafe_allow_html=True)
+        return
+    gov = ("<table class='v2tbl'><thead><tr><th>lig</th><th>bitmiş maç</th>"
+           "<th>İLK YARI</th><th>şut</th><th>korner</th><th>durum</th>"
+           "</tr></thead><tbody>")
+    for x in sat:
+        ok = x.get("oynanabilir")
+        gov += ("<tr><td>" + str(x.get("lig")) + "</td><td>" + str(x["n"]) +
+                "</td><td>" + _pct(x.get("iy_ev", 0)) + "</td><td>" +
+                _pct(x.get("sut_ev", 0)) + "</td><td>" +
+                _pct(x.get("korner_ev", 0)) + "</td><td class='" +
+                ("ps" if ok else "ng") + "'>" +
+                ("oynanabilir" if ok else "kapalı") + "</td></tr>")
+    gov += "</tbody></table>"
+    st.markdown(
+        "<div class='v2card'><div class='v2head'><h2>Veri hattı</h2>"
+        "<div class='hint'>" + str(len(oyn)) + "/" + str(len(sat)) +
+        " lig oynanabilir</div></div><div class='v2body'>" + gov +
+        "<div class='sb' style='margin-top:var(--s3);'>Doluluk yalnız "
+        "BİTMİŞ maçlar üzerinden ölçülür; oynanmamış fikstür oranı "
+        "düşürmez. Bir lig eşiği geçmiyorsa SWAT orada oynamaz — eksik "
+        "veriyle ölçülen ajan, ölçülmemiş ajandan daha yanıltıcıdır."
+        "</div></div></div>", unsafe_allow_html=True)
 
 
 def page_yesil_takim() -> None:
