@@ -66,9 +66,30 @@ def _anahtar() -> str:
     return ""
 
 
+# ⚠️ HIZ SINIRI — ÖĞRENİLMİŞ DERS (08.11.2026)
+# Tarihsel çekimi 0,4 sn aralıkla koşturdum; ücretsiz planın dakika
+# limitini aştım, ~34 istek HTTPError döndü ve API-Football hesabı
+# ASKIYA ALDI ("Abuse or suspicious activity → temporary block").
+# Günlük kota (100) sorun değildi — sorun DAKİKA başına hızdı ve bu
+# sayı hiçbir yanıt başlığında gelmiyor. O yüzden sınır burada, her
+# çağrının geçtiği tek noktada zorlanıyor; tek seferlik betiğe
+# bırakılamaz, çünkü bir dahaki betik yine unutur.
+ASGARI_ARALIK_SN = 7.0      # ~8 istek/dk — ücretsiz planın altında
+_SON_ISTEK: float = 0.0
+DURDURULDU: bool = False    # 429/askı görülürse bütün çağrılar durur
+
+
 def _iste(yol: str, par: dict) -> dict | None:
-    """Tek istek. Kota sayacını başlıktan OKUR, tahmin etmez."""
-    global KALAN, SON_HATA
+    """Tek istek. Kota sayacını başlıktan OKUR, hızı KENDİ sınırlar."""
+    global KALAN, SON_HATA, _SON_ISTEK, DURDURULDU
+    if DURDURULDU:
+        SON_HATA = "hız sınırı/askı nedeniyle durduruldu — süreç yeniden başlatılmalı"
+        return None
+    import time as _t
+    bekle = ASGARI_ARALIK_SN - (_t.time() - _SON_ISTEK)
+    if bekle > 0:
+        _t.sleep(bekle)
+    _SON_ISTEK = _t.time()
     k = _anahtar()
     if not k:
         SON_HATA = "API_FOOTBALL_KEY yok (.env ya da ortam değişkeni)"
@@ -87,6 +108,12 @@ def _iste(yol: str, par: dict) -> dict | None:
             d = json.loads(x.read())
     except urllib.error.HTTPError as e:
         SON_HATA = f"HTTP {e.code}"
+        # 429 = hız sınırı. DEVAM ETMEK hesabı askıya aldırır (yaşandı).
+        # Tek bir 429'da bütün çağrıları durdur; yavaşlayıp denemek değil,
+        # DURMAK doğrusu — sınırı zaten aşmışız demektir.
+        if e.code in (429, 403):
+            DURDURULDU = True
+            SON_HATA = f"HTTP {e.code} — hız sınırı, çağrılar DURDURULDU"
         return None
     except Exception as e:
         SON_HATA = f"{type(e).__name__}: {str(e)[:90]}"
@@ -97,6 +124,10 @@ def _iste(yol: str, par: dict) -> dict | None:
     hata = d.get("errors")
     if hata:
         SON_HATA = str(hata)[:160]
+        # Askı/erişim hatasında da dur: her yinelenen istek durumu
+        # kötüleştirir ve hiçbir şey kazandırmaz.
+        if isinstance(hata, dict) and ("access" in hata or "token" in hata):
+            DURDURULDU = True
         return None
     SON_HATA = ""
     return d

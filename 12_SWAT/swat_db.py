@@ -75,6 +75,8 @@ def kur(conn=None) -> None:
                 kaynak      TEXT,
                 kaynak_id   TEXT,
                 lig         TEXT,
+                lig_ad      TEXT,
+                ulke        TEXT,
                 sezon       TEXT,
                 ev          TEXT,
                 dep         TEXT,
@@ -93,6 +95,15 @@ def kur(conn=None) -> None:
                 topla_ev    REAL,    topla_dep    REAL,
                 cekim_ts    TEXT
             )""")
+        # ⚠️ ALTER'ler CREATE'den SONRA, tek tek, her biri kendi
+        # commit'iyle: PostgreSQL'de DDL işlemseldir ve "sütun zaten var"
+        # hatasında rollback, aynı işlemdeki CREATE'i de geri alır.
+        for sut, tip in (("lig_ad", "TEXT"), ("ulke", "TEXT")):
+            try:
+                conn.execute(f"ALTER TABLE swat_mac ADD COLUMN {sut} {tip}")
+                conn.commit()
+            except Exception:
+                conn.rollback()
         conn.execute("CREATE INDEX IF NOT EXISTS ix_swat_iddaa "
                      "ON swat_mac (iddaa_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS ix_swat_lig "
@@ -124,7 +135,8 @@ def kayit(tur: str, mesaj: str, conn=None) -> None:
 # ----------------------------------------------------------------------
 # YAZMA
 # ----------------------------------------------------------------------
-SUTUNLAR = ("mac_id", "iddaa_id", "kaynak", "kaynak_id", "lig", "sezon",
+SUTUNLAR = ("mac_id", "iddaa_id", "kaynak", "kaynak_id", "lig",
+            "lig_ad", "ulke", "sezon",
             "ev", "dep", "baslangic", "iy_ev", "iy_dep", "ms_ev", "ms_dep",
             "sut_ev", "sut_dep", "isabet_ev", "isabet_dep",
             "korner_ev", "korner_dep", "sari_ev", "sari_dep",
