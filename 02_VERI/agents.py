@@ -655,6 +655,79 @@ PROFILES: dict[str, dict] = {
         "sort": "score", "stop_pct": -0.99, "pas_tolerance_days": 14,
     },
 
+    # 🔫 SWAT TAKIMI — İLK YARI pazarları (kullanıcı kararı 08.11.2026)
+    # ══════════════════════════════════════════════════════════════
+    # Kullanıcı: "SoccersAPI dene ama karıştırma, diğer ajanlar veya
+    # modeller yeni bir TAKIM kur buna odaklansın."
+    #
+    # NEDEN İLK YARI — ölçüldü (01.11.2026, market_odds · 4.688 maç):
+    #     İY Maç Sonucu    %77,5 maçta açık   marj %16,6
+    #     İY Alt/Üst 1.5   %63,1              marj %16,4
+    #     İY Alt/Üst 0.5   %44,5              marj %15,8 ← ölçülen EN UCUZ
+    #     İY/MS            %22,2              marj %26,4 ← OYNANMAZ
+    # Fiyatlar zaten elimizde; eksik olan tek şey ilk yarı SKORU.
+    # Onu SWAT kendi hattından getiriyor (12_SWAT), matches_v2'ye yazmadan.
+    #
+    # ⚠️ NEDEN MODEL YOK: elimizde hiç ilk yarı geçmişi yok, dolayısıyla
+    # kalibre edilecek bir şey de yok. Model uydurmak yerine ilk iş
+    # ÖLÇMEK: ilk yarı pazarı kalibre mi, değilse hangi yöne sapıyor?
+    # KESKİN kısa tarafı, GÖLGE uzun tarafı oynar; ikisi de JOKER'e karşı
+    # ölçülür. Üçü birlikte tek soruyu cevaplar. Model ancak bu ölçümden
+    # sonra kurulabilir — bu projede ters sıra üç kez hataya yol açtı.
+    "KESKIN_V1": {
+        "name": "KESKİN (İY Alt/Üst · KISA taraf)",
+        "takim": "swat", "mode": "swat", "model": "SWAT-ILKYARI",
+        "swat_pazar": ("HT_OU0.5", "HT_OU1.5"), "swat_taraf": "kisa",
+        "hipotez":
+            "İlk yarı Alt/Üst pazarında piyasanın FAVORİ gördüğü tarafı "
+            "oyna. Kenar iddiası YOK: bu bir ölçüm ajanı. Kısa taraf "
+            "sistematik olarak marjdan daha az kaybediyorsa ilk yarı "
+            "pazarı favori lehine yanlı demektir; daha çok kaybediyorsa "
+            "tersi. İkisi de bilgi.",
+        "emeklilik":
+            "60 bahis sonra: GÖLGE ve SWAT JOKER ile arasında ölçülebilir "
+            "fark yoksa üç ajan tek ajandır, ikisi kapanır.",
+        "markets": {"IY_ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 12, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "GOLGE_V1": {
+        "name": "GÖLGE (İY Alt/Üst · UZUN taraf)",
+        "takim": "swat", "mode": "swat", "model": "SWAT-ILKYARI",
+        "swat_pazar": ("HT_OU0.5", "HT_OU1.5"), "swat_taraf": "uzun",
+        "hipotez":
+            "KESKİN'in tam karşı tarafı. Aynı maç, aynı pazar, zıt seçim. "
+            "Bu çift bilerek kuruldu: ikisinin getirisi arasındaki fark, "
+            "ilk yarı pazarının yanlılığının DOĞRUDAN ölçüsüdür ve "
+            "marjdan arındırılmış olarak okunabilir.",
+        "emeklilik":
+            "60 bahis sonra: KESKİN ile arasında fark yoksa pazar "
+            "kalibredir ve iki ajan da kapanır.",
+        "markets": {"IY_ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 12, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+    "SWAT_JOKER_V1": {
+        "name": "SWAT JOKER (İY · RASTGELE kontrol)",
+        "takim": "swat", "mode": "swat", "model": "KONTROL",
+        "swat_pazar": ("HT_OU0.5", "HT_OU1.5"), "swat_taraf": "rastgele",
+        "hipotez":
+            "Ajan DEĞİL, TABAN ÇİZGİSİ. Aynı havuzdan rastgele seçer. "
+            "Her takımın KENDİ kontrolü olmalı: JOKER'i başka pazardan "
+            "ödünç almak farklı marjları karşılaştırmak olurdu ve ilk "
+            "yarı pazarının marjı (%15,8-16,4) maç sonundan farklı.",
+        "emeklilik": "Kontrol çizgisi emekli edilmez.",
+        "markets": {"IY_ALT_UST"}, "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.10, "max_odds": 6.00,
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 12, "max_tek": 3,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+    },
+
     # 🟡 SARI TAKIM — ÇİFTE ŞANS (kullanıcı kararı 01.11.2026)
     # ══════════════════════════════════════════════════════════════
     # Kullanıcı: "Elimizdeki ajanlara değil farklı bir pazar kuralım,
@@ -2013,6 +2086,13 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # takımlar gibi oynasın".
     # 🟡🟢 PAZAR modu: SARI (Çifte Şans) ve YEŞİL (ucuz A/Ü çizgisi).
     # Montaj diğer takımlarla AYNI — ayrı bir kupon mantığı yok.
+    # 🔫 SWAT modu: ilk yarı pazarları, izole veri hattı (12_SWAT).
+    if mode == "swat":
+        picks = _swat_adaylari(prof, tag)
+        picks = _lock_open(picks, open_matches, open_keys, tag)
+        picks.sort(key=_sort_key(prof), reverse=True)
+        return _assemble_coupons(prof, bankroll, picks, unit)
+
     if mode == "pazar":
         picks = _pazar_adaylari(prof, tag)
         picks = _lock_open(picks, open_matches, open_keys, tag)
@@ -2273,6 +2353,143 @@ def _pazar_adaylari(prof: dict, tag: str) -> list[dict]:
         })
     print(f"{tag} 🟡 pazar defteri ({kod}) aday: {len(picks)}"
           + (f" · {eksik} maç matches_v2'de yok" if eksik else ""))
+    return picks
+
+
+# ─────────────────────────────────────────────────────────────
+# 🔫 SWAT MODU — İLK YARI pazarları, izole veri hattından
+# ─────────────────────────────────────────────────────────────
+# Fiyat: market_odds (pazar defteri, iddaa).
+# İlk yarı skoru: 12_SWAT/swat_mac — AYRI tablo, matches_v2'ye yazılmaz.
+#
+# ⚠️ İKİ KAPI, ikisi de kapalıyken ajan HİÇ oynamaz:
+#   1) Maç swat_mac'te olmalı → yani kapsadığımız bir lig-sezonda.
+#      Lig koduna GÜVENİLMİYOR (matches_v2.league_code %94 'ALL'/boş);
+#      SWAT'ın evreni "çektiğimiz lig-sezonun fikstürü" olarak tanımlı.
+#   2) O ligin ilk yarı DOLULUĞU ölçülmüş ve eşiği geçmiş olmalı.
+#      Sağlayıcının "bu ligi kapsıyoruz" demesi yetmez — kapsam bir şema
+#      iddiasıdır, veri iddiası değil.
+# Veri yoksa aday yok, bahis yok, sahte ölçüm yok.
+_SWAT_ESLEME = {
+    "HT_OU0.5": {"Alt": ("IY_ALT_UST", "ALT 0.5"),
+                 "Üst": ("IY_ALT_UST", "ÜST 0.5")},
+    "HT_OU1.5": {"Alt": ("IY_ALT_UST", "ALT 1.5"),
+                 "Üst": ("IY_ALT_UST", "ÜST 1.5")},
+    "HT_1X2": {"1": ("IY_1X2", "1"), "0": ("IY_1X2", "0"),
+               "2": ("IY_1X2", "2")},
+}
+
+
+def _swat_kapi(conn):
+    """(kapsanan mac_id kümesi, oynanabilir lig kümesi) — ikisi de gerekli."""
+    try:
+        import sys as _s
+        from pathlib import Path as _P
+        _d = str(_P(__file__).resolve().parent.parent / "12_SWAT")
+        if _d not in _s.path:
+            _s.path.insert(0, _d)
+        import swat_db as _sw
+    except Exception:
+        return {}, set()
+    try:
+        ligler = _sw.oynanabilir_ligler(conn)
+        if not ligler:
+            return {}, set()
+        q = ",".join("?" * len(ligler))
+        r = conn.execute(
+            f"SELECT mac_id, lig FROM swat_mac WHERE lig IN ({q})",
+            tuple(ligler)).fetchall()
+        return {str(a): str(b) for a, b in r}, ligler
+    except Exception:
+        return {}, set()
+
+
+def _swat_adaylari(prof: dict, tag: str) -> list[dict]:
+    """İlk yarı pazarlarından aday üret — SWAT."""
+    import random as _rnd
+    from datetime import datetime as _dt, timezone as _tz
+    pazarlar = tuple(prof.get("swat_pazar") or ())
+    taraf = str(prof.get("swat_taraf") or "rastgele")
+    if not pazarlar:
+        print(f"{tag} 🔴 TIKANIKLIK swat_pazar tanımsız")
+        return []
+    simdi = _dt.now(_tz.utc).isoformat()
+    conn = db.connect()
+    try:
+        kapsam, ligler = _swat_kapi(conn)
+        if not kapsam:
+            print(f"{tag} ⚪ MEŞRU PAS ilk yarı verisi olan lig yok — "
+                  f"SWAT veri hattı henüz dolmamış (12_SWAT)")
+            return []
+        q = ",".join("?" * len(pazarlar))
+        r = conn.execute(
+            "SELECT mo.iddaa_event_id, mo.market, mo.selection, mo.odd "
+            "FROM market_odds mo JOIN matches_v2 mv "
+            "  ON CAST(mv.external_id_iddaa AS TEXT) "
+            "   = CAST(mo.iddaa_event_id AS TEXT) "
+            f"WHERE mo.market IN ({q}) AND mo.odd > 1.01 "
+            "  AND COALESCE(mv.is_settled,0) = 0 AND mv.kickoff_utc > ? "
+            "ORDER BY mo.ts", tuple(pazarlar) + (simdi,)).fetchall()
+        if not r:
+            print(f"{tag} ⚪ MEŞRU PAS pazar defterinde açık ilk yarı "
+                  f"fiyatı yok")
+            return []
+        son = {}
+        for ev, mkt, sec, odd in r:
+            son.setdefault((str(ev), str(mkt)), {})[str(sec)] = float(odd)
+        ids = sorted({a for a, _ in son})
+        maclar = {}
+        for i in range(0, len(ids), 400):
+            parca = ids[i:i + 400]
+            qq = ("SELECT * FROM matches_v2 WHERE COALESCE(is_settled,0)=0 "
+                  "AND CAST(external_id_iddaa AS TEXT) IN ("
+                  + ",".join("?" * len(parca)) + ")")
+            for mr in conn.execute(qq, tuple(parca)).fetchall():
+                m = dict(mr)
+                maclar[str(m.get("external_id_iddaa"))] = m
+    finally:
+        conn.close()
+
+    picks, kapsam_disi = [], 0
+    for (ev, mkt), secimler in son.items():
+        m = maclar.get(ev)
+        if not m:
+            continue
+        if str(m.get("match_id")) not in kapsam:
+            kapsam_disi += 1
+            continue
+        esle = _SWAT_ESLEME.get(mkt) or {}
+        toplam = sum(1.0 / o for o in secimler.values())
+        if toplam <= 0:
+            continue
+        aday = []
+        for sec, o in secimler.items():
+            if sec not in esle:
+                continue
+            if not (prof["min_odds"] <= o <= prof.get("max_odds", 99)):
+                continue
+            mk, pk = esle[sec]
+            aday.append({"market": mk, "pick": pk, "odds": o,
+                         "model_prob": (1.0 / o) / toplam})
+        if len(aday) < 2:
+            continue      # tek taraflı fiyat marjsızlaştırılamaz
+        if taraf == "kisa":
+            s_ = min(aday, key=lambda x: x["odds"])
+        elif taraf == "uzun":
+            s_ = max(aday, key=lambda x: x["odds"])
+        else:
+            s_ = _rnd.choice(aday)
+        picks.append({
+            "market": s_["market"], "pick": s_["pick"], "odds": s_["odds"],
+            "implied_prob": 1.0 / s_["odds"], "model_prob": s_["model_prob"],
+            # Kenar iddiası YOK — bu ölçüm ajanı. 0 yazmak dürüst olanı;
+            # uydurma bir kenar yazmak sıralamayı da karneyi de bozardı.
+            "edge": 0.0, "signal_name": f"SWAT-{taraf.upper()}",
+            "signal_score": s_["model_prob"], "_match": m,
+        })
+    print(f"{tag} 🔫 SWAT ({'+'.join(pazarlar)}) aday: {len(picks)}"
+          + (f" · {kapsam_disi} maç kapsam dışı" if kapsam_disi else "")
+          + f" · oynanabilir lig: {len(ligler)}")
     return picks
 
 

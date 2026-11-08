@@ -3595,8 +3595,31 @@ TAKIM_TANIM = {
              "alt": "Çifte Şans · pazar defteri · keşif", "renk": "#b8860b"},
     "yesil": {"ad": "Yeşil Takım",
               "alt": "ucuz çizgi (A/Ü 1.5 · 3.5) · keşif", "renk": "#2e8b57"},
+    "swat": {"ad": "SWAT", "alt": "ilk yarı pazarları · izole veri hattı",
+             "renk": "#1f2937"},
 }
 TAKIM_NOTU = {
+    "swat": (
+        "<div class='dq'><b>SWAT keşif statüsünde ve AYRI bir veri "
+        "hattından besleniyor.</b> Diğer takımlar ilk yarı skorunu "
+        "görmez: veri <code>12_SWAT/swat_mac</code> tablosunda durur, "
+        "<code>matches_v2</code>'ye yazılmaz. Böylece SWAT'ın ölçümü "
+        "diğer takımlarınkiyle karışmaz.<br>"
+        "<b>Neden ilk yarı:</b> ölçüldü — İY Maç Sonucu maçların "
+        "%77,5'inde açık (marj %16,6), İY Alt/Üst 1.5 %63,1 (%16,4), "
+        "İY Alt/Üst 0.5 %44,5 ve <b>%15,8 marjla ölçtüğümüz en ucuz "
+        "pazar</b>. Fiyatlar zaten pazar defterinde; eksik olan tek şey "
+        "ilk yarı skoruydu. İY/MS (%26,4 marj) bilerek dışarıda.<br>"
+        "<b>Neden model yok:</b> elimizde hiç ilk yarı geçmişi yok, "
+        "kalibre edilecek bir şey de yok. İlk iş ölçmek: KESKİN kısa "
+        "tarafı, GÖLGE uzun tarafı oynar, SWAT JOKER rastgele seçer. "
+        "İkisinin getirisi arasındaki fark, ilk yarı pazarının "
+        "yanlılığının doğrudan ölçüsüdür. Model ancak bu ölçümden sonra "
+        "kurulur.<br>"
+        "<b>İki kapı:</b> maç kapsadığımız bir lig-sezonda olmalı ve o "
+        "ligin ilk yarı doluluğu ölçülüp eşiği geçmiş olmalı. Sağlayıcının "
+        "'bu ligi kapsıyoruz' demesi yetmez — kapsam bir şema iddiasıdır, "
+        "veri iddiası değil. Veri yoksa aday yok, bahis yok.</div>"),
     "sari": (
         "<div class='dq'><b>Sarı takım keşif statüsünde.</b> Seçim ölçütü "
         "model değil <b>aritmetik</b>: «1 veya 2»ye oynamak, 1 ve 2'ye "
@@ -4156,6 +4179,12 @@ def page_sari_takim() -> None:
     Seçim ölçütü model değil ARİTMETİK: Çifte Şans mı, aynı maçın 1X2
     ikilisi mi daha iyi ödüyor?"""
     _takim_sayfasi("sari")
+
+
+def page_swat() -> None:
+    """🔫 SWAT — ilk yarı pazarları. Veri hattı izole (12_SWAT), diğer
+    takımlar ilk yarı skorunu görmez."""
+    _takim_sayfasi("swat")
 
 
 def page_yesil_takim() -> None:
@@ -5383,6 +5412,10 @@ SAYFA_TANIM = [
          "sari-takim", "Çifte Şans, 1X2 ikilisinden ucuz mu?"),
         ("Yeşil Takım", page_yesil_takim, ":material/trending_down:",
          "yesil-takim", "Ucuz pazar daha iyi getiri veriyor mu?"),
+        # 🔫 SWAT — kullanıcı şartı: diğer takımların arasında dursun ama
+        # verisi karışmasın.
+        ("SWAT", page_swat, ":material/schedule:", "swat",
+         "İlk yarı pazarı kalibre mi?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
     ("PORTFÖY", [

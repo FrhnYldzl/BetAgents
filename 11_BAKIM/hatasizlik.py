@@ -34,10 +34,15 @@ import traceback
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parent.parent
-for alt in ("02_VERI", "08_AI_TRADER", "09_TOTO", "10_CANLI", "11_BAKIM"):
-    p = str(KOK / alt)
-    if p not in sys.path:
-        sys.path.append(p)
+# ⚠️ ELLE SAYILMAZ. Bu liste sabitti ("02_VERI", "08_AI_TRADER", …) ve
+# 12_SWAT eklenince denetim onun modüllerini içe aktaramadı — hem modül
+# hem kendi-testi aşaması ModuleNotFoundError verdi. Numaralı klasörler
+# dosya sisteminden okunur; bir sonraki klasör kendiliğinden gelir.
+for _d in sorted(KOK.iterdir()):
+    if _d.is_dir() and _d.name[:2].isdigit():
+        p = str(_d)
+        if p not in sys.path:
+            sys.path.append(p)
 
 GECTI, KALDI, ATLANDI = "GEÇTİ", "KALDI", "atlandı"
 _sonuc: list[tuple[str, str, str, str]] = []     # (aşama, ad, durum, not)
@@ -107,6 +112,7 @@ MODULLER = [
                  "geri_test", "canli", "sportoto", "kadro", "vibe_db"]),
     ("10_CANLI", ["canli_db", "canli_kaynak", "canli_model"]),
     ("11_BAKIM", ["bakim_kontrol"]),
+    ("12_SWAT", ["swat_db", "swat_kaynak"]),
 ]
 
 
@@ -196,7 +202,7 @@ def asama_kendi_testi() -> None:
     # sayılır ama hiç koşmaz — sessiz bir boşluk. Liste elle tutuluyor.
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
                "kasa", "vibe_studyo", "canli_db", "paper_engine",
-               "agents"):
+               "agents", "swat_db", "swat_kaynak"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:
@@ -253,7 +259,9 @@ def asama_uretec() -> None:
         # DÜŞMEZ. Düşüyordu: 'toto' modu motor üretecine gidip 65 aday
         # raporladı (gerçek Toto üreteci 3 veriyor) — yani o satır Toto'yu hiç
         # sınamadan YEŞİL yazdı. Denetimin yanlış yeşili, kırmızısından beterdir.
-        if mode == "pazar":
+        if mode == "swat":
+            fn, args = A._swat_adaylari, (p, pid)
+        elif mode == "pazar":
             fn, args = A._pazar_adaylari, (p, pid)
         elif mode == "toto":
             fn, args = A._toto_adaylari, (p, pid)

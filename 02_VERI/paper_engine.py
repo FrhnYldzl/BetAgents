@@ -121,6 +121,17 @@ def _cs(pick) -> set | None:
     return _CS_HARITA.get(p)
 
 
+def _cs_tek(pick) -> str:
+    """Tek sonuçlu pick'i kanonik hâle getir: 1 · 0 · 2.
+
+    Beraberlik proje genelinde "0"; eski kayıtlarda ve bazı pazar
+    etiketlerinde "X" geçiyor. Bu dönüşüm bir kez atlandığında
+    surekli_puan'da BÜTÜN beraberlikler kayıp sayılmıştı.
+    """
+    p = str(pick or "").strip().upper()
+    return "0" if p == "X" else p
+
+
 def _handikap(pick):
     """'1(-1)' → (-1.0, '1'). Handikap EV SAHİBİNE uygulanır."""
     import re as _re
@@ -1168,6 +1179,24 @@ class PaperEngine:
                         all_settled = False
                         break
 
+                    # ── SWAT · İLK/İKİNCİ YARI ─────────────────────────
+                    # Bu pazarlar matches_v2'nin bilmediği bir sayıya
+                    # ihtiyaç duyar: ilk yarı skoru. SWAT'ın kendi
+                    # tablosundan (swat_mac) okunur; matches_v2'ye
+                    # YAZILMAZ, böylece diğer takımların ölçümü SWAT
+                    # verisiyle karışmaz (kullanıcı şartı 08.11.2026).
+                    #
+                    # ⚠️ Skor yoksa bahis AÇIK KALIR — "void" DEĞİL.
+                    # Void "sonuç belli oldu, iade" demektir; burada ise
+                    # sonuç henüz bilinmiyor. İkisini karıştırmak kuponu
+                    # haksız yere kapatır ve karneyi sessizce bozar.
+                    _mkt = str(bet.get("market") or "")
+                    if _mkt.startswith(("IY_", "Y2_")):
+                        _iy = self._ilk_yari(mid)
+                        if _iy is None:
+                            all_settled = False
+                            break
+                        bet = {**bet, "iy_ev": _iy[0], "iy_dep": _iy[1]}
                     outcome = self._determine_outcome(bet, hs, as_)
                     bet_results.append({
                         "bet": bet,
@@ -1342,6 +1371,25 @@ class PaperEngine:
             "pnl": round(total_pnl, 2),
         }
 
+    @staticmethod
+    def _ilk_yari(match_id):
+        """SWAT'ın ilk yarı skoru — (ev, dep) ya da None.
+
+        SWAT kurulu değilse (modül yok, tablo yok) None döner ve IY_*
+        bahisleri açık kalır. Sessiz yanlış sonuçlandırmaktansa hiç
+        sonuçlandırmamak doğrudur.
+        """
+        try:
+            import sys as _s
+            from pathlib import Path as _P
+            _d = str(_P(__file__).resolve().parent.parent / "12_SWAT")
+            if _d not in _s.path:
+                _s.path.insert(0, _d)
+            import swat_db as _sw
+            return _sw.ilk_yari(match_id)
+        except Exception:
+            return None
+
     def _determine_outcome(self, bet: dict, home_score: int, away_score: int) -> str:
         """Bir bet icin sonucu hesapla: won / lost / void."""
         market = bet.get("market", "")
@@ -1460,6 +1508,58 @@ class PaperEngine:
             e = home_score + h
             r = "1" if e > away_score else ("0" if e == away_score else "2")
             return "won" if taraf == r else "lost"
+
+        # ── SWAT · İLK YARI ve İKİNCİ YARI ────────────────────────────
+        # Buraya gelindiyse settle_coupons ilk yarı skorunu bet'e koydu;
+        # koyamadıysa zaten bahsi açık bırakıp hiç çağırmadı.
+        if market.startswith(("IY_", "Y2_")):
+            iy_e, iy_d = bet.get("iy_ev"), bet.get("iy_dep")
+            if iy_e is None or iy_d is None:
+                return "void"          # buraya normalde hiç gelinmez
+            iy_e, iy_d = int(iy_e), int(iy_d)
+            if market.startswith("IY_"):
+                e, d = iy_e, iy_d
+            else:
+                # İkinci yarı = maç sonu − ilk yarı. Tek bir alan
+                # (ilk yarı skoru) iki yarıyı birden açıyor.
+                e, d = home_score - iy_e, away_score - iy_d
+                if e < 0 or d < 0:
+                    return "void"      # tutarsız veri; sessizce sayma
+            y_top = e + d
+            y_res = "1" if e > d else ("0" if e == d else "2")
+            kok = market.split("_", 1)[1]
+            if kok == "1X2":
+                return "won" if _cs_tek(pick) == y_res else "lost"
+            if kok == "CIFTE_SANS":
+                k = _cs(pick)
+                return "void" if k is None else (
+                    "won" if y_res in k else "lost")
+            if kok == "KG":
+                var = e > 0 and d > 0
+                p = str(pick or "").strip().upper()
+                if p == "VAR":
+                    return "won" if var else "lost"
+                if p == "YOK":
+                    return "won" if not var else "lost"
+                return "void"
+            if kok == "ALT_UST":
+                yon, cizgi = _cizgi(pick)
+                if yon is None or cizgi is None:
+                    return "void"
+                if y_top == cizgi:
+                    return "void"
+                return "won" if ((y_top > cizgi) == (yon == "UST")) else "lost"
+            if kok == "MS":
+                # "1/1" · "0/2" — ilk yarı / maç sonu
+                p = str(pick or "").strip().upper().replace(" ", "")
+                p = p.replace("X", "0")
+                if "/" not in p:
+                    return "void"
+                a, b = p.split("/", 1)
+                ms_res = ("1" if home_score > away_score
+                          else ("0" if home_score == away_score else "2"))
+                return "won" if (a == y_res and b == ms_res) else "lost"
+            return "void"
 
         if market in ("EV_ALT_UST", "DEP_ALT_UST", "ALT_UST"):
             # Çizgi pick içinde: "ALT 3.5" · "ÜST 1.5"
@@ -1813,6 +1913,37 @@ def kendi_testi() -> list[str]:
         # Tam çizgi (iddaa'da .0) → İADE, kayıp değil
         ("ALT_UST", "ALT 3", 2, 1, "void"), ("ALT_UST", "ÜST 3", 2, 1, "void"),
     ]
+    # SWAT · İLK/İKİNCİ YARI — bet'e iy_ev/iy_dep konmuş varsayılır
+    # (settle_coupons koyamazsa bahsi hiç kapatmaz, buraya gelinmez).
+    # Senaryo: maç 3-1 bitti, ilk yarı 1-1 → ikinci yarı 2-0.
+    IY = [
+        ("IY_1X2", "0", "won"), ("IY_1X2", "X", "won"),
+        ("IY_1X2", "1", "lost"), ("IY_1X2", "2", "lost"),
+        ("IY_CIFTE_SANS", "1X", "won"), ("IY_CIFTE_SANS", "12", "lost"),
+        ("IY_KG", "VAR", "won"), ("IY_KG", "YOK", "lost"),
+        ("IY_ALT_UST", "ÜST 1.5", "won"), ("IY_ALT_UST", "ALT 1.5", "lost"),
+        ("IY_ALT_UST", "ÜST 0.5", "won"),
+        ("IY_ALT_UST", "ALT 2", "void"),          # tam çizgi → iade
+        ("IY_MS", "0/1", "won"), ("IY_MS", "X/1", "won"),
+        ("IY_MS", "1/1", "lost"), ("IY_MS", "0/0", "lost"),
+        # İkinci yarı 2-0
+        ("Y2_1X2", "1", "won"), ("Y2_1X2", "0", "lost"),
+        ("Y2_KG", "YOK", "won"), ("Y2_KG", "VAR", "lost"),
+        ("Y2_ALT_UST", "ÜST 1.5", "won"), ("Y2_ALT_UST", "ALT 1.5", "lost"),
+        ("Y2_CIFTE_SANS", "12", "won"), ("Y2_CIFTE_SANS", "X2", "lost"),
+    ]
+    for pazar, pick, bek in IY:
+        g = _o(None, {"market": pazar, "pick": pick, "iy_ev": 1, "iy_dep": 1},
+               3, 1)
+        if g != bek:
+            hata.append(f"{pazar} {pick} (MS 3-1, İY 1-1): {g} ≠ {bek}")
+    # İlk yarı skoru YOKSA buraya hiç gelinmemeli; gelirse void
+    if _o(None, {"market": "IY_1X2", "pick": "1"}, 3, 1) != "void":
+        hata.append("ilk yarı skoru olmadan sonuç üretildi")
+    # Tutarsız veri: ilk yarı maç sonundan büyük → ikinci yarı eksi
+    if _o(None, {"market": "Y2_1X2", "pick": "1", "iy_ev": 5, "iy_dep": 0},
+          1, 0) != "void":
+        hata.append("tutarsız ilk yarı skoru sessizce sayıldı")
     for pazar, pick, ev, dep, bek in D:
         g = _o(None, {"market": pazar, "pick": pick}, ev, dep)
         if g != bek:

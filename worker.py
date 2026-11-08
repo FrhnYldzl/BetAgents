@@ -168,6 +168,34 @@ def job_kapanis():
         print(f"[{_ts()}] KAPANIŞ HATA: {type(e).__name__}: {e}")
 
 
+def job_swat():
+    """🔫 SWAT veri hattı — ilk yarı skorlarını çek, eşleştir, yaz.
+
+    Ucuz: lig-sezon başına TEK çağrı (yapılandırılmış 5 lig = 5 istek).
+    Maç istatistiği (maç başına bir çağrı) BİLEREK yok — ücretsiz katman
+    günde 100 istek ve 10.000 maçlık geçmiş 100 gün sürerdi.
+
+    ⚠️ Kaynak kapalıysa (anahtar yok/askıda) hata yazar ve geçer. SWAT
+    ajanları o durumda MEŞRU PAS geçer; sahte ölçüm üretmezler.
+    """
+    print(f"[{_ts()}] >>> SWAT veri hattı tetiklendi")
+    try:
+        import os as _os
+        import sys as _sys
+        _d = _os.path.join(str(THIS_DIR), "12_SWAT")
+        if _d not in _sys.path:
+            _sys.path.append(_d)
+        import swat_cek
+        r = swat_cek.calistir()
+        print(f"[{_ts()}] SWAT: çekilen {r['cekilen']} · yazılan "
+              f"{r['yazilan']} · kota kalan {r.get('kota_kalan')}", flush=True)
+        if r.get("hata"):
+            print(f"[{_ts()}] SWAT UYARI: {' | '.join(r['hata'])[:200]}",
+                  flush=True)
+    except Exception as e:
+        print(f"[{_ts()}] SWAT HATA: {type(e).__name__}: {e}", flush=True)
+
+
 def job_kupon_orkestra():
     """🎟️ KUPONLAR FERHAN — saat başı kupon üret, deftere yaz, sonuçları kapat.
 
@@ -370,6 +398,11 @@ def main():
                   id="auto_settle", misfire_grace_time=900, coalesce=True)
     # 🎟️ Kupon orkestratörü — saat başı. Ucuz: yalnız açık pozisyonları
     # okur, API çağırmaz.
+    # 🔫 SWAT veri hattı — günde iki kez yeter: ilk yarı skoru maç
+    # bitince sabitlenir, acele etmeye gerek yok. 5 lig = 5 istek.
+    sched.add_job(job_swat, "cron", hour="5,17", minute=30,
+                  id="swat", misfire_grace_time=3600, coalesce=True,
+                  max_instances=1)
     sched.add_job(job_kupon_orkestra, "interval", hours=1,
                   id="kupon_orkestra", misfire_grace_time=1800, coalesce=True,
                   max_instances=1)
