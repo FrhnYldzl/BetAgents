@@ -178,6 +178,20 @@ def job_swat():
     ⚠️ Kaynak kapalıysa (anahtar yok/askıda) hata yazar ve geçer. SWAT
     ajanları o durumda MEŞRU PAS geçer; sahte ölçüm üretmezler.
     """
+    # ⚠️ VARSAYILAN KAPALI — PAYLAŞIMLI IP SORUNU (08.11.2026)
+    # API-Football desteği, Free hesapların askıya alınma sebeplerinden
+    # birini açıkça şöyle tanımlıyor: "Cloudflare Workers, Google Cloud
+    # Run, AWS Lambda, shared hosting, proxies, VPNs… aynı çıkış IP'sini
+    # paylaşan başka kullanıcılar anti-abuse korumasını tetikleyebilir."
+    # Railway tam olarak bu ailede. Yani çağrı hızını düzeltmek yetmez:
+    # Free planda PAYLAŞIMLI IP'den istek atmak başlı başına risk.
+    # Çekim bu yüzden kullanıcının kendi makinesinden (adanmış IP)
+    # yapılmalı; worker'dan yalnız açıkça izin verilirse koşar.
+    import os as _os
+    if _os.environ.get("SWAT_WORKER_CEKIM") != "1":
+        print(f"[{_ts()}] SWAT: worker'dan çekim KAPALI (paylaşımlı IP "
+              f"riski) — açmak için SWAT_WORKER_CEKIM=1", flush=True)
+        return
     print(f"[{_ts()}] >>> SWAT veri hattı tetiklendi")
     try:
         import os as _os
