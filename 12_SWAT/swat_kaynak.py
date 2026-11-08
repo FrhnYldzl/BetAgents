@@ -123,6 +123,46 @@ def _say(v):
         return None
 
 
+def cek_gun(tarih: str) -> list[dict]:
+    """O günün BÜTÜN maçları — tek çağrı, bütün ligler, ilk yarı skoruyla.
+
+    ⚠️ EN VERİMLİ UÇ BU. Ölçüldü (08.11.2026, tek istek):
+        1.449 maç · 353 lig · 120 ülke · %92'sinde ilk yarı skoru
+    Lig-sezon bazlı çekim (`season=`) ücretsiz planda 2022-2024'e kilitli
+    ve bizim maçlarımızın hiçbiri o aralıkta değil. Ama TARİH bazlı
+    sorgu güncel pencerede açık; API'nin kendi hatası söylüyor:
+        "Free plans do not have access to this date,
+         try from 2026-11-07 to 2026-11-09."
+    Yani dün/bugün/yarın serbest. Günde 3 çağrı, bütün bülten.
+
+    Bu uç ayrıca her maçın LİG kimliğini ve takım adlarını taşıyor —
+    aynı çekim lig kodu düzeltmesini de besliyor (matches_v2.league_code
+    maçların %94'ünde 'ALL' ya da boş).
+    """
+    d = _iste("fixtures", {"date": tarih})
+    if not d:
+        return []
+    out = []
+    for f in (d.get("response") or []):
+        fx, lg = f.get("fixture") or {}, f.get("league") or {}
+        tm, sc = f.get("teams") or {}, f.get("score") or {}
+        iy, ms = sc.get("halftime") or {}, sc.get("fulltime") or {}
+        if ((fx.get("status") or {}).get("short") or "").upper() \
+                not in ("FT", "AET", "PEN"):
+            iy, ms = {}, {}
+        out.append({
+            "kaynak": "api_football", "kaynak_id": str(fx.get("id")),
+            "lig": str(lg.get("id")), "lig_ad": lg.get("name"),
+            "ulke": lg.get("country"), "sezon": str(lg.get("season")),
+            "ev": (tm.get("home") or {}).get("name"),
+            "dep": (tm.get("away") or {}).get("name"),
+            "baslangic": fx.get("date"),
+            "iy_ev": _say(iy.get("home")), "iy_dep": _say(iy.get("away")),
+            "ms_ev": _say(ms.get("home")), "ms_dep": _say(ms.get("away")),
+        })
+    return out
+
+
 def cek_fikstur(lig_id: int, sezon: int, gelecek: bool = True) -> list[dict]:
     """Bir lig-sezonun bütün maçları — TEK çağrı. İlk yarı skoru dahil.
 

@@ -65,24 +65,39 @@ LIGLER = [
 ]
 
 
-def calistir(ligler=None, yaz=True) -> dict:
-    ligler = ligler or LIGLER
+def calistir(gun_sayisi: int = 2, yaz: bool = True) -> dict:
+    """Dün ve bugünü çek — tek çağrıda bütün dünya.
+
+    ⚠️ LİG-SEZON DEĞİL, TARİH bazlı. Ücretsiz planda `season=` 2022-2024'e
+    kilitli ve maçlarımızın hiçbiri orada değil; ama `date=` güncel
+    pencerede (dün/bugün/yarın) açık. Ölçüldü: tek çağrı = 1.449 maç,
+    353 lig, 120 ülke, %92'sinde ilk yarı skoru.
+
+    İki gün yeter: maç biter bitmez değil, ertesi gün toplanır. Geriye
+    dönük doldurma MÜMKÜN DEĞİL (pencere ±1 gün), bu yüzden ilk yarı
+    geçmişi bugünden itibaren birikir.
+    """
+    from datetime import datetime, timedelta, timezone
     import db
+    bugun = datetime.now(timezone.utc).date()
+    gunler = [(bugun - timedelta(days=i)).isoformat()
+              for i in range(gun_sayisi)]
     toplam, yazilan, hatalar = 0, 0, []
     conn = db.connect()
     try:
         SDB.kur(conn)
-        for lig_id, sezon, ad in ligler:
-            ham = SK.cek_fikstur(lig_id, sezon)
+        for g in gunler:
+            ham = SK.cek_gun(g)
             if not ham:
-                hatalar.append(f"{ad}: {SK.SON_HATA or 'veri yok'}")
+                hatalar.append(f"{g}: {SK.SON_HATA or 'veri yok'}")
                 continue
             toplam += len(ham)
             eslesen = SK.esle(ham, conn)
             if yaz and eslesen:
                 yazilan += SDB.yaz(eslesen, conn)
-            print(f"  {ad:24} çekilen {len(ham):4} · eşleşen "
-                  f"{len(eslesen):4} · yazılan {len(eslesen) if yaz else 0:4}")
+            iyli = sum(1 for x in ham if x.get("iy_ev") is not None)
+            print(f"  {g}  çekilen {len(ham):5} · ilk yarılı {iyli:5} · "
+                  f"eşleşen {len(eslesen):4}")
         if hatalar:
             SDB.kayit("hata", " | ".join(hatalar)[:400], conn)
     finally:
