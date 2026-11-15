@@ -200,6 +200,10 @@ PROFILES: dict[str, dict] = {
         # (sıfıra en yakın bölge, n=449). Tüm eski ajanlar en pahalı bölgede
         # (1.10-1.40: −14/−22) kümelenmişti. CESUR tek başına bu bölgeyi oynar.
         "name": "CESUR (orta-oran ÜST avcısı 1.60-2.00) v1.2",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=138 · getiri −%24,1 · JOKER'in (−%12,0) altında
         # ⚠️ Model beyanı DÜZELTİLDİ (v1.2): CESUR hiçbir model kullanmaz —
         # adayı vig'siz PİYASA olasılığından seçer (_midband_candidates).
         # Eski "MOTOR-V1" beyanı yanlıştı (davranışı etkilemiyordu).
@@ -251,6 +255,10 @@ PROFILES: dict[str, dict] = {
         # off-season'da −%76'ydı; sezonda değişebilir → küçük stake deneyi.
         # Yazar KG_VAR'ı terslerken KG_YOK oynanır vb. (hipotez bütünlüğü).
         "name": "TERS (yazar-tersleme deneyi)",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=26 · getiri −%24,3
         "model": "YOK-TIPSTER-TERS",
         "stop_pct": -0.25,
         "markets": set(), "fav_min": 0.0,
@@ -293,6 +301,10 @@ PROFILES: dict[str, dict] = {
         # Bilimsel amaç: her ajanın geçmesi gereken taban; JOKER'i yenemeyen
         # "beceri" iddia edemez. Beklenen ROI ≈ −marj (dürüst referans).
         "name": "JOKER (rastgele kontrol)",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: kontrol çizgisi — kullanıcı: 'kafa karıştırıyor'
         "model": "YOK-RASTGELE",
         "stop_pct": -0.30,
         "markets": set(), "fav_min": 0.0,
@@ -317,6 +329,10 @@ PROFILES: dict[str, dict] = {
         # (≥3 seçmen) + aile-çeşitliliği (≥2 kaynak: motor/model/band) sağlayan
         # pick'leri oynar. Fayda VARSAYILMAZ: ligde yarışır, skor ölçer.
         "name": "KONSEY (ajan heyeti — iç-Polymarket)",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=51 · getiri −%20,5 · JOKER'in altında
         "model": "YOK-HEYET",
         "stop_pct": -0.20,
         "markets": set(), "fav_min": 0.0,
@@ -419,6 +435,10 @@ PROFILES: dict[str, dict] = {
         # bant bile −%11,5 — model iddaa'nın bant fiyatını hiç geçemiyor.
         # Eşik −%12 ve günde TEK bahis: en pahalı keşif bu, hacmi dar tutuldu.
         "name": "BANT (gol aralıkları — Poisson adil fiyat) · keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=19 · isabet %0,0 · getiri −%100
         "model": "SKOR-SUREKLI",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0,
         "min_mp": 0.0, "min_odds": 3.00, "max_odds": 40.0,
@@ -466,6 +486,10 @@ PROFILES: dict[str, dict] = {
         # ~+5% becerisi var, ama iddaa marjı onu tamamen yiyor.
         # Karar: T1 tek başına uzmanlık alanı değil; slot boşaltıldı.
         "name": "TRIVOX (emekli — T1'de kanıtlanmış edge yok)",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=5 · lig kapsamı T1, fiilen oynamıyor
         # ⚠️ MODEL BEYANI — ajanlar hangi modeli kullandığını söylemiyordu.
         # Sonuç: model kaydı (MODEL_REGISTRY) canlı sistemle bağını
         # kaybetti ve sessizce yalancı hale geldi. Denetimde bulundu:
@@ -516,6 +540,10 @@ PROFILES: dict[str, dict] = {
     # ummaktan iyidir.
     "TOTOCU_V1": {
         "name": "TOTOCU (Toto modeli · EN ÇOK İSABET) · keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=0 — hiç bahis açmadı
         "takim": "toto", "mode": "toto", "model": "TOTO-PAZAR",
         "toto_hedef": "isabet", "toto_min_kenar": 0.03,
         "hipotez":
@@ -535,6 +563,10 @@ PROFILES: dict[str, dict] = {
     },
     "KAZANC_V1": {
         "name": "KAZANÇ (Toto modeli · EN ÇOK GETİRİ) · keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=0 — hiç bahis açmadı
         "takim": "toto", "mode": "toto", "model": "TOTO-PAZAR",
         "toto_hedef": "getiri", "toto_min_kenar": 0.03,
         "hipotez":
@@ -836,6 +868,10 @@ PROFILES: dict[str, dict] = {
     },
     "YESIL_JOKER_V1": {
         "name": "YEŞİL JOKER (ucuz çizgi · RASTGELE kontrol)",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: kontrol çizgisi — kullanıcı kararı
         "takim": "yesil", "mode": "pazar", "model": "KONTROL",
         "pazar_kod": "OU1.5", "pazar_bacak": ("Alt", "Üst"),
         "pazar_rastgele": True,
@@ -880,6 +916,10 @@ PROFILES: dict[str, dict] = {
     },
     "DAR_V1": {
         "name": "DAR (dar kombineler — etkin skor ≤ 2,2) · turuncu keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=28 · getiri −%34,5
         "takim": "turuncu", "model": "TURUNCU-DC",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 2.0, "max_odds": 15.0, "combo_cap": 1.0,
@@ -902,6 +942,10 @@ PROFILES: dict[str, dict] = {
     },
     "GOLBANT_V1": {
         "name": "GOLBANT (toplam gol bantları) · turuncu keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=26 · getiri −%48,9
         "takim": "turuncu", "model": "TURUNCU-DC",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 2.0, "max_odds": 30.0, "combo_cap": 1.0,
@@ -912,6 +956,10 @@ PROFILES: dict[str, dict] = {
     },
     "HARMAN_V1": {
         "name": "HARMAN (model + piyasa harmanı) · turuncu keşif",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kadro kararı): "kalsın dediklerim
+        # kalacak, diğerleri arşivle". Silinmedi — geçmişi defterde duruyor,
+        # yalnız YENİ BAHİS AÇMIYOR. Gerekçe: n=28 · getiri −%41,6
         "takim": "turuncu", "model": "TURUNCU-DC",
         "stop_pct": -0.30, "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
         "min_odds": 1.40, "max_odds": 15.0, "combo_cap": 1.0,
