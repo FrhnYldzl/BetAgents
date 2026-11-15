@@ -673,6 +673,12 @@ PROFILES: dict[str, dict] = {
     },
     "SISTEM_JOKER_V1": {
         "name": "SİSTEM JOKER (rastgele 4/5) · kontrol",
+        "retired": True,
+        # 🗄 ARŞİV (15.11.2026, kullanıcı kararı): "sistemde jokeri
+        # çıkar, diğer ikisi kalsın". n=216 · getiri −%21,8.
+        # ⚠️ Bununla SİSTEM takımının rastgele kontrol çizgisi
+        # kalmadı: KALDIRAÇ ve SİGORTA artık yalnız başabaşa karşı
+        # ölçülebilir, "rastgeleyi geçiyor mu" sorusu cevapsız.
         "takim": "sistem", "mode": "sistem", "model": "SISTEM",
         "sistem_n": 5, "sistem_k": 4, "rastgele": True,
         "hipotez":
