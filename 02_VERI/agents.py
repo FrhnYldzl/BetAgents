@@ -638,6 +638,18 @@ PROFILES: dict[str, dict] = {
     # sayar, sistem sayısını değil; limitler buna göre verildi.
     "KALDIRAC_V1": {
         "name": "KALDIRAÇ (4/5 sistem — kenarı üsle) · keşif",
+        # 🗄 ARŞİV (15.11.2026, kullanıcı: "kalmasınlar o zaman").
+        # ⚠️ Bu ajan KENDİ EMEKLİLİK ŞARTIYLA kapandı, keyfî değil:
+        # "kenar taşımıyorsa marjı üsler... kenarın VAR OLUP OLMADIĞINI
+        #  büyüteçle sorar" → cevap: YOK.
+        # Ölçüldü (n=377, üç ayrı tabanla — adil_taban.py):
+        #     ham 1/oran   −12,5p (z=−5,72)
+        #     oransal      − 1,2p
+        #     üs (power)   − 7,6p (z=−3,29)
+        #     ampirik      − 1,5p   · takım toplamı −4,1p (z=−2,09)
+        # Üs ve ham tabanda anlamlı eksi; hiçbir tabanda artı değil.
+        # Hipotez "sistem kenarı üsler" idi; kenar olmayınca marjı üsledi.
+        "retired": True,
         "takim": "sistem", "mode": "sistem", "model": "SISTEM",
         "sistem_n": 5, "sistem_k": 4,
         "hipotez":
@@ -655,6 +667,13 @@ PROFILES: dict[str, dict] = {
     },
     "SIGORTA_V1": {
         "name": "SİGORTA (2/4 sistem — varyans yastığı) · keşif",
+        # 🗄 ARŞİV (15.11.2026, kullanıcı: "kalmasınlar o zaman").
+        # Kendi şartı: "tekli kontrole göre dönüş/TL farkı −5 puandan
+        # kötüyse yastık pahalıya geliyor demektir — ajan kapanır."
+        # Ölçüldü (n=216): ham −15,2p (z=−5,17) · üs −10,3p (z=−3,29) ·
+        # ampirik −5,2p. Hipotez zaten "beklenen değeri ARTIRMAZ" diyordu;
+        # yastığın bedeli ölçüldü ve eşiğin kötü tarafında.
+        "retired": True,
         "takim": "sistem", "mode": "sistem", "model": "SISTEM",
         "sistem_n": 4, "sistem_k": 2,
         "hipotez":

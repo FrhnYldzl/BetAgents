@@ -57,6 +57,13 @@ MAKS_AYAK = 3
 # son satırını canlı fiyat diye sunmamanın tek güvenilir yolu (dakika
 # alanı kayıtların yalnız %2,8'inde dolu, ona dayanılamaz).
 TAZELIK_DK = 10
+
+# ⚠️ KUPONA GİRECEK MAÇ BAŞLAMAMIŞ OLMALI — üstelik birkaç dakika da payı
+# olmalı (kupon kurulup oynanana kadar geçen süre). "Açık bahis"
+# oynanabilir maç DEĞİLDİR: bahis maç bitene kadar açık kalır.
+# Ölçüldü: bu kontrol yokken aday havuzunun %65'i başlamış maçtı ve
+# işaretsiz 43 kuponun yalnız 6'sı gerçekten oynanabilirdi.
+BASLAMA_PAYI_DK = 5
 # Bir ayak aynı şekildeki en çok bu kadar kuponda görünebilir. Tavan yoksa
 # en iyi ayak bütün kombinasyonlara girer ve liste çeşitli görünürken
 # aslında tek bahse yoğunlaşır (bkz. _cesitle).
@@ -320,6 +327,15 @@ def _gercek_ajanlar() -> set:
         return set()
 
 
+def _simdi_iso(pay_dk: int = 0) -> str:
+    """Şimdi + pay, paper_bets.kickoff_utc ile AYNI biçimde (saat dilimsiz
+    ISO). Biçim uyuşmazsa metin karşılaştırması sessizce yanlış sonuç
+    verir — bu yüzden tek yerden üretiliyor."""
+    import datetime as _dt
+    t = _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
+    return (t + _dt.timedelta(minutes=pay_dk)).isoformat(timespec="seconds")
+
+
 def gunun_adaylari(conn=None, en_cok: int = 60) -> list[dict]:
     """Bugün açık olan bahisler — ajanların şu anki fiili görüşü.
 
@@ -343,10 +359,19 @@ def gunun_adaylari(conn=None, en_cok: int = 60) -> list[dict]:
         if kapat:
             conn.close()
     gercek = _gercek_ajanlar()
+    esik = _simdi_iso(BASLAMA_PAYI_DK)
     out, gorulen = [], set()
+    gecmis = 0
     for satir in r:
         (bet_id, pid, ev, dep, mkt, pick, odds, mid, ko) = satir[:9]
         if gercek and pid not in gercek:
+            continue
+        # ⚠️ BAŞLAMIŞ (ya da saati bilinmeyen) maç kupona GİRMEZ.
+        # Saati bilinmeyeni de eliyoruz: oynanabilirliği doğrulanamayan
+        # ayağı kupona koymak, kullanıcıya oynayamayacağı kuponu öneri
+        # diye sunmak olur.
+        if not ko or str(ko) <= esik:
+            gecmis += 1
             continue
         ima = _ima(mkt, dict(zip(IMA_TUM, satir[9:])))
         anahtar = (mid, mkt, str(pick))
@@ -360,6 +385,9 @@ def gunun_adaylari(conn=None, en_cok: int = 60) -> list[dict]:
                     "mac_id": mid, "kickoff": ko, "ima": ima})
         if len(out) >= en_cok:
             break
+    if gecmis:
+        print(f"[kupon] {gecmis} aday elendi: maç başlamış ya da saati yok "
+              f"({len(out)} oynanabilir aday kaldı)", flush=True)
     return out
 
 

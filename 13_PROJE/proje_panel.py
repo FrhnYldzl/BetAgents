@@ -204,22 +204,31 @@ def kupon_defteri(sayfa_basligi):
         st.markdown(f"<div class='v2bos'>Defter okunamadı: "
                     f"{type(e).__name__}: {e}</div>", unsafe_allow_html=True)
         return
+    import kupon_fisi as KF
+
+    # ⚠️ ÜÇE AYRILIYOR (kullanıcı 15.11.2026: "kuponlardaki maçların saati
+    # geçmiş"). İşaretsiz olmak karar bekliyor demek DEĞİL: maçı başlamış
+    # kupon artık oynanamaz, onu karar listesine koymak kullanıcıyı
+    # oynayamayacağı kupona bakmaya zorluyordu.
+    # Ölçüldü: 43 işaretsiz açık kuponun 37'sinin en az bir ayağı
+    # başlamıştı, 19'u tamamen geçmişti, yalnız 6'sı oynanabilirdi.
+    esik = KF.simdi_iso()
+    isaretsiz = [x for x in kuponlar if x.get("oynandi") is None]
+    bekleyen = [x for x in isaretsiz if KF.oynanabilir(x, esik)]
+    suresi_gecti = [x for x in isaretsiz if not KF.oynanabilir(x, esik)]
+    gecmis = [x for x in kuponlar if x.get("oynandi") is not None]
+
     sayfa_basligi(
         "Kupon Defteri",
         "Öneri → oynandı/atlandı. İşaretlenmeyen kupon OYNANMAMIŞ sayılır.",
-        [{"ad": "Öneri", "deger": str(para["oneri"])},
+        [{"ad": "Oynanabilir", "deger": str(len(bekleyen)),
+          "cls": "ps" if bekleyen else "ng"},
          {"ad": "Oynanan", "deger": str(para["oynanan"])},
          {"ad": "Atlanan", "deger": str(para["atlanan"])},
-         {"ad": "İşaretsiz", "deger": str(para["isaretsiz"])},
+         {"ad": "Süresi geçmiş", "deger": str(len(suresi_gecti))},
          {"ad": "Kâr", "deger": _tl(para["kar"]),
           "cls": "ps" if para["kar"] >= 0 else "ng"}])
-    import kupon_fisi as KF
     st.markdown(KF.CSS, unsafe_allow_html=True)
-
-    # İşaretsizler önce: karar bekleyen kupon listenin dibinde kalmamalı.
-    # Sonuçlanmışlar zaten karar istemez, geçmiştir.
-    bekleyen = [x for x in kuponlar if x.get("oynandi") is None]
-    gecmis = [x for x in kuponlar if x.get("oynandi") is not None]
 
     def _fisler(liste, karar: bool):
         for k in liste:
@@ -251,19 +260,45 @@ def kupon_defteri(sayfa_basligi):
             else:
                 oy = k.get("oynandi")
                 gb = k.get("gercek_bahis")
-                not_ = ("oynandı" + (f" · {_tl(gb)}" if gb else "")
-                        if oy == 1 else
-                        "atlandı" + (f" · {k.get('atlama_sebebi')}"
-                                     if k.get("atlama_sebebi") else ""))
+                if oy is None:
+                    # ⚠️ İŞARETSİZ ≠ ATLANDI. İkisini aynı yazmak, karar
+                    # verilmemiş kuponu "atladım" diye kaydetmiş gibi
+                    # gösterirdi; defterde o fark duruyor.
+                    not_ = "işaretlenmedi · maçı başladığı için oynanamadı"
+                elif oy == 1:
+                    not_ = "oynandı" + (f" · {_tl(gb)}" if gb else "")
+                else:
+                    not_ = "atlandı" + (f" · {k.get('atlama_sebebi')}"
+                                        if k.get("atlama_sebebi") else "")
                 st.markdown(f"<div class='sb' style='margin:-2px 0 10px;'>"
                             f"{not_}</div>", unsafe_allow_html=True)
 
     if bekleyen:
-        st.markdown("<h3 style='margin:var(--s4) 0 var(--s2);'>Karar "
-                    "bekleyen <span style='font-weight:400;opacity:.6;"
-                    f"font-size:13px;'>· {len(bekleyen)} kupon</span></h3>",
-                    unsafe_allow_html=True)
+        st.markdown("<h3 style='margin:var(--s4) 0 var(--s2);'>Oynanabilir "
+                    "<span style='font-weight:400;opacity:.6;"
+                    f"font-size:13px;'>· {len(bekleyen)} kupon · maçı "
+                    "başlamamış</span></h3>", unsafe_allow_html=True)
         _fisler(bekleyen[:12], True)
+    else:
+        st.markdown(
+            "<div class='v2bos'>Şu an oynanabilir kupon yok — "
+            "işaretsiz kuponların hepsinin maçı başlamış. Saat başı "
+            "üretici yeni maçlar geldikçe kupon kuracak.</div>",
+            unsafe_allow_html=True)
+    if suresi_gecti:
+        st.markdown(
+            "<h3 style='margin:var(--s5) 0 var(--s2);'>Süresi geçmiş "
+            "<span style='font-weight:400;opacity:.6;font-size:13px;'>· "
+            f"{len(suresi_gecti)} kupon · maçı başladı, oynanamaz</span>"
+            "</h3>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='sb' style='margin-bottom:var(--s3);'>Bunlar "
+            "işaretlenmedi, yani <b>oynanmamış</b> sayılıyorlar ve para "
+            "hesabına girmiyorlar. Kalibrasyon karnesine ise giriyorlar: "
+            "söylenen şansın tutup tutmadığı, kuponun oynanıp "
+            "oynanmamasından bağımsızdır.</div>", unsafe_allow_html=True)
+        with st.expander(f"{len(suresi_gecti)} süresi geçmiş kuponu göster"):
+            _fisler(suresi_gecti[:8], False)
     if gecmis:
         st.markdown("<h3 style='margin:var(--s5) 0 var(--s2);'>İşaretlenmiş"
                     "</h3>", unsafe_allow_html=True)

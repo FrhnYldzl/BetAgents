@@ -79,18 +79,63 @@ def pazar_secim(market: str, pick: str) -> tuple[str, str]:
     return ad, SECIM_ADI.get(pu, p)
 
 
+# ⚠️ KAYITLI SAAT UTC, EKRANDAKİ SAAT TÜRKİYE SAATİ OLMALI.
+# Kullanıcı (15.11.2026): "bazı maçlar yine geçmiş, iddaa.com'da
+# bulamıyorum, saat vs." — sebep buydu: `kickoff_utc` UTC tutuluyor ama
+# fişe olduğu gibi basılıyordu. Kullanıcı onu TR saati sanıp maçı 3 saat
+# erken görüyor; bültende o saatte maç olmadığı için de bulamıyor.
+#
+# Verinin UTC olduğu ÖLÇÜLDÜ, sütun adına güvenilmedi:
+#   · kickoff saat dağılımı 17-19'da tepe yapıyor. TR olsaydı Avrupa
+#     akşam maçları 14-16 UTC'ye düşerdi — o saatte oynanmıyor.
+#     UTC kabul edilince TR 20-22 çıkıyor: bülten saatleri tam bu.
+#   · settled_at − kickoff en küçük +1,8 saat (maç ~1,9 saat sürer).
+#     İkisi farklı dilimde olsa bu fark eksi ya da +4,8 olurdu.
+#
+# Türkiye 2016'dan beri yaz saati uygulamıyor; sabit UTC+3 güvenli.
+TR_FARKI_SAAT = 3
+
+
 def _saat(kickoff) -> str:
-    """'2026-11-02T20:15:00' → '02.11  20:15'. Biçim bozuksa boş döner;
-    uydurma tarih yazmak kuponun en güvenilen alanını yalan yapardı."""
+    """UTC kickoff → '02.11  23:15' (Türkiye saati).
+
+    Biçim bozuksa BOŞ döner; uydurma tarih yazmak kuponun en güvenilen
+    alanını yalan yapardı.
+    """
+    import datetime as _dt
     s = str(kickoff or "")
     if len(s) < 16 or "T" not in s:
         return ""
     try:
-        g, sa = s.split("T", 1)
-        y, ay, gun = g.split("-")
-        return f"{gun}.{ay}  {sa[:5]}"
+        t = _dt.datetime.fromisoformat(s[:19])
     except Exception:
         return ""
+    t = t + _dt.timedelta(hours=TR_FARKI_SAAT)
+    return f"{t.day:02d}.{t.month:02d}  {t.hour:02d}:{t.minute:02d}"
+
+
+def simdi_iso(pay_dk: int = 0) -> str:
+    """Şimdi + pay, kickoff ile AYNI biçimde (saat dilimsiz ISO)."""
+    import datetime as _dt
+    t = _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
+    return (t + _dt.timedelta(minutes=pay_dk)).isoformat(timespec="seconds")
+
+
+def basladi_mi(ayak: dict, esik: str = None) -> bool:
+    """Bu ayağın maçı başladı mı? Saati bilinmiyorsa BAŞLAMIŞ sayılır.
+
+    ⚠️ Bilinmeyeni "oynanabilir" saymak, oynanamayacak kuponu karar
+    bekleyen listesine koyar — kullanıcının şikâyeti tam buydu.
+    """
+    ko = str(ayak.get("kickoff") or "")
+    return (not ko) or ko <= (esik or simdi_iso())
+
+
+def oynanabilir(kupon: dict, esik: str = None) -> bool:
+    """Kuponun BÜTÜN ayakları henüz başlamamışsa oynanabilir."""
+    esik = esik or simdi_iso()
+    ayaklar = kupon.get("ayaklar") or []
+    return bool(ayaklar) and not any(basladi_mi(a, esik) for a in ayaklar)
 
 
 def _n(v, b: int = 2) -> str:
@@ -142,11 +187,17 @@ def fis(k: dict, bahis: float = 100.0) -> str:
     # tutmalı. Defterin muhasebesi ham oranı kullanmaya devam ediyor.
     pot = b * oran
 
+    esik = simdi_iso()
     satir = []
     for a in ayaklar:
         pz, sc = pazar_secim(a.get("market"), a.get("pick"))
         im = AYAK_IM.get(str(a.get("durum") or ""), ("", ""))
         rozet = (f"<i class='kf-im {im[1]}'>{im[0]}</i>" if im[0] else "")
+        # Sonucu henüz yokken maçı başlamışsa bunu SÖYLE: saati geçmiş
+        # ayağı sessizce normal göstermek kuponu oynanabilir sanmaya
+        # yol açıyordu.
+        if not im[0] and basladi_mi(a, esik):
+            rozet = "<i class='kf-im gec'>başladı</i>"
         ust = _saat(a.get("kickoff"))
         # ⚠️ Lig kodu bu veride %94 oranında 'ALL' — yani lig bilgisi
         # yok demek. "ALL" yazmak bilgi vermiyor, satırı kirletiyor.
@@ -224,6 +275,9 @@ CSS = """
 .kf-im{font-style:normal;margin-left:6px;font-weight:700;}
 .kf-im.kz{color:var(--pos);} .kf-im.kb{color:var(--neg);}
 .kf-im.ip{color:var(--muted);}
+.kf-im.gec{font-size:10px;font-weight:600;color:var(--neg);
+    background:var(--neg-fill);padding:0 6px;border-radius:9px;
+    letter-spacing:.02em;}
 .kf-alt{display:flex;align-items:center;gap:8px;}
 .kf-pz{font-size:12px;color:var(--ink-2);flex:1 1 auto;}
 .kf-sc{font-size:12px;font-weight:700;color:var(--ink);padding:1px 9px;
@@ -272,8 +326,25 @@ def kendi_testi() -> list[str]:
     for k in (None, "", "abc", "2026-11-02"):
         if _saat(k) != "":
             hata.append(f"bozuk kickoff'tan tarih uyduruldu: {k!r}")
-    if _saat("2026-11-02T20:15:00") != "02.11  20:15":
-        hata.append("kickoff biçimi yanlış")
+    # ⚠️ SAAT DİLİMİ: kayıt UTC, ekran TÜRKİYE saati. Bu dönüşüm
+    # atlanırsa maç 3 saat ERKEN görünür; kullanıcı onu geçmiş sanar ve
+    # bültende o saatte bulamaz (yaşandı, 15.11.2026).
+    if _saat("2026-11-02T20:15:00") != "02.11  23:15":
+        hata.append(f"UTC→TR dönüşümü yok: {_saat('2026-11-02T20:15:00')}")
+    # Gün sınırı: 22:30 UTC ertesi gün 01:30 TR
+    if _saat("2026-11-15T22:30:00") != "16.11  01:30":
+        hata.append(f"gün sınırı yanlış: {_saat('2026-11-15T22:30:00')}")
+    # Ay/yıl sınırı
+    if _saat("2026-12-31T22:00:00") != "01.01  01:00":
+        hata.append(f"yıl sınırı yanlış: {_saat('2026-12-31T22:00:00')}")
+    # ⚠️ KARŞILAŞTIRMA UTC'de KALMALI — başlamış mı sorusu ekran saatine
+    # göre sorulursa 3 saatlik kayma filtreyi de bozar.
+    import datetime as _d
+    gelecek = (_d.datetime.now(_d.timezone.utc).replace(tzinfo=None)
+               + _d.timedelta(hours=1)).isoformat(timespec="seconds")
+    if basladi_mi({"kickoff": gelecek}):
+        hata.append("1 saat sonraki maç başlamış sayıldı — karşılaştırma "
+                    "UTC'den çıkmış olabilir")
     # 4) Fiş: maksimum kazanç bahis × oran
     k = {"tip": "master", "oran": 1.82, "durum": "acik", "bahis": 100.0,
          "ayaklar": [{"ev": "A", "dep": "B", "market": "1X2", "pick": "1",
@@ -312,6 +383,36 @@ def kendi_testi() -> list[str]:
     o = olcu_seridi({"sans": 0.5, "fiyat_sansi": 0.3, "ayaklar": []})
     if "DEDIĞI" in o or "DEDİĞİ" not in o:
         hata.append("ölçüm şeridi etiketi Türkçe değil")
+
+    # ── BAŞLAMIŞ MAÇ (kullanıcı şikâyeti 15.11.2026) ─────────────
+    gec = {"kickoff": "2020-01-01T12:00:00"}
+    ger = {"kickoff": "2099-01-01T12:00:00"}
+    if not basladi_mi(gec):
+        hata.append("geçmiş maç başlamamış sayıldı")
+    if basladi_mi(ger):
+        hata.append("gelecek maç başlamış sayıldı")
+    # ⚠️ Saati BİLİNMEYEN ayak oynanabilir sayılmamalı
+    for bos in ({}, {"kickoff": None}, {"kickoff": ""}):
+        if not basladi_mi(bos):
+            hata.append(f"saati bilinmeyen ayak oynanabilir sayıldı: {bos}")
+    # Tek ayağı bile başlamışsa kupon oynanamaz
+    if oynanabilir({"ayaklar": [ger, gec]}):
+        hata.append("bir ayağı başlamış kupon oynanabilir sayıldı")
+    if not oynanabilir({"ayaklar": [ger, ger]}):
+        hata.append("hepsi gelecekte olan kupon oynanamaz sayıldı")
+    if oynanabilir({"ayaklar": []}):
+        hata.append("ayaksız kupon oynanabilir sayıldı")
+    # Fişte "başladı" rozeti görünmeli
+    k5 = {"tip": "master", "oran": 1.50, "durum": "acik", "bahis": 100.0,
+          "ayaklar": [dict(k["ayaklar"][0], kickoff="2020-01-01T12:00:00")]}
+    if "başladı" not in fis(k5):
+        hata.append("başlamış ayak fişte işaretlenmedi")
+    # Sonuçlanmış ayakta sonuç rozeti kazanır, "başladı" yazmaz
+    k6 = {"tip": "master", "oran": 1.50, "durum": "kazandi", "bahis": 100.0,
+          "ayaklar": [dict(k["ayaklar"][0], kickoff="2020-01-01T12:00:00",
+                           durum="won")]}
+    if "başladı" in fis(k6):
+        hata.append("sonuçlanmış ayakta 'başladı' yazıldı")
     return hata
 
 
