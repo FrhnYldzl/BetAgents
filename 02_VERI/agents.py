@@ -693,6 +693,59 @@ PROFILES: dict[str, dict] = {
         "sort": "score", "stop_pct": -0.99, "pas_tolerance_days": 14,
     },
 
+    # 🎯 KUPON TAKIMI — montaj katmanı (kullanıcı kararı 15.11.2026)
+    # ══════════════════════════════════════════════════════════════
+    # Kullanıcı: "Kupon master bence ajan olmalı, diğer ajanlarla iş
+    # birliği daha rahat yapar."
+    #
+    # ⚠️ BU AJANLAR MAÇ SEÇMEZ. Başka ajanların açık pozisyonlarından
+    # HEDEF ORANA oturan kombinasyon kurarlar. Bu yüzden kendi takımında
+    # durur: lig tablosunda seçici ajanlarla yan yana sıralamak elma-armut
+    # karşılaştırması olurdu. (SİSTEM takımı da aynı yapıda.)
+    #
+    # ⚠️ ÇİFT SAYIM: ERKENKUŞ kendi bahsini açar, KUPON MASTER aynı seçimi
+    # kuponuna koyabilir — aynı görüş deftere iki kez girer ve toplam risk
+    # olduğundan büyük görünür. Bu kabul edilmiş bir maliyet; kupon
+    # takımının kasası AYRI okunur.
+    "KUPON_MASTER_V1": {
+        "name": "KUPON MASTER (hedef orana montaj)",
+        "takim": "kupon", "mode": "master", "model": "MONTAJ",
+        "master_rastgele": False,
+        "hipotez":
+            "Sahadaki ajanların seçimlerinden, hedef efektif orana "
+            "(1,80) oturan EN YÜKSEK İSABETLİ kombinasyonu kur. İddia "
+            "yeni bir maç bilgisi DEĞİL: aynı havuzdan daha iyi monte "
+            "etmek. Kontrol çizgileri kupona alınmaz, aynı maçtan iki "
+            "ayak konmaz, tek ajandan en çok 2 ayak girer.",
+        "emeklilik":
+            "60 kupon sonra: birim getirisi KUPON İKİZ'i (rastgele "
+            "montaj) geçmiyorsa seçimin değeri yok — montaj kuralı "
+            "herhangi bir kombinasyondan iyi değil demektir.",
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 12, "max_tek": 0,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+        "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.01, "max_odds": 99.0,
+    },
+    "KUPON_IKIZ_V1": {
+        "name": "KUPON İKİZ (rastgele montaj · kontrol)",
+        "takim": "kupon", "mode": "master", "model": "KONTROL",
+        "master_rastgele": True, "gizli_lig": True,
+        "hipotez":
+            "Ajan DEĞİL, KUPON MASTER'ın taban çizgisi. Aynı havuzdan, "
+            "aynı hedef orana oturan kombinasyonlardan RASTGELE seçer. "
+            "Asıl soru 'Kupon Master kâr etti mi' değil — "
+            "'AKILLI MONTAJ HERHANGİ BİR MONTAJDAN İYİ Mİ?' 1,80'e "
+            "oturan onlarca kombinasyon var; seçimin değeri yalnız buna "
+            "karşı ölçülür.",
+        "emeklilik": "Kontrol çizgisi emekli edilmez.",
+        "combo_cap": 99.0, "max_daily": 3, "max_open": 12, "max_tek": 0,
+        "loss_streak": 99, "tek_stake": 0.05, "k3_stake": 0.05,
+        "sort": "edge", "stop_pct": -0.30, "pas_tolerance_days": 14,
+        "markets": set(), "fav_min": 0.0, "min_mp": 0.0,
+        "min_odds": 1.01, "max_odds": 99.0,
+    },
+
     # 🔫 SWAT TAKIMI — İLK YARI pazarları (kullanıcı kararı 08.11.2026)
     # ══════════════════════════════════════════════════════════════
     # Kullanıcı: "SoccersAPI dene ama karıştırma, diğer ajanlar veya
@@ -2140,6 +2193,13 @@ def build_coupons(pid: str, eng: PaperEngine) -> list[dict]:
     # takımlar gibi oynasın".
     # 🟡🟢 PAZAR modu: SARI (Çifte Şans) ve YEŞİL (ucuz A/Ü çizgisi).
     # Montaj diğer takımlarla AYNI — ayrı bir kupon mantığı yok.
+    # 🎯 MASTER modu: başka ajanların seçimlerinden hedef orana montaj.
+    # _assemble_coupons KULLANMAZ — o pick'ten kupon kurar, bu ise
+    # zaten hazır kuponlar üretir.
+    if mode == "master":
+        kup = _master_kuponlari(prof, tag, unit)
+        return kup[:max(0, prof["max_daily"])]
+
     # 🔫 SWAT modu: ilk yarı pazarları, izole veri hattı (12_SWAT).
     if mode == "swat":
         picks = _swat_adaylari(prof, tag)
@@ -2623,6 +2683,67 @@ def _sistem_adaylari(prof: dict, tag: str, matches: list[dict], eng) -> list[dic
     if prof.get("rastgele"):
         return _joker_candidates(prof, tag, matches)
     return _engine_candidates(prof, tag, matches, eng)
+
+
+def _master_kuponlari(prof: dict, tag: str, unit: float) -> list[dict]:
+    """KUPON MASTER: başka ajanların açık pozisyonlarından kupon kur.
+
+    ⚠️ ÇALIŞMA SIRASI: adaylar açık paper_bets'ten okunur, yani bu ajan
+    diğerlerinden SONRA koşarsa bugünün seçimlerini görür, önce koşarsa
+    dünkü açık pozisyonları görür. İkisi de geçerli — açık bahis,
+    sonuçlanmamış gelecek maç demektir. Sıraya bağımlılık YOK.
+    """
+    import kupon_master as KM
+    conn = db.connect()
+    try:
+        karne = KM.KO.karne_haritasi(conn)
+        aday = KM.KO.gunun_adaylari(conn)
+    finally:
+        conn.close()
+    # Kendi takımının kuponlarını tekrar monte etme
+    aday = [a for a in aday
+            if PROFILES.get(a.get("ajan"), {}).get("takim") != "kupon"]
+    kup = KM.uret(aday, karne, en_cok=prof["max_daily"],
+                  rastgele=bool(prof.get("master_rastgele")))
+    if not kup:
+        print(f"{tag} ⚪ MEŞRU PAS hedef orana ({KM.HEDEF_ORAN:.2f}) oturan "
+              f"kombinasyon yok ({len(aday)} aday)")
+        return []
+    conn = db.connect()
+    try:
+        maclar = {}
+        for mr in conn.execute(
+                "SELECT * FROM matches_v2 WHERE is_settled=0").fetchall():
+            m = dict(mr)
+            maclar[str(m.get("match_id"))] = m
+    finally:
+        conn.close()
+    out = []
+    for x in kup:
+        picks = []
+        for a in x["ayaklar"]:
+            m = maclar.get(str(a.get("mac_id")))
+            if not m:
+                break
+            picks.append({
+                "market": a["market"], "pick": a["pick"],
+                "odds": float(a["oran"]),
+                "implied_prob": 1.0 / float(a["oran"]),
+                "model_prob": a["_p"]["ajan"],
+                "edge": a["_p"]["ajan"] - a["_p"]["piyasa"],
+                "signal_name": f"MONTAJ<{str(a.get('ajan')).split('_')[0]}>",
+                "signal_score": a["_p"]["ajan"], "_match": m})
+        if len(picks) != x["ayak"]:
+            continue
+        out.append({
+            "coupon_type": f"M{x['ayak']}@{x['oran']:.2f}",
+            "picks": picks, "stake": unit,
+            "combined_odds": round(x["oran"], 3),
+            "potential_return": round(unit * x["oran"], 2)})
+    kpi = sum(1 for x in kup if x["kpi"])
+    print(f"{tag} 🎯 montaj: {len(out)} kupon · KPI geçen {kpi} · "
+          f"aday {len(aday)}")
+    return out
 
 
 def _sistem_kuponlari(prof: dict, picks: list[dict], unit: float = 100.0) -> list[dict]:

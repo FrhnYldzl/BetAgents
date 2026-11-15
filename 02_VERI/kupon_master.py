@@ -142,11 +142,17 @@ def kupon_degerlendir(ayaklar: list[dict]) -> dict:
 
 
 def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
-         en_cok: int = 6) -> list[dict]:
+         en_cok: int = 6, rastgele: bool = False) -> list[dict]:
     """Hedef orana oturan kombinasyonlar — en yüksek ajan şansından sırayla.
 
     PAS GEÇMEZ: KPI'yi karşılayan yoksa en iyi adaylar yine döner,
     `kpi=False` ile.
+
+    `rastgele=True` → KONTROL İKİZİ. Aynı havuzdan, aynı hedef orana
+    oturan kombinasyonlardan RASTGELE seçer. Asıl soru "Kupon Master kâr
+    etti mi" değil, **"akıllı montaj herhangi bir montajdan iyi mi?"**
+    1,80'e oturan onlarca kombinasyon var; seçimin değeri ancak rastgele
+    ikize karşı ölçülür.
     """
     hedef = float(hedef or HEDEF_ORAN)
     tavan = hedef * ORAN_TAVAN_KAT
@@ -182,7 +188,11 @@ def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
             bulunan.append(kupon_degerlendir(list(c)))
     if not bulunan:
         return []
-    bulunan.sort(key=lambda x: -x["sans_ajan"])
+    if rastgele:
+        import random as _r
+        _r.shuffle(bulunan)
+    else:
+        bulunan.sort(key=lambda x: -x["sans_ajan"])
     # Tek ajana yığılmayı engelle
     from collections import defaultdict
     sayac: dict = defaultdict(int)
@@ -311,6 +321,23 @@ def kendi_testi() -> list[str]:
     if say and max(say.values()) > AJAN_TAVAN:
         hata.append(f"tek ajan {max(say.values())} kuponda "
                     f"(tavan {AJAN_TAVAN})")
+    # 6b) RASTGELE İKİZ aynı bandı üretmeli (seçim farklı, kural aynı)
+    ad4, kr4 = [], {}
+    for i in range(8):
+        a, k = ay(f"D{i}_V1", 1.35, 300 + i, kenar=0.01)
+        ad4.append(a)
+        kr4[f"D{i}_V1"] = k
+    r_ak = uret(ad4, kr4, hedef=1.80, en_cok=4)
+    r_ra = uret(ad4, kr4, hedef=1.80, en_cok=4, rastgele=True)
+    for ad_, rr in (("akıllı", r_ak), ("ikiz", r_ra)):
+        for x in rr:
+            if not (1.80 <= x["oran"] <= 1.80 * ORAN_TAVAN_KAT + 1e-9):
+                hata.append(f"{ad_} bant dışı kupon üretti")
+                break
+    if r_ak and r_ra:
+        # Akıllı seçim, rastgeleden DAHA İYİ ya da eşit şans vermeli
+        if r_ak[0]["sans_ajan"] < max(x["sans_ajan"] for x in r_ra) - 1e-9:
+            hata.append("akıllı seçim rastgeleden kötü kupon seçti")
     # 7) KPI bayrağı doğru mu
     if r:
         for x in r:

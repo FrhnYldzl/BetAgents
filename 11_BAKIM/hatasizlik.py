@@ -108,7 +108,7 @@ MODULLER = [
                  "multiplier_agent", "turuncu_agent", "combo_tables",
                  "recompute_portfolio", "fetch_results",
                  "kasa", "kupon_orkestra", "ferhan_kupon",
-                 "kupon_master"]),
+                 "kupon_master", "denetci"]),
     ("09_TOTO", ["toto_db", "toto_takim", "deger", "kalabalik", "pazar",
                  "geri_test", "canli", "sportoto", "kadro", "vibe_db"]),
     ("10_CANLI", ["canli_db", "canli_kaynak", "canli_model"]),
@@ -203,7 +203,8 @@ def asama_kendi_testi() -> None:
     # sayılır ama hiç koşmaz — sessiz bir boşluk. Liste elle tutuluyor.
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
                "kasa", "vibe_studyo", "canli_db", "paper_engine",
-               "agents", "swat_db", "swat_kaynak", "kupon_master"):
+               "agents", "swat_db", "swat_kaynak", "kupon_master",
+               "denetci"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:
@@ -260,7 +261,9 @@ def asama_uretec() -> None:
         # DÜŞMEZ. Düşüyordu: 'toto' modu motor üretecine gidip 65 aday
         # raporladı (gerçek Toto üreteci 3 veriyor) — yani o satır Toto'yu hiç
         # sınamadan YEŞİL yazdı. Denetimin yanlış yeşili, kırmızısından beterdir.
-        if mode == "swat":
+        if mode == "master":
+            fn, args = A._master_kuponlari, (p, pid, 100.0)
+        elif mode == "swat":
             fn, args = A._swat_adaylari, (p, pid)
         elif mode == "pazar":
             fn, args = A._pazar_adaylari, (p, pid)

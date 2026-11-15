@@ -3597,8 +3597,29 @@ TAKIM_TANIM = {
               "alt": "ucuz çizgi (A/Ü 1.5 · 3.5) · keşif", "renk": "#2e8b57"},
     "swat": {"ad": "SWAT", "alt": "ilk yarı pazarları · izole veri hattı",
              "renk": "#1f2937"},
+    "kupon": {"ad": "Kupon Takımı",
+              "alt": "montaj katmanı · hedef orana kilitli", "renk": "#7c3aed"},
 }
 TAKIM_NOTU = {
+    "kupon": (
+        "<div class='dq'><b>Kupon Takımı maç SEÇMEZ.</b> Sahadaki "
+        "ajanların açık pozisyonlarından, hedef efektif orana "
+        "(<b>1,80</b>) oturan kombinasyonu kurar. İddiası yeni bir maç "
+        "bilgisi değil: <i>aynı havuzdan daha iyi monte etmek</i>.<br>"
+        "<b>KUPON İKİZ ajan değil, taban çizgisidir</b> — aynı havuzdan "
+        "aynı banda RASTGELE monte eder. Asıl soru 'Kupon Master kâr "
+        "etti mi' değil, <b>'akıllı montaj herhangi bir montajdan iyi "
+        "mi?'</b> 1,80'e oturan onlarca kombinasyon var; seçimin değeri "
+        "yalnız ikize karşı ölçülür.<br>"
+        "<b>Kurallar:</b> kontrol çizgileri kupona alınmaz (ölçüldü: "
+        "serbest bırakılınca optimizasyon neredeyse her kombinasyonda "
+        "JOKER seçiyordu — beceriyi değil ORAN ŞEKLİNİ seçmiş oluyordu) · "
+        "aynı maçtan iki ayak yok · tek ajandan en çok 2 ayak (sınırsızken "
+        "bir kupon 4 ayağın dördünü de tek ajandan aldı, şans %28'den "
+        "%56'ya fırladı — o fark tek ajanın n=38'lik iddiasının dört kez "
+        "çarpılmasıydı).<br>"
+        "⚠️ <b>Çift sayım:</b> aynı görüş deftere iki kez girer (seçici "
+        "ajan + montaj). Bu takımın kasası AYRI okunur.</div>"),
     "swat": (
         "<div class='dq'><b>SWAT keşif statüsünde ve AYRI bir veri "
         "hattından besleniyor.</b> Diğer takımlar ilk yarı skorunu "
@@ -4196,6 +4217,11 @@ def load_swat_durum() -> dict:
         return {"doluluk": _sw.doluluk(), "hata": None}
     except Exception as e:
         return {"doluluk": [], "hata": f"{type(e).__name__}: {e}"}
+
+
+def page_kupon_takimi() -> None:
+    """🎯 Kupon Takımı — montaj katmanı. Maç seçmez, kombinasyon kurar."""
+    _takim_sayfasi("kupon")
 
 
 def page_swat() -> None:
@@ -5477,6 +5503,8 @@ SAYFA_TANIM = [
         # verisi karışmasın.
         ("SWAT", page_swat, ":material/schedule:", "swat",
          "İlk yarı pazarı kalibre mi?"),
+        ("Kupon Takımı", page_kupon_takimi, ":material/layers:", "kupon",
+         "Akıllı montaj rastgeleden iyi mi?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
     ("PORTFÖY", [

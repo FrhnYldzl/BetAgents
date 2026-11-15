@@ -37,6 +37,7 @@ KAPSAM = {
     "sari": "Sarı (Çifte Şans · pazar defteri)",
     "yesil": "Yeşil (ucuz çizgi · A/Ü 1.5-3.5)",
     "swat": "SWAT (ilk yarı · izole veri hattı)",
+    "kupon": "Kupon Takımı (montaj · hedef orana kilitli)",
     "canli": "Canlı",
     "supertoto": "Süper Toto (kolon oyunu)",
 }
