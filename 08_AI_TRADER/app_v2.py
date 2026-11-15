@@ -5724,7 +5724,12 @@ def main() -> None:
         _conn.clear()
         _db_kapali(_e)
         return
-    if "v2_page" not in st.session_state:
+    # ⚠️ Oturumda KALDIRILMIŞ bir sayfa adı kalabilir. Bir sayfa
+    # gezinmeden çıkınca (Kuponlar Ferhan · 15.11.2026) tarayıcı o adı
+    # tutmaya devam ediyor ve Streamlit "Page not found" kutusunu
+    # kapanmaz biçimde gösteriyordu — ürün çalışıyor ama kullanılamıyor
+    # görünüyordu. Bilinmeyen ad açılışa düşürülür.
+    if st.session_state.get("v2_page") not in PAGES:
         st.session_state["v2_page"] = ACILIS
     try:
         st.logo(os.path.join(_MARKA_DIZIN, "logo.svg"), size="large",

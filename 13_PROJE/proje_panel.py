@@ -213,49 +213,61 @@ def kupon_defteri(sayfa_basligi):
          {"ad": "İşaretsiz", "deger": str(para["isaretsiz"])},
          {"ad": "Kâr", "deger": _tl(para["kar"]),
           "cls": "ps" if para["kar"] >= 0 else "ng"}])
-    for k in kuponlar[:20]:
-        kid = k["kupon_id"]
-        durum = k.get("durum") or "acik"
-        oy = k.get("oynandi")
-        etiket = ("✅ oynandı" if oy == 1 else
-                  ("⏭ atlandı" if oy == 0 else "◻ işaretsiz"))
-        sec = " + ".join(
-            f"{str(a.get('ev') or '')[:14]} {a.get('pick')}@"
-            f"{a.get('oran', 0):.2f}" for a in (k.get("ayaklar") or []))
-        st.markdown(
-            f"<div class='v2card' style='margin-bottom:6px;'>"
-            f"<div class='v2body'><div style='display:flex;gap:var(--s4);"
-            f"flex-wrap:wrap;align-items:baseline;'>"
-            f"<div class='v2kpi'><span>{k['tip'].upper()} · "
-            f"{k['ayak']} AYAK</span><b>{k['oran']:.2f}</b></div>"
-            f"<div class='v2kpi'><span>ŞANS</span><b>{_pc(k['sans'])}</b>"
-            f"</div><div class='v2kpi'><span>DURUM</span><b>{durum}</b>"
-            f"</div><div class='v2kpi'><span>İŞARET</span><b>{etiket}</b>"
-            f"</div></div><div style='opacity:.8;font-size:12px;"
-            f"margin-top:4px;'>{sec[:150]}</div></div></div>",
-            unsafe_allow_html=True)
-        if oy is None:
-            a, b, _ = st.columns([1, 1, 3], gap="small")
-            with a:
-                if st.button("Oynadım", key=f"oy_{kid}",
-                             use_container_width=True):
-                    import db as _d
-                    cc = _d.connect()
-                    try:
-                        FK.isaretle(kid, True, conn=cc)
-                    finally:
-                        cc.close()
-                    st.rerun()
-            with b:
-                if st.button("Atladım", key=f"at_{kid}",
-                             use_container_width=True):
-                    import db as _d
-                    cc = _d.connect()
-                    try:
-                        FK.isaretle(kid, False, sebep="elle atlandı", conn=cc)
-                    finally:
-                        cc.close()
-                    st.rerun()
+    import kupon_fisi as KF
+    st.markdown(KF.CSS, unsafe_allow_html=True)
+
+    # İşaretsizler önce: karar bekleyen kupon listenin dibinde kalmamalı.
+    # Sonuçlanmışlar zaten karar istemez, geçmiştir.
+    bekleyen = [x for x in kuponlar if x.get("oynandi") is None]
+    gecmis = [x for x in kuponlar if x.get("oynandi") is not None]
+
+    def _fisler(liste, karar: bool):
+        for k in liste:
+            kid = k["kupon_id"]
+            st.markdown(KF.fis(k) + KF.olcu_seridi(k), unsafe_allow_html=True)
+            if karar:
+                a, b, _ = st.columns([1, 1, 2.4], gap="small")
+                with a:
+                    if st.button("Oynadım", key=f"oy_{kid}",
+                                 use_container_width=True, type="primary"):
+                        import db as _d
+                        cc = _d.connect()
+                        try:
+                            FK.isaretle(kid, True, conn=cc)
+                        finally:
+                            cc.close()
+                        st.rerun()
+                with b:
+                    if st.button("Atladım", key=f"at_{kid}",
+                                 use_container_width=True):
+                        import db as _d
+                        cc = _d.connect()
+                        try:
+                            FK.isaretle(kid, False, sebep="elle atlandı",
+                                        conn=cc)
+                        finally:
+                            cc.close()
+                        st.rerun()
+            else:
+                oy = k.get("oynandi")
+                gb = k.get("gercek_bahis")
+                not_ = ("oynandı" + (f" · {_tl(gb)}" if gb else "")
+                        if oy == 1 else
+                        "atlandı" + (f" · {k.get('atlama_sebebi')}"
+                                     if k.get("atlama_sebebi") else ""))
+                st.markdown(f"<div class='sb' style='margin:-2px 0 10px;'>"
+                            f"{not_}</div>", unsafe_allow_html=True)
+
+    if bekleyen:
+        st.markdown("<h3 style='margin:var(--s4) 0 var(--s2);'>Karar "
+                    "bekleyen <span style='font-weight:400;opacity:.6;"
+                    f"font-size:13px;'>· {len(bekleyen)} kupon</span></h3>",
+                    unsafe_allow_html=True)
+        _fisler(bekleyen[:12], True)
+    if gecmis:
+        st.markdown("<h3 style='margin:var(--s5) 0 var(--s2);'>İşaretlenmiş"
+                    "</h3>", unsafe_allow_html=True)
+        _fisler(gecmis[:10], False)
 
 
 # ──────────────────────────────────────────────────────────────────

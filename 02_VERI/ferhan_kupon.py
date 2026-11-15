@@ -492,7 +492,8 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
              donen, kar, gerekce, piy, oynandi, gb, atlama) in K:
             ay = conn.execute(
                 "SELECT a.ev, a.dep, a.market, a.pick, a.oran, a.ajan, "
-                "       COALESCE(b.status,'open'), a.gerekce, a.kanit "
+                "       COALESCE(b.status,'open'), a.gerekce, a.kanit, "
+                "       a.kickoff, b.league "
                 "FROM ferhan_kupon_ayak a "
                 "LEFT JOIN paper_bets b ON CAST(b.bet_id AS TEXT) = a.bet_id "
                 "WHERE a.kupon_id = ? ORDER BY a.sira", (kid,)).fetchall()
@@ -511,10 +512,14 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
                 "oynandi": None if oynandi is None else int(oynandi),
                 "gercek_bahis": None if gb is None else float(gb),
                 "atlama_sebebi": atlama or "",
+                # kickoff ve lig KUPON FİŞİ için: iddaa kuponunda her
+                # ayağın saati ve ligi yazar; onlar olmadan fiş bir
+                # bahis kuponuna benzemiyor.
                 "ayaklar": [{"ev": e, "dep": d, "market": m, "pick": p,
                              "oran": float(o or 0), "ajan": aj, "durum": st,
-                             "gerekce": gk or "", "kanit": bool(kn)}
-                            for e, d, m, p, o, aj, st, gk, kn in ay]})
+                             "gerekce": gk or "", "kanit": bool(kn),
+                             "kickoff": ko, "lig": lg or ""}
+                            for e, d, m, p, o, aj, st, gk, kn, ko, lg in ay]})
         return out
     finally:
         if kapat:
@@ -534,10 +539,17 @@ def kendi_testi() -> list[str]:
         pass
     try:
         c = sqlite3.connect(str(yol))
-        c.execute("CREATE TABLE paper_bets (bet_id TEXT, status TEXT)")
+        # ⚠️ Sahte paper_bets GERÇEK şemanın okunan sütunlarını
+        # taşımalı. Eksik sütun bırakmak kendi testini uydurma bir
+        # şemaya karşı koşturur: son_kuponlar'a `league` eklendiğinde
+        # test "no such column" ile düştü — doğru davranış, ama stub
+        # şema ile gerçek şema ayrışırsa test ürünü değil kendini sınar.
+        c.execute("CREATE TABLE paper_bets (bet_id TEXT, status TEXT, "
+                  "league TEXT)")
         for bid, st in (("1", "won"), ("2", "won"), ("3", "lost"),
                         ("4", "open"), ("5", "void"), ("6", "void")):
-            c.execute("INSERT INTO paper_bets VALUES (?,?)", (bid, st))
+            c.execute("INSERT INTO paper_bets VALUES (?,?,?)",
+                      (bid, st, "ALL"))
         c.commit()
         kur(c)
 
