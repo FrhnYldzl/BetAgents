@@ -231,7 +231,11 @@ def job_kupon_orkestra():
         c = db.connect()
         try:
             kr = KO.karne_haritasi(c)
-            normal = KO.uret(KO.gunun_adaylari(c), kr, en_cok=9)
+            # Aday havuzu BİR KEZ okunur: hem orkestratör hem Master
+            # hem de Denetçi aynı havuzu görsün (Denetçi'nin çelişki
+            # kontrolü havuzun tamamını gerektirir).
+            havuz = KO.gunun_adaylari(c)
+            normal = KO.uret(havuz, kr, en_cok=9)
             n1 = ferhan_kupon.kaydet(normal, "normal", c)
             # Canlıda 3'lü yok: canlı fiyat saniyede değişiyor, fiyat kayması
             # ayak sayısıyla büyüyor.
@@ -243,6 +247,38 @@ def job_kupon_orkestra():
                 print(f"[{_ts()}] KUPON CANLI HATA: {e}")
             else:
                 n2 = ferhan_kupon.kaydet(canli, "canli", c)
+            # 🎯 KUPON MASTER zinciri: üret → DENETLE → deftere yaz.
+            # Reddedilen kupon deftere GİRMEZ: öneri listesine aritmetik
+            # olarak yanlış bir kupon koymak, kullanıcıyı oynamaya davet
+            # etmek olur. Red sebebi kayda geçer.
+            try:
+                import denetci as DN
+                import kupon_master as KM
+                oynanabilir = [a for a in havuz
+                               if not KM._kontrol_mu(a.get("ajan"))]
+                kmk = KM.uret(oynanabilir, kr, en_cok=6)
+                seri = DN.seri_haritasi(c)
+                onayli, red = [], 0
+                for x in kmk:
+                    # ⚠️ havuz = ADAY listesi, kupon listesi DEĞİL.
+                    # Denetçi çelişkiyi havuzdaki diğer ajan görüşlerine
+                    # bakarak buluyor; kupon listesi verilirse hiçbir
+                    # çelişki göremez ve sessizce hep onay verir.
+                    d = DN.denetle(x, havuz=oynanabilir, karneler=kr,
+                                   seriler=seri)
+                    if not d["onay"]:
+                        red += 1
+                        continue
+                    b = KM.defter_bicimi(x, d["bulgular"])
+                    b["_denetci"] = d
+                    onayli.append(b)
+                n3 = ferhan_kupon.kaydet(onayli, "master", c)
+                print(f"[{_ts()}] MASTER: {len(kmk)} kupon üretildi · "
+                      f"{red} denetçi reddi · {n3} deftere yazıldı",
+                      flush=True)
+            except Exception as e:
+                print(f"[{_ts()}] MASTER HATA: {type(e).__name__}: {e}",
+                      flush=True)
             sn = ferhan_kupon.sonuclandir(c)
             print(f"[{_ts()}] KUPON: {n1} normal + {n2} canlı yazıldı · "
                   f"kapanan {sn['kazandi']}K/{sn['kaybetti']}Y/"

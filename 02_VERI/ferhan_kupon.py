@@ -109,7 +109,16 @@ def kur(conn=None) -> None:
                 potansiyel   REAL,
                 donen        REAL,
                 kar          REAL,
-                gerekce      TEXT
+                gerekce      TEXT,
+                -- ── OYNANDI / ATLANDI (kullanıcı kararı 15.11.2026) ──
+                -- NULL = işaretlenmedi = OYNANMADI. Kullanıcı şartı:
+                -- "oynandı/oynanmadı (eğer işaretli değilse) gibi kolay
+                -- şekilde yapılabilmeli, kayıtlar gerçek muhasebe olmalı."
+                -- Para hesabı YALNIZ oynandi=1 satırlardan çıkar.
+                oynandi      INTEGER,
+                gercek_bahis REAL,
+                atlama_sebebi TEXT,
+                isaret_ts    TEXT
             )""")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS ferhan_kupon_ayak (
@@ -148,6 +157,10 @@ def kur(conn=None) -> None:
                 ("ferhan_kupon", "donen", "REAL"),
                 ("ferhan_kupon", "kar", "REAL"),
                 ("ferhan_kupon", "gerekce", "TEXT"),
+                ("ferhan_kupon", "oynandi", "INTEGER"),
+                ("ferhan_kupon", "gercek_bahis", "REAL"),
+                ("ferhan_kupon", "atlama_sebebi", "TEXT"),
+                ("ferhan_kupon", "isaret_ts", "TEXT"),
                 ("ferhan_kupon_ayak", "p_piyasa", "REAL"),
                 ("ferhan_kupon_ayak", "kenar", "REAL"),
                 ("ferhan_kupon_ayak", "kanit", "INTEGER"),
@@ -380,6 +393,88 @@ def karne(conn=None) -> dict:
             "sonuclanan": sum(x["n"] for x in out)}
 
 
+def isaretle(kupon_id: str, oynandi: bool, bahis: float = None,
+             sebep: str = "", conn=None) -> bool:
+    """Kuponu OYNANDI ya da ATLANDI diye işaretle.
+
+    ⚠️ İŞARETLENMEYEN KUPON OYNANMAMIŞ SAYILIR. Varsayılanın "oynandı"
+    olması, unutulan her kuponu cebe yazardı — muhasebe o anda hayal
+    olur. Bu yüzden NULL = oynanmadı.
+
+    `bahis` verilmezse plandaki bahis kullanılır; verilirse GERÇEK tutar
+    yazılır ve plandan sapma görünür kalır.
+    """
+    kapat = conn is None
+    conn = conn or db.connect()
+    try:
+        kur(conn)
+        r = conn.execute("SELECT bahis FROM ferhan_kupon WHERE kupon_id = ?",
+                         (kupon_id,)).fetchone()
+        if not r:
+            return False
+        plan = float(r[0] or BAHIS)
+        conn.execute(
+            "UPDATE ferhan_kupon SET oynandi = ?, gercek_bahis = ?, "
+            "atlama_sebebi = ?, isaret_ts = ? WHERE kupon_id = ?",
+            (1 if oynandi else 0,
+             (float(bahis) if bahis is not None else plan) if oynandi else 0.0,
+             "" if oynandi else str(sebep or "")[:200], _ts(), kupon_id))
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        if kapat:
+            conn.close()
+
+
+def para_karnesi(conn=None) -> dict:
+    """GERÇEK MUHASEBE — yalnız OYNANAN kuponlardan.
+
+    ⚠️ karne() ile karıştırılmamalı. İkisi FARKLI soruları cevaplar:
+        karne()        "şans %60 dedim, %60'ı tuttu mu?" → kalibrasyon,
+                       oynansın oynanmasın BÜTÜN sonuçlanmış kuponlar
+        para_karnesi() "ne kazandım?" → yalnız oynananlar
+    Oynamadığın kuponun kârını cebe yazmak, bu ayrımı kaybetmekle olur.
+    """
+    kapat = conn is None
+    conn = conn or db.connect()
+    try:
+        kur(conn)
+        r = conn.execute(
+            "SELECT durum, COALESCE(gercek_bahis, bahis, ?), oran, "
+            "       COALESCE(kar, 0) FROM ferhan_kupon "
+            "WHERE oynandi = 1", (BAHIS,)).fetchall()
+        oneri = conn.execute(
+            "SELECT COUNT(*) FROM ferhan_kupon").fetchone()[0]
+        atlanan = conn.execute(
+            "SELECT COUNT(*) FROM ferhan_kupon WHERE oynandi = 0"
+        ).fetchone()[0]
+        isaretsiz = conn.execute(
+            "SELECT COUNT(*) FROM ferhan_kupon WHERE oynandi IS NULL"
+        ).fetchone()[0]
+    finally:
+        if kapat:
+            conn.close()
+    kapanan = [x for x in r if x[0] in ("kazandi", "kaybetti")]
+    yatan = sum(float(x[1] or 0) for x in kapanan)
+    # Kâr sütunu PLAN bahsiyle yazılmış olabilir; gerçek bahisle ölçekle.
+    kar = 0.0
+    for durum, bahis, oran, _k in kapanan:
+        b = float(bahis or 0)
+        kar += (b * float(oran or 0) - b) if durum == "kazandi" else -b
+    kazanan = sum(1 for x in kapanan if x[0] == "kazandi")
+    return {
+        "oneri": int(oneri), "oynanan": len(r), "atlanan": int(atlanan),
+        "isaretsiz": int(isaretsiz), "kapanan": len(kapanan),
+        "kazanan": kazanan,
+        "p": (kazanan / len(kapanan)) if kapanan else 0.0,
+        "yatan": yatan, "kar": kar,
+        "roi": (kar / yatan) if yatan else 0.0,
+        "acik": sum(1 for x in r if x[0] == "acik"),
+    }
+
+
 def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
     """Defterdeki kuponlar — ayaklarıyla, arayüzde göstermek için."""
     kapat = conn is None
@@ -485,6 +580,39 @@ def kendi_testi() -> list[str]:
             hata.append(f"açık kupon 1 olmalı, {kr['acik']}")
         if len(son_kuponlar(c)) != 4:
             hata.append("son_kuponlar 4 satır döndürmeli")
+        # ── OYNANDI / ATLANDI ────────────────────────────────────────
+        # İşaretlenmeyen kupon OYNANMAMIŞ sayılır; para hesabına girmez.
+        p0 = para_karnesi(c)
+        if p0["oynanan"] != 0:
+            hata.append("işaretlenmemiş kupon oynanmış sayıldı")
+        if p0["isaretsiz"] != 4:
+            hata.append(f"işaretsiz sayısı 4 olmalı, {p0['isaretsiz']}")
+        kid = [x["kupon_id"] for x in son_kuponlar(c)
+               if x["durum"] == "kazandi"][0]
+        if not isaretle(kid, True, 250.0, conn=c):
+            hata.append("işaretleme başarısız")
+        p1 = para_karnesi(c)
+        if p1["oynanan"] != 1 or p1["kapanan"] != 1:
+            hata.append(f"oynanan 1 olmalı: {p1['oynanan']}/{p1['kapanan']}")
+        # oran 2,00 · gerçek bahis 250 → kâr +250, ROI +%100
+        if abs(p1["kar"] - 250.0) > 1e-6:
+            hata.append(f"gerçek bahisle kâr 250 olmalı, {p1['kar']}")
+        if abs(p1["yatan"] - 250.0) > 1e-6:
+            hata.append(f"yatan 250 olmalı, {p1['yatan']}")
+        # ATLANDI para hesabına girmemeli
+        kid2 = [x["kupon_id"] for x in son_kuponlar(c)
+                if x["durum"] == "kaybetti"][0]
+        isaretle(kid2, False, sebep="maç saçmaydı", conn=c)
+        p2 = para_karnesi(c)
+        if p2["kar"] != p1["kar"]:
+            hata.append("atlanan kupon para hesabını değiştirdi")
+        if p2["atlanan"] != 1:
+            hata.append("atlanan sayısı 1 olmalı")
+        # ⚠️ Kalibrasyon karnesi oynamadan BAĞIMSIZ olmalı
+        kr3 = karne(c)
+        if kr3["sonuclanan"] != 2:
+            hata.append("kalibrasyon karnesi oynama durumundan etkilendi "
+                        "— iki ölçü ayrı kalmalı")
         # ESKİ FORMÜL SÜRÜMÜ karneye GİRMEMELİ. Üretimde sürüm 1 ile
         # yazılmış satırlar var; süzgeç çalışmazsa formül değişikliği
         # "kalibrasyon bozuk" diye raporlanır.

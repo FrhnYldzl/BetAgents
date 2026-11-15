@@ -233,6 +233,51 @@ def gunun_kuponlari(conn=None, hedef: float = None, en_cok: int = 6) -> dict:
     }
 
 
+def defter_bicimi(k: dict, bulgular: list[dict] | None = None) -> dict:
+    """Kupon Master çıktısını ferhan_kupon defterinin biçimine çevir.
+
+    Defterin alan adları kupon_orkestra'dan geliyor; Master üç olasılık
+    tutuyor. Eşleme AÇIK yazıldı ki hangi sayının deftere girdiği
+    belirsiz kalmasın:
+        sans        ← sans_ajan     (ajanın iddiası — KPI bunun üzerinden)
+        fiyat_sansi ← sans_piyasa   (beceri varsayımsız taban)
+        bek_getiri  ← ev_ajan
+    `sans_alt` deftere ayrı sütun olarak GİRMİYOR; gerekçe metnine
+    yazılıyor, çünkü defter şeması tek bir şans alanı tutuyor ve
+    muhafazakâr sayıyı oraya koymak KPI'yi sessizce değiştirirdi.
+    """
+    g = [f"MONTAJ · hedef {HEDEF_ORAN:.2f} · {k['ayak']} ayak · "
+         f"oran {k['oran']:.2f}",
+         f"şans %{k['sans_ajan']*100:.1f} (piyasa %{k['sans_piyasa']*100:.1f}"
+         f" · muhafazakâr %{k['sans_alt']*100:.1f})",
+         f"1 TL karşılığı {k['ev_ajan']:.3f} · KPI "
+         f"{'GEÇTİ' if k['kpi'] else 'geçmedi'} (eşik {KPI_EV:.2f}) · "
+         f"kanıt: {k['etiket']}"]
+    for a in k["ayaklar"]:
+        p = a["_p"]
+        g.append(f"  · {str(a.get('ajan','')).split('_')[0]} "
+                 f"{a.get('market')}/{a.get('pick')} @{a['oran']:.2f} → "
+                 f"%{p['ajan']*100:.1f} (piyasa %{p['piyasa']*100:.1f}, "
+                 f"n={p['n']})")
+    for b in (bulgular or []):
+        g.append(f"  [{b['seviye']}] {b['mesaj']}")
+    return {
+        "ayak": k["ayak"], "oran": k["oran"],
+        "sans": k["sans_ajan"], "fiyat_sansi": k["sans_piyasa"],
+        "bek_getiri": k["ev_ajan"],
+        "gerekce_ek": chr(10).join(g),
+        "ayaklar": [{"bet_id": a.get("bet_id"), "mac_id": a.get("mac_id"),
+                     "ajan": a.get("ajan"), "ev": a.get("ev"),
+                     "dep": a.get("dep"), "market": a.get("market"),
+                     "pick": a.get("pick"), "oran": a.get("oran"),
+                     "p": a["_p"]["ajan"], "p_piyasa": a["_p"]["piyasa"],
+                     "kenar": a["_p"]["ajan"] - a["_p"]["piyasa"],
+                     "kanit": a["_p"]["yeterli"],
+                     "ima": a.get("ima"), "kickoff": a.get("kickoff")}
+                    for a in k["ayaklar"]],
+    }
+
+
 def kendi_testi() -> list[str]:
     hata = []
 
@@ -338,6 +383,19 @@ def kendi_testi() -> list[str]:
         # Akıllı seçim, rastgeleden DAHA İYİ ya da eşit şans vermeli
         if r_ak[0]["sans_ajan"] < max(x["sans_ajan"] for x in r_ra) - 1e-9:
             hata.append("akıllı seçim rastgeleden kötü kupon seçti")
+    # 6c) Defter biçimi: hangi sayının deftere girdiği belirsiz kalmasın
+    if r_ak:
+        d = defter_bicimi(r_ak[0])
+        x = r_ak[0]
+        for alan, bek in (("sans", x["sans_ajan"]),
+                          ("fiyat_sansi", x["sans_piyasa"]),
+                          ("bek_getiri", x["ev_ajan"])):
+            if abs(d[alan] - bek) > 1e-12:
+                hata.append(f"defter biçimi {alan} yanlış eşleşti")
+        if len(d["ayaklar"]) != x["ayak"]:
+            hata.append("defter biçimi ayak sayısı tutmadı")
+        if not all("bet_id" in a for a in d["ayaklar"]):
+            hata.append("defter biçiminde bet_id yok — kupon kapanamaz")
     # 7) KPI bayrağı doğru mu
     if r:
         for x in r:
