@@ -484,11 +484,12 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
         K = conn.execute(
             "SELECT kupon_id, uretim_ts, tip, ayak, oran, sans, bek_getiri, "
             "       durum, COALESCE(bahis,?), COALESCE(potansiyel,0), "
-            "       donen, kar, gerekce, fiyat_sansi FROM ferhan_kupon "
+            "       donen, kar, gerekce, fiyat_sansi, oynandi, "
+            "       gercek_bahis, atlama_sebebi FROM ferhan_kupon "
             "ORDER BY uretim_ts DESC LIMIT ?", (BAHIS, en_cok)).fetchall()
         out = []
         for (kid, ts, tip, ayak, oran, sans, bg, durum, bahis, pot,
-             donen, kar, gerekce, piy) in K:
+             donen, kar, gerekce, piy, oynandi, gb, atlama) in K:
             ay = conn.execute(
                 "SELECT a.ev, a.dep, a.market, a.pick, a.oran, a.ajan, "
                 "       COALESCE(b.status,'open'), a.gerekce, a.kanit "
@@ -504,6 +505,12 @@ def son_kuponlar(conn=None, en_cok: int = 40) -> list[dict]:
                 "donen": None if donen is None else float(donen),
                 "kar": None if kar is None else float(kar),
                 "gerekce": gerekce or "",
+                # ⚠️ oynandi NULL = İŞARETLENMEDİ = oynanmadı sayılır.
+                # Arayüz üçünü ayırt edebilsin diye None korunuyor;
+                # 0'a çevirmek "atladım" ile "unuttum"u birleştirirdi.
+                "oynandi": None if oynandi is None else int(oynandi),
+                "gercek_bahis": None if gb is None else float(gb),
+                "atlama_sebebi": atlama or "",
                 "ayaklar": [{"ev": e, "dep": d, "market": m, "pick": p,
                              "oran": float(o or 0), "ajan": aj, "durum": st,
                              "gerekce": gk or "", "kanit": bool(kn)}

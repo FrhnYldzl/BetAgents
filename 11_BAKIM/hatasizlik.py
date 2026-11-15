@@ -114,6 +114,7 @@ MODULLER = [
     ("10_CANLI", ["canli_db", "canli_kaynak", "canli_model"]),
     ("11_BAKIM", ["bakim_kontrol"]),
     ("12_SWAT", ["swat_db", "swat_kaynak"]),
+    ("13_PROJE", ["proje_veri", "proje_olcum", "proje_panel"]),
 ]
 
 
@@ -138,12 +139,29 @@ def asama_sayfa() -> None:
         _ekle("2 SAYFA", "app_v2 içe aktarma", KALDI, _kisa(e))
         return
     _takim_kapsama(APP)
+    # Açılış sayfası gezinmede gerçekten var mı? ACILIS yanlış yazılırsa
+    # Streamlit sessizce ilk sayfayı açar ve kimse fark etmez.
+    _adlar = {g[0] for _b, _s in APP.SAYFA_TANIM for g in _s}
+    _ac = getattr(APP, "ACILIS", None)
+    if _ac in _adlar:
+        _ekle("2 SAYFA", "açılış sayfası", GECTI, str(_ac))
+    else:
+        _ekle("2 SAYFA", "açılış sayfası", KALDI,
+              f"ACILIS={_ac!r} SAYFA_TANIM'da yok")
     for bolum, sayfalar in APP.SAYFA_TANIM:
         for giris in sayfalar:
             ad, fn = giris[0], giris[1]
+            # ⚠️ _toto_sayfa ile sarılı sayfalar hatayı YUTAR ve sorunsuz
+            # döner. Sadece istisnaya bakmak onları denetlenemez kılıyordu;
+            # yutulan hata app_v2._SAYFA_HATA'ya yazılıyor, onu da okuyoruz.
+            _once = len(getattr(APP, "_SAYFA_HATA", ()))
             _, hata = _sessiz(fn)
+            _yutulan = list(getattr(APP, "_SAYFA_HATA", ()))[_once:]
             if hata:
                 _ekle("2 SAYFA", f"{bolum} · {ad}", KALDI, _kisa(hata))
+            elif _yutulan:
+                _ekle("2 SAYFA", f"{bolum} · {ad}", KALDI,
+                      "yutulan hata: " + _yutulan[0][1][:160])
             else:
                 _ekle("2 SAYFA", f"{bolum} · {ad}", GECTI)
 
@@ -204,7 +222,7 @@ def asama_kendi_testi() -> None:
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
                "kasa", "vibe_studyo", "canli_db", "paper_engine",
                "agents", "swat_db", "swat_kaynak", "kupon_master",
-               "denetci", "haber", "finans"):
+               "denetci", "haber", "finans", "proje_veri"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:

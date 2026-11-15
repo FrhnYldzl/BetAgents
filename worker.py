@@ -235,18 +235,31 @@ def job_kupon_orkestra():
             # hem de Denetçi aynı havuzu görsün (Denetçi'nin çelişki
             # kontrolü havuzun tamamını gerektirir).
             havuz = KO.gunun_adaylari(c)
-            normal = KO.uret(havuz, kr, en_cok=9)
-            n1 = ferhan_kupon.kaydet(normal, "normal", c)
-            # Canlıda 3'lü yok: canlı fiyat saniyede değişiyor, fiyat kayması
-            # ayak sayısıyla büyüyor.
+            # ⚠️ ŞEKİL ODAKLI ÜRETİM BIRAKILDI (kullanıcı kararı
+            # 15.11.2026): "tekli maçlar var, eksiklik var... böyle
+            # bağımsız şekilde amaca hizmet etmiyorlar. Hedefi
+            # gerçekleştirmeye yönelik kuponlar üretilmeli."
+            # Eskiden KO.uret(sekiller=(1,2,3)) hedefe BAKMADAN 1'li/2'li/
+            # 3'lü üretiyordu; defterdeki 461 "normal" kuponun yalnız
+            # %10,2'si planın 1,60-2,00 bandına düşmüştü (ort. oran 1,46).
+            # Artık hedef sürücü: kaç ayak gerekiyorsa o kadar ayak.
+            import kupon_master as KM
+            oynanabilir = [a for a in havuz
+                           if not KM._kontrol_mu(a.get("ajan"))]
             try:
-                canli = KO.uret(KO.canli_adaylari(c), kr, sekiller=(1, 2),
-                                en_cok=4)
+                canli_ad = KO.canli_adaylari(c)
+                canli_oyn = [a for a in canli_ad
+                             if not KM._kontrol_mu(a.get("ajan"))]
+                # Canlıda hedef tek basamak ve ayak sayısı düşük: fiyat
+                # kayması her ayakta birikiyor.
+                canli = KM.hedef_merdiveni(canli_oyn, kr, hedefler=(1.60,),
+                                           her_hedef=4, maks_ayak=3)
             except Exception as e:
                 canli, n2 = [], 0
                 print(f"[{_ts()}] KUPON CANLI HATA: {e}")
             else:
-                n2 = ferhan_kupon.kaydet(canli, "canli", c)
+                n2 = ferhan_kupon.kaydet(
+                    [KM.defter_bicimi(x) for x in canli], "canli", c)
             # 🎯 KUPON MASTER zinciri: üret → DENETLE → deftere yaz.
             # Reddedilen kupon deftere GİRMEZ: öneri listesine aritmetik
             # olarak yanlış bir kupon koymak, kullanıcıyı oynamaya davet
@@ -254,9 +267,10 @@ def job_kupon_orkestra():
             try:
                 import denetci as DN
                 import kupon_master as KM
-                oynanabilir = [a for a in havuz
-                               if not KM._kontrol_mu(a.get("ajan"))]
-                kmk = KM.uret(oynanabilir, kr, en_cok=6)
+                # HEDEF MERDİVENİ — 1,60 · 1,80 · 2,00 için ayrı
+                # alternatifler. Kullanıcı: "alternatifli olabilir ama
+                # önemli olan hedefi gerçekleştirmeye yönelik olması".
+                kmk = KM.hedef_merdiveni(oynanabilir, kr, her_hedef=3)
                 seri = DN.seri_haritasi(c)
                 onayli, red = [], 0
                 for x in kmk:
@@ -280,7 +294,7 @@ def job_kupon_orkestra():
                 print(f"[{_ts()}] MASTER HATA: {type(e).__name__}: {e}",
                       flush=True)
             sn = ferhan_kupon.sonuclandir(c)
-            print(f"[{_ts()}] KUPON: {n1} normal + {n2} canlı yazıldı · "
+            print(f"[{_ts()}] KUPON: {n2} canlı yazıldı · "
                   f"kapanan {sn['kazandi']}K/{sn['kaybetti']}Y/"
                   f"{sn['iptal']}İ · açık {sn['acik']}", flush=True)
         finally:

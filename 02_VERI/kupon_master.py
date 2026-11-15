@@ -69,7 +69,28 @@ AJAN_TAVAN = 2
 # n=38'lik iddiasının dört kez çarpılmasıydı; ajan yanılıyorsa kupon
 # dört kat yanılır.
 KUPON_ICI_AJAN_TAVAN = 2
-MAKS_AYAK = 4
+# ⚠️ TEKLİ KUPON YOK. Kullanıcı kararı: "tekli maçlar var, eksiklik var".
+# Tek ayak zaten bir bahistir; hedefe yönelik montaj değildir.
+# (Defterde tek ayakla 1,79'a çıkan 12 kupon +%20,8 getirmişti — ama
+#  n=12, ve aynı fiyat bandı bahis düzeyinde n=707'de −10,0p / z=−5,45.
+#  12 gözlemi 707'ye tercih etmek ölçümü değil, umudu takip etmek olurdu.)
+ASGARI_AYAK = 2
+# 4 → 6: ölçülen EN İYİ yol 5 ayak × 1,12. MAKS_AYAK=4 iken 1,12^4=1,57
+# ve hedefe hiç ulaşılamıyordu; üretici mecburen daha pahalı (daha kötü
+# ölçülen) ayaklara kayıyordu.
+MAKS_AYAK = 6
+
+# Hedef merdiveni — planın bandı 1,60-2,00. Kullanıcı: "alternatifli
+# olabilir". Her hedef için ayrı alternatifler üretilir.
+HEDEF_MERDIVENI = (1.60, 1.80, 2.00)
+
+# Kombinasyon havuzu — en olası (en ucuz) N ayak.
+# 14 → 18: ölçüldü, 14'te hedef 2,00'ye oturan 630 kombinasyon vardı ama
+# AJAN_TAVAN ve KUPON_ICI_AJAN_TAVAN hızla tükeniyor ve merdivenin üst
+# basamağı tek kuponda kalıyordu. 18'de 3.169 kombinasyon çıkıyor; maliyet
+# 0,05 sn → 0,22 sn. Tavanlara DOKUNULMADI: onlar yoğunlaşma koruması,
+# darlığın sebebi havuzdu.
+HAVUZ_BOYU = 18
 
 
 def _kontrol_mu(pid: str) -> bool:
@@ -142,7 +163,8 @@ def kupon_degerlendir(ayaklar: list[dict]) -> dict:
 
 
 def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
-         en_cok: int = 6, rastgele: bool = False) -> list[dict]:
+         en_cok: int = 6, rastgele: bool = False,
+         maks_ayak: int = None) -> list[dict]:
     """Hedef orana oturan kombinasyonlar — en yüksek ajan şansından sırayla.
 
     PAS GEÇMEZ: KPI'yi karşılayan yoksa en iyi adaylar yine döner,
@@ -170,10 +192,13 @@ def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
         return []
     # En olası ayaklar önce — kombinasyon patlamasını sınırla
     zengin.sort(key=lambda x: -x["_p"]["ajan"])
-    havuz = zengin[:14]
+    havuz = zengin[:HAVUZ_BOYU]
 
     bulunan = []
-    for k in range(1, MAKS_AYAK + 1):
+    # Canlıda ayak sayısı DÜŞÜK tutulur: fiyat kayması her ayakta
+    # birikiyor ve canlı fiyat saniyede değişiyor.
+    _mak = int(maks_ayak or MAKS_AYAK)
+    for k in range(ASGARI_AYAK, _mak + 1):
         for c in itertools.combinations(havuz, k):
             if len({x.get("mac_id") for x in c}) != k:
                 continue              # aynı maçtan iki ayak olmaz
@@ -185,7 +210,12 @@ def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
                 o *= float(x["oran"])
             if not (hedef <= o <= tavan):
                 continue
-            bulunan.append(kupon_degerlendir(list(c)))
+            _k = kupon_degerlendir(list(c))
+            # Hangi hedefe oturduğu kuponla birlikte taşınır: merdiven
+            # kullanıldığında defterde "hedef 1,80" yazıp 1,60'a oturan
+            # kupon göstermek gerekçeyi yalan yapardı.
+            _k["hedef"] = hedef
+            bulunan.append(_k)
     if not bulunan:
         return []
     if rastgele:
@@ -206,6 +236,41 @@ def uret(adaylar: list[dict], karneler: dict, hedef: float = None,
         out.append(x)
         if len(out) >= en_cok:
             break
+    return out
+
+
+def hedef_merdiveni(adaylar: list[dict], karneler: dict,
+                    hedefler=HEDEF_MERDIVENI, her_hedef: int = 3,
+                    rastgele: bool = False,
+                    maks_ayak: int = None) -> list[dict]:
+    """Her hedef orana oturan ALTERNATİFLER — kullanıcı isteği.
+
+    Şekil (1'li/2'li/3'lü) değil HEDEF sürücü: "1,80 istiyorum" denince
+    kaç ayak gerekiyorsa o kadar ayak kurulur. Aynı hedefe birden çok
+    alternatif çıkar; hangisinin oynanacağı kullanıcının kararı.
+
+    ⚠️ Aynı ayak farklı hedeflerde tekrar edebilir ve bu SAHTE ÇEŞİTLİLİK
+    üretir: üç alternatif aynı maça bağlıysa maç kaybedince üçü birden
+    gider. Ayak bazında tavan konuyor.
+    """
+    from collections import defaultdict
+    out: list[dict] = []
+    ayak_sayac: dict = defaultdict(int)
+    for h in hedefler:
+        kup = uret(adaylar, karneler, hedef=float(h),
+                   en_cok=her_hedef * 3, rastgele=rastgele,
+                   maks_ayak=maks_ayak)
+        alinan = 0
+        for x in kup:
+            kimlik = [str(a.get("bet_id") or a.get("mac_id")) for a in x["ayaklar"]]
+            if any(ayak_sayac[i] >= 2 for i in kimlik):
+                continue
+            for i in kimlik:
+                ayak_sayac[i] += 1
+            out.append(x)
+            alinan += 1
+            if alinan >= her_hedef:
+                break
     return out
 
 
@@ -246,7 +311,8 @@ def defter_bicimi(k: dict, bulgular: list[dict] | None = None) -> dict:
     yazılıyor, çünkü defter şeması tek bir şans alanı tutuyor ve
     muhafazakâr sayıyı oraya koymak KPI'yi sessizce değiştirirdi.
     """
-    g = [f"MONTAJ · hedef {HEDEF_ORAN:.2f} · {k['ayak']} ayak · "
+    g = [f"MONTAJ · hedef {float(k.get('hedef') or HEDEF_ORAN):.2f} · "
+         f"{k['ayak']} ayak · "
          f"oran {k['oran']:.2f}",
          f"şans %{k['sans_ajan']*100:.1f} (piyasa %{k['sans_piyasa']*100:.1f}"
          f" · muhafazakâr %{k['sans_alt']*100:.1f})",
@@ -402,6 +468,67 @@ def kendi_testi() -> list[str]:
             if x["kpi"] != (x["ev_ajan"] >= KPI_EV):
                 hata.append("kpi bayrağı ev_ajan ile tutarsız")
                 break
+
+    # ── HEDEF ODAKLI ÜRETİM (kullanıcı kararı 15.11.2026) ────────────
+    # 8) TEKLİ KUPON ÜRETİLMEMELİ. Tek ayak bir bahistir, montaj değil.
+    ad5, kr5 = [], {}
+    for i in range(4):
+        a, k = ay(f"T{i}_V1", 1.85, 400 + i, kenar=0.01)
+        ad5.append(a)
+        kr5[f"T{i}_V1"] = k
+    r5 = uret(ad5, kr5, hedef=1.80, en_cok=10)
+    if any(x["ayak"] < ASGARI_AYAK for x in r5):
+        hata.append("tek ayaklı kupon üretildi — ASGARI_AYAK çiğnendi")
+
+    # 9) UCUZ AYAKLA HEDEFE ULAŞILABİLMELİ.
+    #    Ölçülen en iyi yol 5 ayak × 1,12. MAKS_AYAK=4 iken 1,12^4=1,57
+    #    ve bu yol hiç kurulamıyordu — sessiz bir kısıttı.
+    ad6, kr6 = [], {}
+    for i in range(8):
+        a, k = ay(f"U{i}_V1", 1.12, 500 + i, kenar=0.0)
+        ad6.append(a)
+        kr6[f"U{i}_V1"] = k
+    r6 = uret(ad6, kr6, hedef=1.60, en_cok=10)
+    if not r6:
+        hata.append("ucuz ayaklarla (1,12) hedefe ulaşılamadı — "
+                    f"MAKS_AYAK={MAKS_AYAK} yetersiz")
+    elif min(x["ayak"] for x in r6) < 5:
+        hata.append("1,12 ayakla 1,60'a 5'ten az ayakla ulaşıldı — "
+                    "oran çarpımı yanlış")
+
+    # 10) MERDİVEN: her hedef için kupon, her kupon KENDİ bandında
+    ad7, kr7 = [], {}
+    for i in range(10):
+        a, k = ay(f"M{i}_V1", 1.26, 600 + i, kenar=0.005)
+        ad7.append(a)
+        kr7[f"M{i}_V1"] = k
+    merd = hedef_merdiveni(ad7, kr7, hedefler=(1.60, 1.80), her_hedef=2)
+    if not merd:
+        hata.append("hedef merdiveni hiç kupon üretmedi")
+    for x in merd:
+        h = float(x.get("hedef") or 0)
+        if not h:
+            hata.append("merdiven kuponunda hedef yazılı değil")
+            break
+        if not (h <= x["oran"] <= h * ORAN_TAVAN_KAT + 1e-9):
+            hata.append(f"merdiven kuponu kendi bandında değil: "
+                        f"hedef {h:.2f}, oran {x['oran']:.3f}")
+            break
+    # 10b) Sahte çeşitlilik: aynı ayak merdivenin her basamağında olmasın
+    from collections import Counter as _C3
+    say7 = _C3(a["bet_id"] for x in merd for a in x["ayaklar"])
+    if say7 and max(say7.values()) > 2:
+        hata.append(f"aynı ayak {max(say7.values())} alternatifte — "
+                    "merdiven sahte çeşitlilik üretti")
+
+    # 11) Defter gerekçesi kuponun KENDİ hedefini yazmalı; sabit
+    #     HEDEF_ORAN yazmak 1,60'a oturan kuponu "hedef 1,80" diye
+    #     kaydeder ve gerekçeyi yalan yapardı.
+    if merd:
+        x = merd[0]
+        d = defter_bicimi(x)
+        if f"hedef {float(x['hedef']):.2f}" not in d["gerekce_ek"]:
+            hata.append("defter gerekçesi kuponun kendi hedefini yazmıyor")
     return hata
 
 

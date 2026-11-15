@@ -3748,7 +3748,23 @@ def load_kupon_uret() -> dict:
     belirsizdir, yazma oraya konursa defter rastgele dolar. Yazma ya saat
     başı worker'da ya da sayfadaki açık düğmeyle olur.
     """
+    import kupon_master as KM
     import kupon_orkestra as KO
+
+    def _defter(kuponlar):
+        """KM çıktısını sayfanın ve defterin beklediği biçime çevir."""
+        out = []
+        for x in kuponlar:
+            d = KM.defter_bicimi(x)
+            # _kupon_satiri "gerekce" okur, defter_bicimi "gerekce_ek"
+            # yazar. Eşlemeyi burada AÇIK yapıyoruz; sessizce boş geçerse
+            # ekranda gerekçesiz kupon çıkar ve sayı denetlenemez olur.
+            d["gerekce"] = d.pop("gerekce_ek", "")
+            d["hedef"] = float(x.get("hedef") or KM.HEDEF_ORAN)
+            d["kpi"] = bool(x.get("kpi"))
+            out.append(d)
+        return out
+
     c = _conn()
     with _SORGU_KILIDI:
         try:
@@ -3756,17 +3772,25 @@ def load_kupon_uret() -> dict:
         except Exception:
             kr = {}
         try:
-            normal = KO.uret(KO.gunun_adaylari(c), kr, en_cok=9)
+            # ⚠️ ŞEKİL ODAKLI ÜRETİM BIRAKILDI (kullanıcı 15.11.2026):
+            # "böyle bağımsız şekilde amaca hizmet etmiyorlar; hedefi
+            #  gerçekleştirmeye yönelik kuponlar üretilmeli".
+            oyn = [a for a in KO.gunun_adaylari(c)
+                   if not KM._kontrol_mu(a.get("ajan"))]
+            normal = _defter(KM.hedef_merdiveni(oyn, kr, her_hedef=3))
         except Exception:
-            normal = []
+            oyn, normal = [], []
         try:
-            # Canlıda 3'lü yok: maç içinde üç ayağın birlikte tutma şansı
-            # zaten küçük, üstelik canlı fiyat saniyede değişiyor ve kupon
-            # kurulurken fiyat kayması en çok ayak sayısıyla büyüyor.
-            canli = KO.uret(KO.canli_adaylari(c), kr, sekiller=(1, 2), en_cok=4)
+            # Canlıda tek basamak ve az ayak: fiyat kayması her ayakta
+            # birikiyor, canlı fiyat saniyede değişiyor.
+            coyn = [a for a in KO.canli_adaylari(c)
+                    if not KM._kontrol_mu(a.get("ajan"))]
+            canli = _defter(KM.hedef_merdiveni(coyn, kr, hedefler=(1.60,),
+                                               her_hedef=4, maks_ayak=3))
         except Exception:
             canli = []
-    return {"normal": normal, "canli": canli, "karne_ajan": len(kr)}
+    return {"normal": normal, "canli": canli, "karne_ajan": len(kr),
+            "havuz": oyn, "karneler": kr}
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -3928,14 +3952,30 @@ def page_kuponlar() -> None:
     with c1:
         if st.button("Deftere yaz ve sonuçları tazele",
                      key="v2_fk_yaz", use_container_width=True):
+            import denetci as DN
             import ferhan_kupon as FK
             try:
                 with _SORGU_KILIDI:
-                    n1 = FK.kaydet(u["normal"], "normal", _conn())
+                    # ⚠️ Worker ile AYNI kapı. Bu düğme eskiden kuponu
+                    # denetlemeden yazıyordu; aynı "master" etiketi altında
+                    # biri denetlenmiş biri denetlenmemiş kupon toplanırsa
+                    # Kupon Master'ın karnesi ölçülemez hale gelir.
+                    seri = DN.seri_haritasi(_conn())
+                    onayli, red = [], 0
+                    for x in u["normal"]:
+                        d = DN.denetle(x, havuz=u.get("havuz") or [],
+                                       karneler=u.get("karneler") or {},
+                                       seriler=seri)
+                        if d["onay"]:
+                            onayli.append(x)
+                        else:
+                            red += 1
+                    n1 = FK.kaydet(onayli, "master", _conn())
                     n2 = FK.kaydet(u["canli"], "canli", _conn())
                     s = FK.sonuclandir(_conn())
                 load_kupon_defter.clear()
-                st.success(f"{n1 + n2} yeni kupon yazıldı · kapanan: "
+                st.success(f"{n1 + n2} yeni kupon yazıldı · {red} denetçi "
+                           f"reddi · kapanan: "
                            f"{s['kazandi']} kazandı, {s['kaybetti']} kaybetti, "
                            f"{s['iptal']} iptal")
             except Exception as e:
@@ -3960,17 +4000,24 @@ def page_kuponlar() -> None:
         else:
             st.markdown("<div class='sb'>Kaynak: ajanların ŞU ANKİ açık "
                         "pozisyonları (" + str(u["karne_ajan"]) +
-                        " ajanın karnesi okundu). Orkestratör yeni seçim "
-                        "üretmez; var olanı kupon şekline sokar.</div>",
-                        unsafe_allow_html=True)
-            for ayak in (1, 2, 3):
-                g = [x for x in u["normal"] if x["ayak"] == ayak]
+                        " ajanın karnesi okundu). Yeni seçim üretilmez; "
+                        "var olan seçimler <b>hedef orana</b> oturacak "
+                        "şekilde birleştirilir — kaç ayak gerekiyorsa o "
+                        "kadar ayak.</div>", unsafe_allow_html=True)
+            # Başlık ŞEKİL değil HEDEF: "2'li kombine" kuponun ne işe
+            # yaradığını söylemiyordu. Ayak sayısı hedefin sonucudur,
+            # amacı değil.
+            for h in sorted({float(x.get("hedef") or 0) for x in u["normal"]}):
+                g = [x for x in u["normal"]
+                     if abs(float(x.get("hedef") or 0) - h) < 1e-9]
                 if not g:
                     continue
-                st.markdown("<h3 style='margin:var(--s4) 0 var(--s2);'>" +
-                            {1: "Tek maç", 2: "2'li kombine",
-                             3: "3'lü kombine"}[ayak] + "</h3>",
-                            unsafe_allow_html=True)
+                st.markdown(
+                    "<h3 style='margin:var(--s4) 0 var(--s2);'>Hedef " +
+                    _num(h, 2) + " <span style='font-weight:400;opacity:.6;"
+                    "font-size:13px;'>· " + str(len(g)) + " alternatif · " +
+                    ", ".join(str(x["ayak"]) + " ayak" for x in g) +
+                    "</span></h3>", unsafe_allow_html=True)
                 for k in g:
                     st.markdown(_kupon_satiri(k), unsafe_allow_html=True)
 
@@ -5444,9 +5491,20 @@ _TOTO_DIZIN = str(THIS_DIR.parent / "09_TOTO")
 
 _CANLI_DIZIN = str(THIS_DIR.parent / "10_CANLI")
 _BAKIM_DIZIN = str(THIS_DIR.parent / "11_BAKIM")
+_PROJE_DIZIN = str(THIS_DIR.parent / "13_PROJE")
 
 
-def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None):
+# ⚠️ _toto_sayfa KULLANICIYA hata göstermez, yutar ve bir uyarı kutusu
+# çizer — bu doğru davranış (bir bölümün hatası diğerlerini düşürmesin).
+# Ama yan etkisi şuydu: DENETİM de hatayı göremiyordu, çünkü fonksiyon
+# sorunsuz dönüyordu. Sarılı sayfaların hepsi (Toto · Canlı · Bakım ·
+# Proje) denetimde KOŞULLARI SAĞLAMADAN "geçti" sayılıyordu.
+# Hata burada biriktiriliyor; hatasizlik.py bu listeyi okuyor.
+_SAYFA_HATA: list = []
+
+
+def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None,
+                etiket: str = "Toto"):
     def _f():
         try:
             for _d in (dizin or _TOTO_DIZIN,):
@@ -5456,7 +5514,10 @@ def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None):
             getattr(importlib.import_module(modul), ad)(_sayfa_basligi)
         except Exception as _e:
             import html as _h
-            st.markdown("<div class='v2bos'>Toto sayfası şu an çizilemedi — BetAgents etkilenmez. "
+            _SAYFA_HATA.append((f"{modul}.{ad}",
+                                f"{type(_e).__name__}: {_e}"))
+            st.markdown("<div class='v2bos'>" + _h.escape(etiket) +
+                        " sayfası şu an çizilemedi — BetAgents etkilenmez. "
                         "Ayrıntı: " + _h.escape(f"{type(_e).__name__}: {_e}")[:240] + "</div>",
                         unsafe_allow_html=True)
     _f.__name__ = modul.split("_")[0] + "_" + ad
@@ -5464,18 +5525,51 @@ def _toto_sayfa(ad: str, modul: str = "toto_panel", dizin: str | None = None):
 
 
 SAYFA_TANIM = [
+    # PROJE 2027 — kullanıcının Excel planı (Iddaa_Bet_Agent_2027_Proje_Plani).
+    # Planın sayıları SABİT, ölçülen sayılar deftere bağlı: sayfalar ikisini
+    # yan yana gösterir. Plan p=0,90 · yield +%62 varsayıyor; ölçüm bugün
+    # p≈0,49 · ROI −%12,6 diyor. Panel bu farkı saklamaz.
+    ("PROJE 2027", [
+        # ⚠️ "Kuponlar Ferhan" 15.11.2026'da KALDIRILDI (kullanıcı:
+        # "gereksizse sil"). Üretim+gösterim tarafı defterle çakışıyordu:
+        # worker saat başı aynı hedef merdivenini zaten yazıyor, sayfa
+        # sadece aynı kuponları bir kez daha hesaplıyordu. Benzersiz olan
+        # tek şey KALİBRASYON karnesiydi — o Proje · Ölçüm'e taşındı.
+        # page_kuponlar fonksiyonu kodda duruyor; geri istenirse tek satır.
+        ("Proje · Kupon Defteri",
+         _toto_sayfa("kupon_defteri", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/fact_check:", "proje-defter",
+         "Hangi kuponu gerçekten oynadım, ne kazandım?"),
+        # Eski İnceleme · Çakışma · Kasa ve Getiri · OPUS 5 sayfalarının
+        # yerine TEK sayfa — kullanıcı: "ajan ve kupon düzeyinde, proje
+        # endeksli". Ajan karnesi AYAK değil TEKİL BAHİS sayar.
+        ("Proje · Ölçüm",
+         _toto_sayfa("olcum", "proje_olcum", _PROJE_DIZIN, "Proje"),
+         ":material/query_stats:", "proje-olcum",
+         "Kupon hedefe oturuyor mu, hangi ajan taşıyor?"),
+        ("Proje · Parametreler",
+         _toto_sayfa("parametreler", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/tune:", "proje-param",
+         "Planın varsayımları ölçümle uyuşuyor mu?"),
+        ("Proje · 2027 Plan",
+         _toto_sayfa("aylik_plan", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/calendar_month:", "proje-plan",
+         "Ay ay hedef, stake ve bankroll ne olmalı?"),
+        ("Proje · Nakit Akışı",
+         _toto_sayfa("nakit_akisi", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/account_balance_wallet:", "proje-nakit",
+         "Cebe ne girdi, masada ne kaldı?"),
+        ("Proje · Görevler",
+         _toto_sayfa("gorevler", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/checklist:", "proje-gorev",
+         "Sırada hangi görev var, bitti sayılma kriteri ne?"),
+        ("Proje · Kurallar",
+         _toto_sayfa("kurallar", "proje_panel", _PROJE_DIZIN, "Proje"),
+         ":material/gavel:", "proje-kural",
+         "Hangi kural bugün beni durduruyor?")]),
     ("VIBE", [
         ("Vibe Betting", _toto_sayfa("vibe", "vibe_panel"), ":material/auto_awesome:", "vibe",
          "Sor — veriye bakıp cevaplasın.")]),
-    ("MASA", [
-        ("Karar Masası", page_desk, ":material/space_dashboard:", "masa",
-         "Kime güvenirim, bugün ne var?"),
-        ("Sepet", page_sepet, ":material/shopping_basket:", "sepet",
-         "Ne kuruyorum, kaça mal oluyor?"),
-        # Orkestratör: ajanların açık pozisyonlarını kupon şekillerine sokar
-        # ve her şeklin KAZANMA ŞANSINI yazar. Tavsiye vermez — ölçüm verir.
-        ("Kuponlar Ferhan", page_kuponlar, ":material/confirmation_number:",
-         "kuponlar", "Hangi kuponun kazanma şansı ne kadar?")]),
     ("TAKIMLAR", [
         ("Lig Tablosu", page_lig, ":material/leaderboard:", "lig",
          "Kim önde, kim geride?"),
@@ -5507,16 +5601,6 @@ SAYFA_TANIM = [
          "Akıllı montaj rastgeleden iyi mi?"),
         ("Ajan Dosyası", page_ajan, ":material/badge:", "ajan",
          "Bu ajan neyi, neden oynadı?")]),
-    ("PORTFÖY", [
-        ("Kasa ve Getiri", page_kasa, ":material/show_chart:", "kasa",
-         "Para büyüyor mu, neye göre?"),
-        ("OPUS 5", page_opus, ":material/account_balance_wallet:", "opus",
-         "Gerçekte ne oynadım?")]),
-    ("ANALİZ", [
-        ("İnceleme", page_inceleme, ":material/troubleshoot:", "inceleme",
-         "Neden kaybediyorum?"),
-        ("Çakışma ve Arşiv", page_cakisma, ":material/join_inner:",
-         "cakisma", "Kaç bağımsız görüş var?")]),
     ("SÜPER TOTO", [
         ("Toto · Bu Hafta", _toto_sayfa("bu_hafta"), ":material/sports_soccer:", "toto",
          "Bu hafta Toto'da ne oynayalım, neden?"),
@@ -5544,6 +5628,11 @@ SAYFA_TANIM = [
         ("Haftalık Bakım", _toto_sayfa("haftalik_bakim", "bakim_panel", _BAKIM_DIZIN),
          ":material/build:", "bakim", "Bahisler, sonuçlar ve filtreler tutarlı mı?")]),
 ]
+# Açılış sayfası — PROJE 2027 en üstte (kullanıcı isteği 15.11.2026).
+# Listeden türetilmiyor: sıra değişince açılışın sessizce kaymasını
+# istemiyoruz. Burada yazılı ad SAYFA_TANIM'da yoksa denetim yakalar.
+ACILIS = "Proje · Kupon Defteri"
+
 # sayfa adı -> {bölüm, soru}; PAGES okuma sırasını taşır (alt gezinme)
 SORU: dict = {}
 PAGES: dict = {}
@@ -5636,21 +5725,20 @@ def main() -> None:
         _db_kapali(_e)
         return
     if "v2_page" not in st.session_state:
-        st.session_state["v2_page"] = "Karar Masası"
+        st.session_state["v2_page"] = ACILIS
     try:
         st.logo(os.path.join(_MARKA_DIZIN, "logo.svg"), size="large",
                 icon_image=os.path.join(_MARKA_DIZIN, "logo-ikon.svg"))
     except Exception:
         pass
-    sp = _sepet()
     bolumler: dict = {}
     _SAYFA_NESNE.clear()
     for bolum, ogeler in SAYFA_TANIM:
         liste = []
         for ad, fn, ikon, url, _soru in ogeler:
-            baslik = ad + ("  ·  " + str(len(sp)) if ad == "Sepet" and sp else "")
+            baslik = ad
             pg = st.Page(_sarmala(ad, fn), title=baslik, icon=ikon,
-                         url_path=url, default=(ad == "Karar Masası"))
+                         url_path=url, default=(ad == ACILIS))
             _SAYFA_NESNE[ad] = pg
             liste.append(pg)
         bolumler[bolum] = liste
