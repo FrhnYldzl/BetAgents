@@ -22,6 +22,7 @@ Settle/recompute: auto_settle zaten TÜM portföyleri dolaşıyor.
 from __future__ import annotations
 
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -3312,14 +3313,34 @@ def run_all(place: bool = True) -> dict:
     except Exception as e:
         print(f"[PREFLIGHT] HATA: {e}")
     out = {}
+    # ⚠️ AJAN BAŞINA SÜRE ÖLÇÜLÜYOR. Sebebi ölçülmüş bir olay:
+    # yerelde tek ajanın (KALKAN_V1) aday üretimi 594 saniye sürüyordu —
+    # pazar sorgusu maçı CAST'li eşitlikle arıyor ve ifadeye sarılı sütun
+    # indeksi kullanılamaz kılıyor (plan tam tarama). Yerel anlık
+    # görüntüye ifade indeksi eklenerek 0,2 sn'ye indi, ama ÜRETİMDEKİ
+    # (PostgreSQL) aynı sorgu ölçülmedi.
+    # Süre yazılmadan log'dan tek ajanın payı görülemiyordu: yavaşlık
+    # hata vermiyor, sadece saatlik iş uzuyor — yani sessiz kalıyor.
+    sureler: list = []
     for pid in PROFILES:
+        _t0 = time.perf_counter()
         try:
             out[pid] = run_profile(pid, place=place)
         except Exception as e:
             print(f"[{pid}] HATA: {e}")
             out[pid] = []
+        sureler.append((time.perf_counter() - _t0, pid))
     n_total = sum(len(v) for v in out.values())
-    print(f"[AGENTS] === run_all bitti: {n_total} kupon ===")
+    sureler.sort(reverse=True)
+    _top = sum(s for s, _ in sureler)
+    print(f"[AGENTS] === run_all bitti: {n_total} kupon · "
+          f"{_top:.1f} sn ===")
+    # En pahalı üç ajan: darbogaz ayrı bir ölçüm koşusu gerektirmeden
+    # her saat log'a düşsün.
+    for s, pid in sureler[:3]:
+        if s >= 1.0:
+            print(f"[AGENTS] en pahalı · {pid}: {s:.1f} sn "
+                  f"(%{s / max(_top, 1e-9) * 100:.0f})", flush=True)
     # 💓 HEARTBEAT: worker'ın ajanları gerçekten koşturduğunun DB kanıtı
     # (UI Sistem Sağlığı 'Son Ajan Koşusu' bunu okur — log görünmese de iz kalır)
     try:

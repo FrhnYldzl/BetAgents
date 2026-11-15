@@ -35,6 +35,19 @@ def _cevir(v):
     return v
 
 
+# Anlık görüntüde BİRİNCİL ANAHTAR taşıyacak tablolar.
+# ⚠️ Yalnız gerçekten tek anahtarlı olanlar yazılıyor. Bilmediğin bir
+# tabloya anahtar uydurmak, üretimde geçerli satırları yerelde
+# reddettirir — eksik veri, bozuk veriden daha sinsi.
+# matches_v2 burada YOK: çekme planında ayrı ele alınıyor.
+ANAHTAR = {
+    "paper_portfolio": "portfolio_id",
+    "paper_coupons": "coupon_id",
+    "paper_bets": "bet_id",
+    "ferhan_kupon": "kupon_id",
+}
+
+
 def al() -> None:
     simdi = dt.datetime.utcnow()
     once = lambda gun: (simdi - dt.timedelta(days=gun)).isoformat()  # noqa: E731
@@ -85,8 +98,24 @@ def al() -> None:
                 continue
             cols = list(rows[0].keys())
             dst.execute(f'DROP TABLE IF EXISTS "{tablo}"')
-            dst.execute(f'CREATE TABLE "{tablo}" (' +
-                        ", ".join(f'"{c}"' for c in cols) + ")")
+            # ⚠️ BİRİNCİL ANAHTAR TAŞINMALI. Anlık görüntü düz sütunlarla
+            # kuruluyordu; üretimde PRIMARY KEY çakışmasıyla YOK SAYILAN
+            # bir INSERT burada İKİNCİ SATIR yaratıyor.
+            # Yaşandı (15.11.2026): agents.py anlık görüntüye karşı
+            # koşturulunca paper_portfolio 44 → 83 satır oldu (her ajana
+            # bankroll 1000 · 0 bahisli taze bir kopya). bakim_kontrol
+            # paper_portfolio'ya JOIN yaptığı için her bahis ikiye katlandı
+            # ve denetim "aynı kuponda tekrar eden ayak = 2415" diye
+            # KALDI verdi — veri bozuk değildi, anlık görüntü bozulmuştu.
+            # Anahtarı olan tabloda artık ikinci satır yazılamaz.
+            pk = ANAHTAR.get(tablo)
+            tanim = ", ".join(
+                f'"{c}" PRIMARY KEY' if c == pk else f'"{c}"' for c in cols)
+            if pk and pk not in cols:
+                print(f"  ⚠️ {tablo}: anahtar '{pk}' sütunlarda yok, "
+                      f"anahtarsız kuruluyor")
+                tanim = ", ".join(f'"{c}"' for c in cols)
+            dst.execute(f'CREATE TABLE "{tablo}" ({tanim})')
             dst.executemany(
                 f'INSERT INTO "{tablo}" VALUES (' + ",".join("?" * len(cols)) + ")",
                 [tuple(_cevir(r.get(c)) for c in cols) for r in rows])
