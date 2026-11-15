@@ -108,7 +108,7 @@ MODULLER = [
                  "multiplier_agent", "turuncu_agent", "combo_tables",
                  "recompute_portfolio", "fetch_results",
                  "kasa", "kupon_orkestra", "ferhan_kupon",
-                 "kupon_master", "denetci"]),
+                 "kupon_master", "denetci", "haber"]),
     ("09_TOTO", ["toto_db", "toto_takim", "deger", "kalabalik", "pazar",
                  "geri_test", "canli", "sportoto", "kadro", "vibe_db"]),
     ("10_CANLI", ["canli_db", "canli_kaynak", "canli_model"]),
@@ -204,7 +204,7 @@ def asama_kendi_testi() -> None:
     for ad in ("toto_takim", "sistem", "kupon_orkestra", "ferhan_kupon",
                "kasa", "vibe_studyo", "canli_db", "paper_engine",
                "agents", "swat_db", "swat_kaynak", "kupon_master",
-               "denetci"):
+               "denetci", "haber"):
         try:
             m = importlib.import_module(ad)
         except Exception as e:
