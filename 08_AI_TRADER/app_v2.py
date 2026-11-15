@@ -882,11 +882,19 @@ table.v2 tr.adv .ag{color:var(--pos);}
 .tk-kart{background:var(--panel);border:1px solid var(--line);
   border-top:3px solid var(--brand);border-radius:var(--r);
   padding:14px 16px 12px;margin-bottom:8px;}
-.tk-ust{display:flex;justify-content:space-between;align-items:baseline;
-  gap:8px;margin-bottom:10px;flex-wrap:wrap;}
-.tk-ust b{font-size:var(--t-kart);font-weight:700;color:var(--ink);}
+/* ⚠️ Takım kartı başlığı da BÜLTEN ŞERİDİ. Kart başlıkları (.v2head)
+   koyu şeride geçince bu kartlar açık zeminde kaldı ve aynı sayfada iki
+   ayrı başlık dili oluştu — Lig Tablosu'nun tepesindeki üç takım kartı
+   ile hemen altındaki "Tüm Ajanlar" kartı birbirine benzemiyordu.
+   Kart dolgusu başlığı da kapsadığı için şerit negatif boşlukla
+   kenarlara taşırılıyor. */
+.tk-ust{display:flex;justify-content:space-between;align-items:center;
+  gap:8px;flex-wrap:wrap;background:var(--serit);
+  margin:-14px -16px 10px;padding:6px 12px;}
+.tk-ust b{font-size:var(--t-govde);font-weight:600;color:var(--serit-ink);}
 .tk-ust span{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
-  font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);}
+  font-weight:var(--w-etiket);text-transform:uppercase;
+  color:var(--serit-dim);}
 .tk-sayi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px;}
 .tk-sayi span{display:block;font-size:var(--t-etiket);
   letter-spacing:var(--ls-etiket);font-weight:var(--w-etiket);
