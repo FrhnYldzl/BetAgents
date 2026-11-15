@@ -253,20 +253,25 @@ def olcu_seridi(k: dict) -> str:
 
 CSS = """
 <style>
-.kf{border:1px solid var(--line-2);border-radius:6px;overflow:hidden;
+.kf{border:1px solid var(--line-2);border-radius:0;overflow:hidden;
     background:var(--panel);margin:0 0 2px;}
-.kf-bas{display:flex;align-items:center;gap:10px;padding:7px 12px;
-    background:var(--panel-3);border-bottom:1px solid var(--line-2);}
+/* ⚠️ BÜLTEN ŞERİDİ: iddaa'da lig adı koyu bantta beyaz yazar; kupon
+   fişinin başlığı da o bandın karşılığı. --serit ile app_v2'nin kart
+   başlıkları AYNI şeridi kullanıyor — iki ayrı gri ton, aynı ürünün iki
+   ayrı yerden tasarlandığı izlenimi verirdi. */
+.kf-bas{display:flex;align-items:center;gap:10px;padding:6px 12px;
+    background:var(--serit,#282F33);border-bottom:0;}
 .kf-tip{font-family:var(--mono,ui-monospace,monospace);font-size:10px;
-    letter-spacing:.12em;font-weight:700;color:var(--ink);}
+    letter-spacing:.12em;font-weight:700;color:var(--serit-ink,#fff);}
 .kf-mac-adet{font-family:var(--mono,ui-monospace,monospace);font-size:10px;
-    letter-spacing:.12em;color:var(--muted);}
+    letter-spacing:.12em;color:var(--serit-dim,#c9d4da);}
 .kf-durum{margin-left:auto;font-size:11px;font-weight:600;padding:1px 8px;
-    border-radius:10px;border:1px solid var(--line-2);color:var(--ink-2);
-    background:var(--panel);}
+    border-radius:10px;border:1px solid rgba(255,255,255,.25);
+    color:var(--serit-ink,#fff);background:transparent;}
 .kf-durum.kz{color:var(--pos);background:var(--pos-fill);border-color:transparent;}
 .kf-durum.kb{color:var(--neg);background:var(--neg-fill);border-color:transparent;}
-.kf-ayak{padding:8px 12px;border-bottom:1px solid var(--line);}
+.kf-ayak{padding:7px 12px;border-bottom:1px solid var(--line);}
+.kf-ayak:nth-child(even){background:var(--satir-alt,#eef2f4);}
 .kf-ust{font-family:var(--mono,ui-monospace,monospace);font-size:10px;
     letter-spacing:.06em;color:var(--muted);}
 .kf-mac{font-size:13.5px;font-weight:600;color:var(--ink);margin:1px 0 3px;

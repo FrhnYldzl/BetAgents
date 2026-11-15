@@ -494,7 +494,7 @@ V2_CSS = """
   --t-etiket:9.5px; --t-kucuk:11px; --t-alt:12px; --t-govde:13.5px;
   --t-metin:13.5px; --t-kart:14px; --t-okuma:18px; --t-sayfa:22px;
   --t-dev:26px; --ls-etiket:.14em; --w-etiket:600;
-  --r:3px; --satir-y:13px; --kart-ic:18px 20px;
+  --r:0px; --satir-y:10px; --kart-ic:12px 14px;
 
   /* AÇIK PALET — kâğıt beyazı, serin nötrler, tek amber vurgu */
   --ground:#ffffff;
@@ -513,13 +513,28 @@ V2_CSS = """
   --muted:#5b6b7b;
   --line:#e6ecf1;
   --line-2:#ccd7e0;
-  --brand:#8a5c0c;
-  --brand-fill:#fbf1de;
+  /* BÜLTEN YEŞİLİ — iddaa'dan ölçüldü. Metin için nav yeşili
+     (#006D35): beyaz 6,48 · maç satırı 5,49 · seçili oran 4,99 — üçü de
+     4,5 eşiğinin üstünde. Marka yeşili #008641 metin olarak DÜŞÜYOR
+     (3,97 / 3,60); o yalnız --marka-bar'da ZEMİN olarak kullanılıyor. */
+  --brand:#006D35;
+  --brand-fill:#e6f3ec;
+  /* Üst şerit zemini — beyaz metinle 4,68 ✓. METİN OLARAK KULLANMA. */
+  --marka-bar:#008641;
+  --marka-bar-2:#00572b;
+  /* Başlık şeridi: iddaa'nın lig bandı. Beyaz metin 13,60 ✓ */
+  --serit:#282F33;
+  --serit-ink:#ffffff;
+  --serit-dim:#c9d4da;      /* şeritte ikincil metin — 9,01 ✓ */
+  /* Almaşık satır zemini — ana metin (#0d1620) üstünde 15,43 ✓ */
+  --satir-alt:#eef2f4;
   /* Amber KOYU zeminde okunmuyor: #8a5c0c koyu şeritte 3,14. Aynı rengi
      hem beyazda hem koyuda kullanmak mümkün değil — beyazda iyi olan
      koyuda kötü. #c08a1c koyu zeminde 5,98 (beyazda 3,05, o yüzden
      YALNIZ koyu zeminde kullanılır). */
-  --brand-koyu:#c08a1c;
+  /* Koyu panelde vurgu: #008641 orada 3,49 ✗ — kullanılamaz.
+     #3fb37f 6,20 ✓ */
+  --brand-koyu:#3fb37f;
   --pos:#0a6a47;
   --pos-fill:#e2f2eb;
   --neg:#a52a1c;
@@ -531,7 +546,7 @@ V2_CSS = """
   --warn:#7d590e;
   --warn-fill:#faf2de;
   /* koyu şerit — kenar çubuğu ve marka için tek koyu yüzey */
-  --koyu:#0d1620;
+  --koyu:#192125;   /* iddaa spor şeridi */
   --koyu-ink:#eaf0f5;
   --koyu-dim:#8798a8;
 }
@@ -615,12 +630,17 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   margin-left:2px;}
 
 /* ── SAYFA BAŞLIĞI ─────────────────────────────────────── */
+/* ⚠️ YEŞİL BANT — iddaa'da sayfanın tepesi marka renginde bir
+   bant, başlık ve sayılar onun üstünde beyaz durur. Tam genişlik için
+   negatif kenar boşluğu: Streamlit'in kap dolgusunu taşar. */
 .v2ph{display:flex;align-items:flex-end;justify-content:space-between;
-  gap:var(--s5);flex-wrap:wrap;padding:0 0 var(--s3);margin:0 0 var(--s4);
-  border-bottom:1px solid var(--line-2);}
+  gap:var(--s5);flex-wrap:wrap;
+  background:var(--marka-bar);
+  margin:calc(var(--s4) * -1) calc(var(--s6) * -1) var(--s4);
+  padding:var(--s4) var(--s6) var(--s3);border-bottom:3px solid var(--marka-bar-2);}
 .v2ph .sol h1{margin:0;font-size:var(--t-sayfa);font-weight:700;
-  letter-spacing:-0.02em;color:var(--ink);line-height:1.2;}
-.v2ph .sol p{margin:4px 0 0;font-size:var(--t-alt);color:var(--muted);
+  letter-spacing:-0.02em;color:#ffffff;line-height:1.2;}
+.v2ph .sol p{margin:4px 0 0;font-size:var(--t-alt);color:#ffffff;
   max-width:64ch;}
 .v2ph .sag{display:flex;gap:var(--s5);flex-wrap:wrap;}
 .v2kpi{display:flex;flex-direction:column;gap:2px;align-items:flex-end;}
@@ -628,6 +648,15 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   text-transform:uppercase;color:var(--muted);font-weight:var(--w-etiket);}
 .v2kpi b{font-size:var(--t-okuma);font-weight:500;color:var(--ink);
   line-height:1.15;}
+/* ⚠️ BANTTA HER ŞEY BEYAZ — ölçüldü, seçenek yoktu.
+   #008641 zemininde 4,5 eşiğini saf beyaz DIŞINDA hiçbir ton geçmiyor:
+   en açık yeşil ton #ecfdf3 bile 4,44, kırmızı tonların en iyisi 4,25.
+   KPI değeri 18px/500 — WCAG'de "büyük metin" değil (24px ya da 18,66px
+   kalın gerekir), yani 3,x'lik tonlar kullanılamaz.
+   Artı/eksi ayrımını RENK değil, sayının kendi işareti taşıyor
+   (+%12,3 / −%4,1) — zaten her değerde yazılı. */
+.v2ph .v2kpi span,.v2ph .v2kpi b,
+.v2ph .v2kpi b.ps,.v2ph .v2kpi b.ng{color:#ffffff;}
 .v2kpi b.ps{color:var(--pos);} .v2kpi b.ng{color:var(--neg);}
 
 /* ── ÜST DURUM ŞERİDİ ─────────────────────────────────── */
@@ -719,27 +748,58 @@ table.v2,table.v2 td,table.v2 .ag,.v2mb,.vd,.pick,.pick *,
   border-radius:var(--r);margin-bottom:var(--s4);
   box-shadow:0 1px 2px rgba(13,22,32,.04);}
 .v2head{display:flex;justify-content:space-between;align-items:baseline;
-  gap:var(--s3);padding:var(--s3) 20px;border-bottom:1px solid var(--line);
-  background:var(--panel-2);border-radius:var(--r) var(--r) 0 0;}
-.v2head h2{margin:0;font-size:var(--t-kart);font-weight:700;
-  letter-spacing:-0.01em;color:var(--ink);}
-.v2head .hint{font-size:var(--t-etiket);color:var(--muted);
+  /* ⚠️ BÜLTEN BAŞLIĞI: iddaa'da lig adı koyu şeritte beyaz yazar.
+     Kart başlığı o şeridin karşılığı — bölümün nerede başladığı bir
+     renk tonuyla değil, net bir bantla belli olsun. */
+  gap:var(--s3);padding:7px 14px;border-bottom:0;
+  background:var(--serit);border-radius:0;}
+.v2head h2{margin:0;font-size:var(--t-govde);font-weight:600;
+  letter-spacing:0;color:var(--serit-ink);}
+.v2head .hint{font-size:var(--t-etiket);color:var(--serit-dim);
   letter-spacing:var(--ls-etiket);font-weight:var(--w-etiket);
   text-transform:uppercase;white-space:nowrap;}
 .v2body{padding:var(--kart-ic);overflow-x:auto;}
 
 /* ── TABLO ─────────────────────────────────────────────── */
+/* ⚠️ .v2tbl HİÇ TANIMLI DEĞİLDİ. Sayfalar (Toto karne, lig kırılımı,
+   Proje · Ölçüm'ün dört tablosu, Proje · Kurallar) bu sınıfı yazıyor
+   ama stil yoktu: tarayıcı varsayılanına düşüyorlardı — çerçeveli,
+   seyrek, ürünün geri kalanıyla alakasız. Kullanıcının "ilkel ve
+   karışık" dediği şeyin bir kısmı buydu.
+   Bülten dili: koyu sütun şeridi, almaşık satır zemini, sıkı satır. */
+table.v2tbl{width:100%;border-collapse:collapse;table-layout:auto;
+  font-size:var(--t-govde);}
+table.v2tbl th{font-size:var(--t-kucuk);letter-spacing:.02em;font-weight:500;
+  color:var(--serit-ink);background:var(--serit);text-align:left;
+  white-space:nowrap;padding:6px 10px;border:0;}
+table.v2tbl td{padding:var(--satir-y) 10px;border-bottom:1px solid var(--line);
+  color:var(--ink);vertical-align:middle;}
+table.v2tbl tbody tr:nth-child(even){background:var(--satir-alt);}
+table.v2tbl tbody tr:hover{background:var(--brand-fill);}
+table.v2tbl tbody tr:last-child td{border-bottom:0;}
+/* Sayılar sağa, mono: bülten oran sütunu gibi hizalı okunsun. */
+table.v2tbl td:not(:first-child),table.v2tbl th:not(:first-child){
+  text-align:right;}
+table.v2tbl td:not(:first-child){
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-variant-numeric:tabular-nums;}
+table.v2tbl .ps{color:var(--pos);} table.v2tbl .ng{color:var(--neg);}
 table.v2{width:100%;border-collapse:collapse;table-layout:auto;}
-table.v2 th{font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
-  text-transform:uppercase;color:var(--muted);font-weight:var(--w-etiket);
-  text-align:left;white-space:nowrap;padding:0 var(--s3) 9px 0;
-  border-bottom:1px solid var(--line-2);}
+/* Sütun başlığı: iddaa'da koyu bantta, 12px/500 */
+table.v2 th{font-size:var(--t-kucuk);letter-spacing:.02em;
+  color:var(--serit-ink);font-weight:500;background:var(--serit);
+  text-align:left;white-space:nowrap;padding:6px var(--s3) 6px 8px;
+  border-bottom:0;position:sticky;top:0;}
 table.v2 th:last-child,table.v2 td:last-child{padding-right:0;}
 table.v2 th.r,table.v2 td.r{text-align:right;}
-table.v2 td{padding:var(--satir-y) var(--s3) var(--satir-y) 0;
+table.v2 td{padding:var(--satir-y) var(--s3) var(--satir-y) 8px;
   border-bottom:1px solid var(--line);font-size:var(--t-govde);
   color:var(--ink);vertical-align:middle;}
-table.v2 tbody tr:hover{background:var(--panel-2);}
+/* Almaşık zemin: iddaa satırları çizgiyle değil zeminle ayrılıyor.
+   Ölçülen zemin (#E8EDEF) burada biraz açıldı (#eef2f4) — bu sistemde
+   satırların üstünde ÇİZGİ de var, ikisi birden fazla gürültü yapıyordu. */
+table.v2 tbody tr:nth-child(even){background:var(--satir-alt);}
+table.v2 tbody tr:hover{background:var(--brand-fill);}
 table.v2 tbody tr:last-child td{border-bottom:0;}
 table.v2 td.n{font-size:var(--t-govde);}
 table.v2 .rk{font-size:var(--t-kucuk);color:var(--muted);width:20px;
@@ -1020,6 +1080,9 @@ div[data-testid="column"]:last-child{padding-right:0;}
   font-size:var(--t-etiket);font-weight:700;letter-spacing:var(--ls-etiket);
   color:var(--brand);
   background:var(--brand-fill);padding:2px 7px;border-radius:var(--r);}
+/* Bantta çip: yeşil zeminde yeşil dolgu kaybolur — beyaz çerçeveli. */
+.v2ph .v2ph-ust .perde{color:#ffffff;background:rgba(255,255,255,.18);}
+.v2ph .v2ph-ust .sf{color:#ffffff;}
 .v2ph-ust .sf{font-family:"JetBrains Mono",monospace;
   font-size:var(--t-etiket);letter-spacing:var(--ls-etiket);
   font-weight:var(--w-etiket);text-transform:uppercase;color:var(--muted);}
