@@ -104,6 +104,18 @@ def al() -> None:
             'CREATE INDEX IF NOT EXISTS ix_ca_mac ON cl_anlik (mac_id, ts)',
             'CREATE INDEX IF NOT EXISTS ix_mv_idd ON matches_v2 '
             '(external_id_iddaa)',
+            # ⚠️ YUKARIDAKİ SÜTUN İNDEKSİ YETMİYOR — ölçüldü. Pazar/SWAT
+            # üreteçleri maçı CAST'li eşitlikle buluyor:
+            #   ON CAST(mv.external_id_iddaa AS TEXT)
+            #    = CAST(mo.iddaa_event_id AS TEXT)
+            # İfadeye sarılmış sütun artık sütun referansı DEĞİL, bu yüzden
+            # ix_mv_idd kullanılamıyor: plan "SCAN mv" oluyor ve 68 bin
+            # fiyat satırı × 10 bin maç iç içe dönüyor (ölçüm: tek üreteç
+            # 594 sn, denetimin %98'i). Aynı ifadeyi indeksleyince plan
+            # "SEARCH mv USING INDEX ix_mv_idd_txt" oluyor → 0,12 sn.
+            # SQL'e dokunulmuyor: üretim (PostgreSQL) sorgusu aynı kalır.
+            'CREATE INDEX IF NOT EXISTS ix_mv_idd_txt ON matches_v2 '
+            '(CAST(external_id_iddaa AS TEXT))',
             'CREATE INDEX IF NOT EXISTS ix_pb_mac ON paper_bets (match_id)',
         ):
             try:

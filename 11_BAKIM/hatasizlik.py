@@ -22,7 +22,13 @@ DURUR — yanlış veritabanında "hatasız" demek, denetim yapmamaktan kötüd�
 davranışlar (INSERT OR IGNORE, ON CONFLICT) burada üretimdeki gibi
 davranmaz. Şema aşaması bunu ayrıca raporlar.
 
-Kullanım:  python 11_BAKIM/hatasizlik.py
+Kullanım:
+  python 11_BAKIM/hatasizlik.py            tam denetim — COMMIT ÖNCESİ bu
+  python 11_BAKIM/hatasizlik.py --hizli    üreteç aşamasını ATLAR (geliştirme)
+
+Her satırın süresi ölçülür ve en pahalı adımlar sonda listelenir: darboğaz
+dışarıdan ölçülmeden görünür olsun. Ölçüm için önizleme sunucusu (streamlit,
+port 8610) KAPALI olmalı — açıkken SQLite kilidi denetimi yavaşlatır.
 """
 from __future__ import annotations
 
@@ -30,6 +36,7 @@ import contextlib
 import io
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 
@@ -45,11 +52,13 @@ for _d in sorted(KOK.iterdir()):
             sys.path.append(p)
 
 GECTI, KALDI, ATLANDI = "GEÇTİ", "KALDI", "atlandı"
-_sonuc: list[tuple[str, str, str, str]] = []     # (aşama, ad, durum, not)
+# (aşama, ad, durum, not, süre sn)
+_sonuc: list[tuple[str, str, str, str, float]] = []
 
 
-def _ekle(asama: str, ad: str, durum: str, not_: str = "") -> None:
-    _sonuc.append((asama, ad, durum, not_))
+def _ekle(asama: str, ad: str, durum: str, not_: str = "",
+          sure: float = 0.0) -> None:
+    _sonuc.append((asama, ad, durum, not_, sure))
 
 
 def _kisa(e: BaseException) -> str:
@@ -71,13 +80,20 @@ class _Yutucu(io.StringIO):
 
 
 def _sessiz(fn, *a, **k):
-    """Çağır, çıktıyı yut, (sonuç, hata) döndür."""
+    """Çağır, çıktıyı yut, (sonuç, hata, süre) döndür.
+
+    Süre her çağrıda ölçülür: darboğaz aramak için denetimi dışarıdan
+    profillemek gerekmesin. 15.11.2026'da üreteç aşaması 9 dakikalık komut
+    sınırını aştı ve hangi adımın yediği ancak ayrı bir ölçüm betiğiyle
+    bulunabildi — o betik artık gereksiz, sayı raporun içinde.
+    """
+    t0 = time.perf_counter()
     try:
         with contextlib.redirect_stdout(_Yutucu()), \
              contextlib.redirect_stderr(_Yutucu()):
-            return fn(*a, **k), None
+            return fn(*a, **k), None, time.perf_counter() - t0
     except BaseException as e:            # SystemExit dahil — sayfa sys.exit ederse de yakala
-        return None, e
+        return None, e, time.perf_counter() - t0
 
 
 # ----------------------------------------------------------------------
@@ -95,6 +111,54 @@ def _kilitle() -> str:
         sys.exit("DENETİM DURDU: bağlantı PostgreSQL'e çözümleniyor. "
                  "Üretim verisinde denetim koşulmaz.")
     return str(anlik)
+
+
+# Denetim indeksleri — ui_onizleme_al.py yeni görüntüleri bunlarla kurar;
+# burada ELDEKİ görüntü için de kurulur, 300 MB'ı yeniden çekmek gerekmesin.
+#
+# ⚠️ ix_mv_idd (düz sütun indeksi) BU İŞİ GÖRMÜYOR: pazar/SWAT üreteçleri
+# maçı CAST'li eşitlikle buluyor (CAST(mv.external_id_iddaa AS TEXT) =
+# CAST(mo.iddaa_event_id AS TEXT)); ifadeye sarılı sütun için SQLite sütun
+# indeksini KULLANAMIYOR, plan "SCAN mv" oluyor. Ölçüldü (15.11.2026):
+#   indeks yok  → pazar üreteci 594 sn   (denetimin %98'i)
+#   ifade indeksi → 0,12 sn              (yaklaşık 5000 kat)
+# Sadece PLAN değişir, SQL ve sonuç aynı kalır: üretim sorgusuna dokunulmaz.
+DENETIM_INDEKS = (
+    "CREATE INDEX IF NOT EXISTS ix_mv_idd_txt ON matches_v2 "
+    "(CAST(external_id_iddaa AS TEXT))",
+    "CREATE INDEX IF NOT EXISTS ix_mo_mk ON market_odds (market)",
+)
+
+
+def _indeks_kur(yol: str) -> str:
+    """Anlık görüntüde denetim indekslerini garantiye al — (durum metni)."""
+    import sqlite3
+    try:
+        c = sqlite3.connect(yol, timeout=5)
+    except Exception as e:
+        return f"⚠️ indeks kurulamadı ({_kisa(e)}) — denetim YAVAŞ koşacak"
+    try:
+        var = {r[0] for r in c.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'")}
+        yeni, t0 = [], time.perf_counter()
+        for sql in DENETIM_INDEKS:
+            ad = sql.split("EXISTS ")[1].split(" ON ")[0]
+            if ad in var:
+                continue
+            c.execute(sql)
+            yeni.append(ad)
+        c.commit()
+        if not yeni:
+            return "indeks: hazır"
+        return (f"indeks kuruldu: {', '.join(yeni)} "
+                f"({time.perf_counter() - t0:.2f} sn)")
+    except Exception as e:
+        # Kilit (önizleme sunucusu açık) ya da eski SQLite → denetim yine
+        # koşsun, ama SESSİZ kalmasın: yavaşlığın nedeni görünür olmalı.
+        return (f"⚠️ indeks kurulamadı ({_kisa(e)}) — denetim YAVAŞ koşacak; "
+                f"önizleme sunucusu (port 8610) açıksa kapatın")
+    finally:
+        c.close()
 
 
 # ----------------------------------------------------------------------
@@ -124,11 +188,11 @@ def asama_modul() -> None:
     import importlib
     for klasor, adlar in MODULLER:
         for ad in adlar:
-            _, hata = _sessiz(importlib.import_module, ad)
+            _, hata, sure = _sessiz(importlib.import_module, ad)
             if hata:
-                _ekle("1 MODÜL", f"{klasor}/{ad}", KALDI, _kisa(hata))
+                _ekle("1 MODÜL", f"{klasor}/{ad}", KALDI, _kisa(hata), sure)
             else:
-                _ekle("1 MODÜL", f"{klasor}/{ad}", GECTI)
+                _ekle("1 MODÜL", f"{klasor}/{ad}", GECTI, "", sure)
 
 
 # ----------------------------------------------------------------------
@@ -150,6 +214,21 @@ def asama_sayfa() -> None:
     else:
         _ekle("2 SAYFA", "açılış sayfası", KALDI,
               f"ACILIS={_ac!r} SAYFA_TANIM'da yok")
+    # ⚠️ SAAT DİLİMİ TEK SAYI OLMALI. app_v2._TR_FARK ile
+    # kupon_fisi.TR_FARKI_SAAT ayrı yerlerde duruyor; ayrışırlarsa aynı
+    # maç iki sayfada iki farklı saatte görünür ve kullanıcı maçı
+    # bültende bulamaz (yaşandı 15.11.2026: kupon fişi UTC basıyordu,
+    # maçlar 3 saat erken görünüyordu).
+    try:
+        import kupon_fisi as _KF
+        a, b = getattr(APP, "_TR_FARK", None), getattr(_KF, "TR_FARKI_SAAT", None)
+        if a is not None and a == b:
+            _ekle("2 SAYFA", "saat dilimi tutarlılığı", GECTI, f"UTC+{a}")
+        else:
+            _ekle("2 SAYFA", "saat dilimi tutarlılığı", KALDI,
+                  f"app_v2._TR_FARK={a} ≠ kupon_fisi.TR_FARKI_SAAT={b}")
+    except Exception as e:
+        _ekle("2 SAYFA", "saat dilimi tutarlılığı", KALDI, _kisa(e))
     for bolum, sayfalar in APP.SAYFA_TANIM:
         for giris in sayfalar:
             ad, fn = giris[0], giris[1]
@@ -157,15 +236,15 @@ def asama_sayfa() -> None:
             # döner. Sadece istisnaya bakmak onları denetlenemez kılıyordu;
             # yutulan hata app_v2._SAYFA_HATA'ya yazılıyor, onu da okuyoruz.
             _once = len(getattr(APP, "_SAYFA_HATA", ()))
-            _, hata = _sessiz(fn)
+            _, hata, sure = _sessiz(fn)
             _yutulan = list(getattr(APP, "_SAYFA_HATA", ()))[_once:]
             if hata:
-                _ekle("2 SAYFA", f"{bolum} · {ad}", KALDI, _kisa(hata))
+                _ekle("2 SAYFA", f"{bolum} · {ad}", KALDI, _kisa(hata), sure)
             elif _yutulan:
                 _ekle("2 SAYFA", f"{bolum} · {ad}", KALDI,
-                      "yutulan hata: " + _yutulan[0][1][:160])
+                      "yutulan hata: " + _yutulan[0][1][:160], sure)
             else:
-                _ekle("2 SAYFA", f"{bolum} · {ad}", GECTI)
+                _ekle("2 SAYFA", f"{bolum} · {ad}", GECTI, "", sure)
 
 
 # ----------------------------------------------------------------------
@@ -235,13 +314,14 @@ def asama_kendi_testi() -> None:
         if fn is None:
             _ekle("3 KENDİ TESTİ", ad, ATLANDI, "kendi_testi yok")
             continue
-        r, hata = _sessiz(fn)
+        r, hata, sure = _sessiz(fn)
         if hata:
-            _ekle("3 KENDİ TESTİ", ad, KALDI, _kisa(hata))
+            _ekle("3 KENDİ TESTİ", ad, KALDI, _kisa(hata), sure)
         elif r:
-            _ekle("3 KENDİ TESTİ", ad, KALDI, f"{len(r)} sorun: {r[0][:80]}")
+            _ekle("3 KENDİ TESTİ", ad, KALDI,
+                  f"{len(r)} sorun: {r[0][:80]}", sure)
         else:
-            _ekle("3 KENDİ TESTİ", ad, GECTI)
+            _ekle("3 KENDİ TESTİ", ad, GECTI, "", sure)
 
 
 # ----------------------------------------------------------------------
@@ -255,6 +335,12 @@ def asama_uretec() -> None:
     except Exception as e:
         _ekle("4 ÜRETEÇ", "agents içe aktarma", KALDI, _kisa(e))
         return
+    # 🧺 MAÇ HAVUZU — aşama boyunca BİR KEZ okunur ve bütün motor-ailesi
+    # üreteçlerine (engine/confirm/value/midband/joker/sistem) aynı liste
+    # geçer. Ölçüldü: 300 maç × 112 sütun = 0,04 sn, yani havuzu ajan başına
+    # yeniden okumak darboğaz DEĞİLDİ; darboğaz pazar üretecinin kendi
+    # içindeki CAST'li JOIN'iydi (bkz. _indeks_kur).
+    t0 = time.perf_counter()
     c = sqlite3.connect(os.environ["BETAGENTS_SQLITE_PATH"])
     c.row_factory = sqlite3.Row
     M = [dict(r) for r in c.execute(
@@ -262,6 +348,9 @@ def asama_uretec() -> None:
         "AND closing_2>1.05 LIMIT 300")]
     c.close()
     eng = PaperEngine()
+    _ekle("4 ÜRETEÇ", "(maç havuzu · paylaşılan)", GECTI,
+          f"{len(M)} maç · {len(M[0]) if M else 0} sütun · bir kez okundu",
+          time.perf_counter() - t0)
     # mod → (fonksiyon, argümanlar). Veritabanına giden üreteçler (çarpan,
     # popüler, ters, konsey, turuncu) burada ATLANIR: canlı fiyat/yazar
     # akışı ister, anlık görüntüde yok. Onların sağlığı 1. aşamada
@@ -303,11 +392,16 @@ def asama_uretec() -> None:
                   "bu mod denetimde TANIMSIZ — sessizce motora düşmesin diye "
                   "açıkça kaldı yazılıyor; hatasizlik.py'ye dalı ekle")
             continue
-        r, hata = _sessiz(fn, *args)
+        # ⏱ Süre ajan başına yazılır. Mod bazında tek çağrı koşuyor (aynı
+        # modun ikinci ajanı atlanıyor), yani buradaki sayı "o üretecin bir
+        # çağrısı" demektir — üretimde aynı modda 5 ajan varsa canlı maliyet
+        # bunun 5 katıdır.
+        r, hata, sure = _sessiz(fn, *args)
         if hata:
-            _ekle("4 ÜRETEÇ", f"{mode} ({pid})", KALDI, _kisa(hata))
+            _ekle("4 ÜRETEÇ", f"{mode} ({pid})", KALDI, _kisa(hata), sure)
         else:
-            _ekle("4 ÜRETEÇ", f"{mode} ({pid})", GECTI, f"{len(r or [])} aday")
+            _ekle("4 ÜRETEÇ", f"{mode} ({pid})", GECTI,
+                  f"{len(r or [])} aday", sure)
 
 
 # ----------------------------------------------------------------------
@@ -361,55 +455,120 @@ def asama_bakim() -> None:
     except Exception as e:
         _ekle("6 BAKIM", "içe aktarma", KALDI, _kisa(e))
         return
-    r, hata = _sessiz(BK.kos)
+    r, hata, sure = _sessiz(BK.kos)
     if hata:
-        _ekle("6 BAKIM", "kos()", KALDI, _kisa(hata))
+        _ekle("6 BAKIM", "kos()", KALDI, _kisa(hata), sure)
         return
+    # Tek çağrı bütün kontrolleri koşuyor: süre ilk satıra yazılır, geri
+    # kalanı 0 görünür — satır başına ölçüm yokken sahte dağıtım yapmayalım.
+    ilk = sure
     for k in r["kontroller"]:
         d = k["durum"]
         durum = KALDI if d == "kirmizi" else (ATLANDI if d in ("sari", "bilgi") else GECTI)
-        _ekle("6 BAKIM", k["id"], durum, f"{k['ad']} = {k['deger']}")
+        _ekle("6 BAKIM", k["id"], durum, f"{k['ad']} = {k['deger']}", ilk)
+        ilk = 0.0
 
 
 # ----------------------------------------------------------------------
 # RAPOR
 # ----------------------------------------------------------------------
-def kos() -> int:
+ASAMALAR = (("1 MODÜL", asama_modul), ("2 SAYFA", asama_sayfa),
+            ("3 KENDİ TESTİ", asama_kendi_testi), ("4 ÜRETEÇ", asama_uretec),
+            ("5 ŞEMA", asama_sema), ("6 BAKIM", asama_bakim))
+
+# --hizli'nın atladığı aşamalar. Yalnız ÜRETEÇ: ölçüldü (15.11.2026), geri
+# kalan beş aşama toplam ~30 sn ve gerçek kırılmaları onlar yakalıyor —
+# atlanacak aşama "yavaş olan" değil, "yavaş olup az şey yakalayan"dır.
+HIZLI_ATLA = {"4 ÜRETEÇ"}
+
+
+def kos(hizli: bool = False) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     yol = _kilitle()
-    print("HATASIZLIK DENETİMİ")
-    print(f"veri: {yol}  (anlık görüntü — üretime bağlanılmaz)\n")
-    for ad, fn in (("1 MODÜL", asama_modul), ("2 SAYFA", asama_sayfa),
-                   ("3 KENDİ TESTİ", asama_kendi_testi), ("4 ÜRETEÇ", asama_uretec),
-                   ("5 ŞEMA", asama_sema), ("6 BAKIM", asama_bakim)):
+    print("HATASIZLIK DENETİMİ" + ("  ⚡ HIZLI KİP" if hizli else ""))
+    print(f"veri: {yol}  (anlık görüntü — üretime bağlanılmaz)")
+    print(f"{_indeks_kur(yol)}")
+    if hizli:
+        print("⚡ --hizli: " + ", ".join(sorted(HIZLI_ATLA)) +
+              " KOŞMAYACAK — bu TAM denetim değil, commit öncesi bayraksız koş")
+    print()
+    sureler: dict[str, float] = {}
+    for ad, fn in ASAMALAR:
+        if hizli and ad in HIZLI_ATLA:
+            # ⚠️ Atlanan aşama SATIR OLARAK yazılır. Sessizce geçilse
+            # raporda hiç görünmez ve "denetimden geçti" sanılır — denetimin
+            # yanlış yeşili, kırmızısından beterdir.
+            _ekle(ad, "(AŞAMA ATLANDI · --hizli)", ATLANDI,
+                  "koşmadı — tam denetim için bayrağı kaldır")
+            sureler[ad] = 0.0
+            continue
+        t0 = time.perf_counter()
         try:
             fn()
         except BaseException as e:
             _ekle(ad, "(aşama çöktü)", KALDI, _kisa(e))
             traceback.print_exc(limit=3)
+        sureler[ad] = time.perf_counter() - t0
 
     simge = {GECTI: "✓", KALDI: "✗", ATLANDI: "·"}
     asama_simdi = None
-    for asama, ad, durum, not_ in _sonuc:
+    for asama, ad, durum, not_, sure in _sonuc:
         if asama != asama_simdi:
-            print(f"\n── {asama} " + "─" * (62 - len(asama)))
+            print(f"\n── {asama} " +
+                  "─" * max(1, 54 - len(asama)) +
+                  f" {sureler.get(asama, 0.0):6.2f} sn")
             asama_simdi = asama
-        print(f"  {simge[durum]} {ad:34} {not_[:62]}")
+        # Süre yalnız anlamlıysa yazılır (0,05 sn altı gürültü).
+        s = f"{sure:6.2f}s " if sure >= 0.05 else " " * 8
+        print(f"  {simge[durum]} {ad:34}{s}{not_[:54]}")
 
     g = sum(1 for x in _sonuc if x[2] == GECTI)
     k = sum(1 for x in _sonuc if x[2] == KALDI)
     a = sum(1 for x in _sonuc if x[2] == ATLANDI)
+    atlanan = [x for x in _sonuc if x[2] == ATLANDI and "AŞAMA ATLANDI" in x[1]]
     print("\n" + "=" * 70)
     print(f"SONUÇ: {g} geçti · {k} KALDI · {a} atlandı  (toplam {len(_sonuc)})")
+    print(f"SÜRE : " + " · ".join(f"{ad.split(' ', 1)[1]} {s:.1f}sn"
+                                  for ad, s in sureler.items())
+          + f"  = {sum(sureler.values()):.1f} sn")
+    # 🐌 En pahalı adımlar: bir sonraki darboğaz ayrı betik gerektirmeden
+    # görünsün. 15.11.2026'da 594 sn'lik üreteç ancak elle profillenerek
+    # bulunmuştu.
+    pahali = sorted(_sonuc, key=lambda x: -x[4])[:5]
+    if pahali and pahali[0][4] >= 1.0:
+        print("\nEN PAHALI ADIMLAR:")
+        for asama, ad, _d, _n, sure in pahali:
+            if sure >= 1.0:
+                print(f"  {sure:7.2f} sn  [{asama}] {ad}")
     if k:
         print("\nKALANLAR:")
-        for asama, ad, durum, not_ in _sonuc:
+        for asama, ad, durum, not_, _s in _sonuc:
             if durum == KALDI:
                 print(f"  ✗ [{asama}] {ad} — {not_}")
-    else:
+    if atlanan:
+        # Hızlı kipte "HATASIZ" YAZILMAZ: atlanan aşama denetlenmiş değildir.
+        print("\n⚠️ TAM DENETİM DEĞİL — atlanan aşama: " +
+              ", ".join(x[0] for x in atlanan) +
+              "\n   commit öncesi: python 11_BAKIM/hatasizlik.py (bayraksız)")
+    elif not k:
         print("✅ HATASIZ — her aşama geçti.")
     return 1 if k else 0
 
 
+def _argv(arg: list[str]) -> bool:
+    """--hizli var mı? Tanınmayan bayrakta DUR.
+
+    ⚠️ Sessiz kabul etmiyoruz: "--hizl" yazan kullanıcı tam denetim koştuğunu
+    fark etmez, 10 dakika bekler ve aracı suçlar.
+    """
+    kalan = [a for a in arg if a not in ("--hizli", "-h", "--help", "--yardim")]
+    if kalan:
+        sys.exit(f"tanınmayan argüman: {' '.join(kalan)}\n"
+                 "kullanım: python 11_BAKIM/hatasizlik.py [--hizli]")
+    if {"-h", "--help", "--yardim"} & set(arg):
+        sys.exit(__doc__)
+    return "--hizli" in arg
+
+
 if __name__ == "__main__":
-    sys.exit(kos())
+    sys.exit(kos(hizli=_argv(sys.argv[1:])))

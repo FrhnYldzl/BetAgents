@@ -38,3 +38,20 @@ Sağlık › Defter sekmesini **tamamlar**: o kupon düzeyinde erken ödemeyi ya
 ```
 python 11_BAKIM/bakim_kontrol.py      # denetimi konsolda çalıştır (yazma yok)
 ```
+
+## hatasizlik.py — her sayfa, her modül, her üreteç
+
+```
+python 11_BAKIM/hatasizlik.py          # TAM denetim · commit öncesi bu (~45 sn)
+python 11_BAKIM/hatasizlik.py --hizli  # ÜRETEÇ aşamasını atlar (~30 sn)
+```
+
+`--hizli` geliştirme döngüsü için: atlanan aşama raporda `· (AŞAMA ATLANDI ·
+--hizli)` satırı olarak **görünür** ve sonda "TAM DENETİM DEĞİL" yazar —
+sessizce geçilse "denetimden geçti" sanılırdı. Commit öncesi bayraksız koşulur.
+
+Her satırın süresi ölçülür, en pahalı adımlar sonda listelenir: darboğaz ayrı
+bir profilleme betiği gerektirmeden görünür.
+
+⚠️ Ölçüm yaparken önizleme sunucusu (streamlit, port 8610) **kapalı** olmalı:
+açıkken SQLite kilidi denetimi belirgin şekilde yavaşlatır.
